@@ -5,10 +5,10 @@ prints the plan; `--arm` applies). Nothing in the UI is "connected" until this
 runs on the target machine.
 
 ## Decision on the theme (context)
-We are **not** forking WhiteSur. It's GPL-3.0, which would force the whole
-project to stay copyleft and credit upstream — a tailoring constraint we don't
-want. We keep our own `ui/theme/macos-tokens.css`, which already matches the
-macOS metrics with no license strings. Full freedom to change anything.
+We **vendor WhiteSur** (`vendor/WhiteSur-gtk-theme`) as the shell theme base. It
+is **MIT** (an earlier note wrongly said GPL-3.0), so using its source imposes no
+copyleft — only keep its notice (`THIRD-PARTY.md`). Our
+`ui/theme/macos-tokens.css` sits on top for FreeForm's own accent/metrics.
 
 ## 1. Auto Mullvad connection
 - `mullvad auto-connect set on` → connects on boot.

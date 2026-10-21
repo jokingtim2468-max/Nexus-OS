@@ -10,7 +10,7 @@ set of **our** tokens — not Apple's files.
 | macOS **metrics** (text sizes, control heights, radii, spacing, menu-bar height) | Yes — these are published numbers/behaviour | Re-expressed as open tokens in `ui/theme/macos-tokens.css` |
 | **SF Pro** font | No — Apple-licensed, can't ship on Linux | Use **Inter** (free, near-identical); `-apple-system` still wins on a real Mac |
 | macOS **wallpapers** | No — copyrighted images | CSS recreation; user drops in their own licensed file |
-| **WhiteSur** theme code | Yes, *with conditions* | It's **GPL-3.0**. A fork is allowed but must stay GPL-3.0 and credit vinceliuice. See below. |
+| **WhiteSur** theme code | Yes — it's **MIT** | Vendored at `vendor/WhiteSur-gtk-theme`. MIT only requires keeping their copyright notice (see `THIRD-PARTY.md`); FreeForm need NOT be GPL/open. (Corrects an earlier GPL-3.0 note.) |
 
 ## The tokens (`ui/theme/macos-tokens.css`)
 
@@ -27,19 +27,15 @@ macOS standard (AppKit) values, applied to the shell:
 Applied in `ui/desktop/index.html`: menu bar is now 24px / 14px text, body is
 13px, font stack leads with `-apple-system` then Inter.
 
-## Using WhiteSur properly (if we fork it)
+## Using WhiteSur (now vendored)
 
-WhiteSur-gtk-theme (github.com/vinceliuice/WhiteSur-gtk-theme) is the closest
-"macOS on Linux" theme and is **GPL-3.0-only**. If we base our GTK/shell theme
-on it:
-1. Keep the derivative **GPL-3.0** and include their `LICENSE` + a NOTICE
-   crediting vinceliuice.
-2. Track what we changed (our accent, radii, our wallpaper).
-3. Don't mix it into MIT/proprietary parts of the project without checking
-   compatibility.
-
-This is why I didn't bulk-copy their repo in — a fork needs to be done as a
-proper GPL fork, not a silent paste. Say the word and I'll set it up that way.
+WhiteSur-gtk-theme (github.com/vinceliuice/WhiteSur-gtk-theme) is **MIT**, not
+GPL (an earlier note here was wrong). It's vendored as a git submodule at
+`vendor/WhiteSur-gtk-theme`, and we build our macOS-style shell theme on its
+source. MIT only requires preserving their copyright/permission notice — kept in
+`THIRD-PARTY.md` — so FreeForm itself stays whatever license we choose (it does
+NOT have to be GPL/open). Our `ui/theme/macos-tokens.css` remains the layer where
+we set FreeForm's own accent, radii and wallpaper on top.
 
 ## Privacy stack — Mullvad + Tor (design, NOT yet built)
 

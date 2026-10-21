@@ -65,6 +65,7 @@ python3 apps/freefetch/freefetch.py --logo kali
 
 ## Note on the UI origin
 
-The shell's look matches macOS, built from **our own tokens**
-(`ui/theme/macos-tokens.css`) — not a copy of WhiteSur's GPL-3.0 code, so the
-whole project stays freely tailorable. Same look, legally ours.
+The shell's look is built on **WhiteSur** (vendored at
+`vendor/WhiteSur-gtk-theme`, **MIT**), with `ui/theme/macos-tokens.css` layering
+FreeForm's own accent/metrics on top. MIT lets us use their source freely; see
+`THIRD-PARTY.md`.
