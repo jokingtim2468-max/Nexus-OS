@@ -1,0 +1,73 @@
+{
+  "_comment": "Freeform OS distro loader registry. 'recommended' distros show in the loader. To add your OWN distro: drop an .iso / rootfs / manifest file into distros/custom/ and add an entry under 'custom' (or let the loader auto-detect files there). 'file' is relative to the distros/ folder; leave blank to download from 'url' on first use.",
+  "default": "ubuntu",
+  "recommended": [
+    {
+      "id": "ubuntu",
+      "name": "Ubuntu",
+      "edition": "24.04 LTS",
+      "logo": "ubuntu",
+      "accent": "#e95420",
+      "commands": "commands/ubuntu.json",
+      "file": "",
+      "url": "https://releases.ubuntu.com/24.04/ubuntu-24.04-desktop-amd64.iso",
+      "desc": "Beginner-friendly, huge driver + package support."
+    },
+    {
+      "id": "kali",
+      "name": "Kali Linux",
+      "edition": "2024.x",
+      "logo": "kali",
+      "accent": "#367bf0",
+      "commands": "commands/kali.json",
+      "file": "",
+      "url": "https://cdimage.kali.org/current/",
+      "desc": "Penetration testing / security tooling (600+ tools)."
+    },
+    {
+      "id": "debian",
+      "name": "Debian",
+      "edition": "12 Bookworm",
+      "logo": "generic",
+      "accent": "#d70a53",
+      "commands": "commands/debian.json",
+      "file": "",
+      "url": "https://www.debian.org/distrib/",
+      "desc": "Rock-stable base that Ubuntu/Kali are built on."
+    },
+    {
+      "id": "fedora",
+      "name": "Fedora",
+      "edition": "Workstation 40",
+      "logo": "generic",
+      "accent": "#3c6eb4",
+      "commands": "commands/fedora.json",
+      "file": "",
+      "url": "https://fedoraproject.org/workstation/",
+      "desc": "Cutting-edge, dnf-based."
+    },
+    {
+      "id": "arch",
+      "name": "Arch Linux",
+      "edition": "rolling",
+      "logo": "generic",
+      "accent": "#1793d1",
+      "commands": "commands/arch.json",
+      "file": "",
+      "url": "https://archlinux.org/download/",
+      "desc": "Minimal, build-it-yourself, pacman."
+    },
+    {
+      "id": "mint",
+      "name": "Linux Mint",
+      "edition": "22",
+      "logo": "generic",
+      "accent": "#86be43",
+      "commands": "commands/ubuntu.json",
+      "file": "",
+      "url": "https://linuxmint.com/download.php",
+      "desc": "Ubuntu-based, very approachable."
+    }
+  ],
+  "custom": []
+}
