@@ -40,24 +40,35 @@
   --control-h-mini:   15px;
   --control-pad-x:    10px;
 
-  /* ---- Corner radii ---- */
-  --radius-control:  6px;    /* buttons, fields          */
-  --radius-menu:     10px;   /* menus / popovers (Big Sur+)*/
-  --radius-window:   11px;   /* window corners           */
-  --radius-tile:     12px;   /* control-center tiles     */
+  /* ---- Corner radii — WhiteSur src/sass/_variables.scss ---- */
+  --radius-control:  6px;    /* $bt_radius  (buttons, fields) */
+  --radius-bd:       8px;    /* $bd_radius  (base border)     */
+  --radius-window:   12px;   /* $wm_radius  (window corners)  */
+  --radius-menu:     14px;   /* $mn_radius  (menus)           */
+  --radius-popover:  16px;   /* $po_radius  (popovers)        */
+  --radius-dock:     24px;   /* $dash_radius (dock/dash)      */
+  --radius-tile:     12px;   /* control-center tiles          */
 
   /* ---- Chrome sizes ---- */
   --menubar-h:   24px;       /* macOS menu bar height    */
   --dock-icon:   52px;       /* default dock icon size (user-adjustable 16–128) */
   --dock-pad:    6px;
 
-  /* ---- System accent (default "Blue") & semantic ---- */
-  --sys-blue:   #0a84ff;
-  --sys-green:  #32d74b;
-  --sys-red:    #ff453a;
-  --sys-orange: #ff9f0a;
-  --sys-yellow: #ffd60a;
-  --sys-gray:   #98989d;
+  /* ---- System accent & semantic — ported from WhiteSur src/sass
+         (_colors-palette.scss). These are WhiteSur's exact theme colors. ---- */
+  --sys-blue:   #0860F2;   /* $theme_color_default (WhiteSur accent) */
+  --sys-blue2:  #2E7CF7;   /* $theme_color_blue    */
+  --sys-green:  #79B757;   /* $theme_color_green   */
+  --sys-red:    #ED5F5D;   /* $theme_color_red     */
+  --sys-orange: #E9873A;   /* $theme_color_orange  */
+  --sys-yellow: #F3BA4B;   /* $theme_color_yellow  */
+  --sys-purple: #9A57A3;   /* $theme_color_purple  */
+  --sys-pink:   #E55E9C;   /* $theme_color_pink    */
+  --sys-gray:   #8C8C8C;   /* $theme_color_grey    */
+
+  /* WhiteSur base surfaces (_colors.scss) */
+  --ws-dark-base:  #242424;  --ws-dark-bg:  #333333;  --ws-dark-fg:  #dedede;
+  --ws-light-base: #ffffff;  --ws-light-bg: #f5f5f5;  --ws-light-fg: #242424;
 
   /* ---- Materials (vibrancy) — matches our Liquid Glass tokens ---- */
   --material-blur: 22px;

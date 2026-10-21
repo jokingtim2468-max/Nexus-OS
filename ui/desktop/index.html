@@ -26,11 +26,12 @@
     --text:      rgba(255,255,255,0.95);
     --text-dim:  rgba(255,255,255,0.55);
     --sep:       rgba(255,255,255,0.14);
-    --accent:    #0a84ff;
-    --accent-grad: linear-gradient(180deg,#3a9bff 0%,#0a84ff 100%);
-    --green:     #32d74b;
+    /* accent/green/radii ported from WhiteSur src/sass (see ui/theme/macos-tokens.css) */
+    --accent:    #0860F2;   /* WhiteSur $theme_color_default */
+    --accent-grad: linear-gradient(180deg,#2E7CF7 0%,#0860F2 100%);
+    --green:     #79B757;   /* WhiteSur $theme_color_green */
     --shadow: 0 1px 1px rgba(0,0,0,.10), 0 12px 28px rgba(0,0,0,.38), 0 2px 6px rgba(0,0,0,.22);
-    --menu-radius:16px; --item-radius:9px;
+    --menu-radius:14px; --item-radius:9px;  /* WhiteSur $mn_radius = 14px */
   }
   :root[data-theme="light"] {
     --glass-tint:     rgba(255,255,255,0.55);
@@ -126,7 +127,7 @@
 
   /* ---------------- Dock ---------------- */
   .dock-wrap { position:fixed; left:0; right:0; bottom:10px; display:flex; justify-content:center; z-index:40; pointer-events:none; }
-  .dock { pointer-events:auto; display:flex; align-items:flex-end; gap:8px; padding:8px 10px; border-radius:22px;
+  .dock { pointer-events:auto; display:flex; align-items:flex-end; gap:8px; padding:8px 10px; border-radius:24px;
     background:var(--glass-tint); -webkit-backdrop-filter:blur(24px) saturate(180%) brightness(1.08); backdrop-filter:blur(24px) saturate(180%) brightness(1.08);
     border:1px solid var(--glass-rim-soft); box-shadow:var(--shadow); position:relative; }
   .dock::before { content:""; position:absolute; inset:0; border-radius:inherit; padding:1px;
