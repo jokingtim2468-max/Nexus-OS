@@ -92,3 +92,37 @@ covered — expected, since it's paravirtualized hardware.
 - [ ] Implement the macOS backend (`ioreg -l`, nodes without an `IOService`).
 - [ ] Map a vendor/device ID → human name table (bundle a trimmed pci.ids/usb.ids).
 - [ ] Prototype device-class generic drivers for USB HID + mass storage.
+
+---
+
+## Desktop & distro strategy (2026-10-21)
+
+Decision direction from the owner: **Mac-style look on a Linux base, with
+dual-boot.** This is sound and buildable.
+
+### "Can we use a Mac container?"
+There is no drop-in that converts Linux into macOS. The honest options:
+
+| Option        | What it is                               | Verdict for Nexus OS |
+|---------------|------------------------------------------|----------------------|
+| Themed Linux  | Linux + a Mac-style shell (our UI)       | ✅ the real plan — free, uses all Linux drivers |
+| `Docker-OSX`  | Real macOS in a KVM VM                    | ⚠️ heavy, Apple-hardware licensing; use only to *run* a mac app |
+| `Darling`     | "Wine for macOS" translation layer        | ⚠️ partial; some CLI/apps only |
+
+**Plan:** Linux base + the Liquid Glass shell in `ui/desktop/` as the face of
+the OS. Dual-boot handled by GRUB (install alongside an existing OS). Because
+the base is Linux, **most drivers already exist** — "implement drivers apps
+require" becomes "enable the kernel modules a given device/app needs," which the
+driver-checker (`apps/driver-checker/`) surfaces. Running actual macOS/Windows
+apps is the same foreign-ABI problem as drivers: prefer VM/passthrough, not
+native execution.
+
+### UI shell built so far (`ui/desktop/index.html`)
+- Top menu bar: Nexus menu, app menus (File/Edit/View/Go/Window/Help), and a
+  right cluster with battery, Wi-Fi, search, Control Center, and a **live clock**.
+- Liquid Glass **dock**: pinned apps (Finder, Terminal, Browser, Mail, Messages,
+  Music, Photos, Calendar, Settings, **Driver Checker**) with hover
+  magnification, running-app dots, and Trash.
+- Right-click action/context menu (New Folder, Get Info, Change Wallpaper, Sort
+  By →, Paste) in the same glass material.
+- Generic icons only — **no brand/Apple logos**. Light & dark themes.

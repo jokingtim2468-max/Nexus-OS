@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Nexus OS — Desktop</title>
+<style>
+  /* ============================================================
+     Nexus OS desktop shell — Liquid Glass
+     Top menu bar + bottom dock + right-click action menu.
+     Generic icons only (no brand logos).
+     ============================================================ */
+  :root {
+    --glass-tint:     rgba(255,255,255,0.10);
+    --glass-tint-hi:  rgba(255,255,255,0.22);
+    --glass-rim:      rgba(255,255,255,0.55);
+    --glass-rim-soft: rgba(255,255,255,0.14);
+    --bar-tint:       rgba(20,20,28,0.28);
+
+    --text:      rgba(255,255,255,0.95);
+    --text-dim:  rgba(255,255,255,0.55);
+    --sep:       rgba(255,255,255,0.14);
+    --accent:    #0a84ff;
+    --accent-grad: linear-gradient(180deg,#3a9bff 0%,#0a84ff 100%);
+    --shadow: 0 1px 1px rgba(0,0,0,.10), 0 12px 28px rgba(0,0,0,.38), 0 2px 6px rgba(0,0,0,.22);
+
+    --menu-radius:16px; --item-radius:9px;
+  }
+  :root[data-theme="light"] {
+    --glass-tint:     rgba(255,255,255,0.55);
+    --glass-tint-hi:  rgba(255,255,255,0.80);
+    --glass-rim:      rgba(255,255,255,0.95);
+    --glass-rim-soft: rgba(255,255,255,0.5);
+    --bar-tint:       rgba(255,255,255,0.45);
+    --text:      rgba(28,28,30,0.95);
+    --text-dim:  rgba(60,60,67,0.55);
+    --sep:       rgba(60,60,67,0.16);
+    --shadow: 0 1px 1px rgba(0,0,0,.06), 0 12px 30px rgba(0,0,0,.18), 0 2px 8px rgba(0,0,0,.10);
+  }
+
+  * { box-sizing:border-box; }
+  html,body { height:100%; margin:0; }
+  html { background:#06202e; }
+  :root[data-theme="light"] html { background:#eef2ff; }
+  body {
+    font:13px/1.2 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;
+    color:var(--text); overflow:hidden; user-select:none; -webkit-font-smoothing:antialiased;
+    background:
+      radial-gradient(120% 90% at 12% 8%, #ff6a3d 0%, transparent 42%),
+      radial-gradient(130% 100% at 88% 14%, #b14bff 0%, transparent 48%),
+      radial-gradient(120% 120% at 72% 96%, #16c2ff 0%, transparent 52%),
+      radial-gradient(100% 100% at 18% 92%, #00d68f 0%, transparent 48%),
+      linear-gradient(135deg,#1a1033 0%,#0a1230 60%,#06202e 100%);
+    background-attachment:fixed;
+  }
+  :root[data-theme="light"] body {
+    background:
+      radial-gradient(120% 90% at 12% 8%, #ffd27a 0%, transparent 42%),
+      radial-gradient(130% 100% at 88% 14%, #c9a7ff 0%, transparent 48%),
+      radial-gradient(120% 120% at 72% 96%, #9fe0ff 0%, transparent 52%),
+      radial-gradient(100% 100% at 18% 92%, #b5f5d8 0%, transparent 48%),
+      linear-gradient(135deg,#eef2ff 0%,#f6f1ff 60%,#eafaff 100%);
+    background-attachment:fixed;
+  }
+
+  /* ---------------- Top menu bar ---------------- */
+  .menubar {
+    position:fixed; top:0; left:0; right:0; height:30px; z-index:50;
+    display:flex; align-items:center; gap:18px; padding:0 14px;
+    background:var(--bar-tint);
+    -webkit-backdrop-filter:blur(22px) saturate(180%); backdrop-filter:blur(22px) saturate(180%);
+    border-bottom:1px solid var(--glass-rim-soft);
+    font-size:13px;
+  }
+  .menubar .brand { font-weight:700; }
+  .menubar .mitem { opacity:.9; cursor:default; padding:2px 4px; border-radius:5px; }
+  .menubar .mitem:hover { background:var(--glass-tint-hi); }
+  .menubar .strong { font-weight:600; }
+  .menubar .right { margin-left:auto; display:flex; align-items:center; gap:14px; }
+  .menubar .right .ri { display:flex; align-items:center; gap:5px; cursor:default; padding:2px 5px; border-radius:6px; }
+  .menubar .right .ri:hover { background:var(--glass-tint-hi); }
+  .menubar svg { width:16px; height:16px; display:block; }
+  .clock { font-variant-numeric:tabular-nums; }
+
+  /* ---------------- Desktop ---------------- */
+  .desk { position:fixed; inset:0; display:grid; place-items:center; text-align:center; pointer-events:none; }
+  .desk h1 { font-size:clamp(30px,6vw,64px); font-weight:700; letter-spacing:-.02em; margin:0; opacity:.9; text-shadow:0 2px 30px rgba(0,0,0,.25); }
+  .desk p  { margin:10px 0 0; font-size:15px; color:var(--text-dim); }
+
+  /* desktop file icon example (top-left) */
+  .deskicon { position:fixed; top:54px; right:28px; width:76px; text-align:center; cursor:default; }
+  .deskicon .glyph { width:52px; height:52px; margin:0 auto; border-radius:13px;
+    background:linear-gradient(180deg,#8ad7ff,#2f93e0); display:grid; place-items:center;
+    box-shadow:var(--shadow); }
+  .deskicon .glyph svg { width:30px; height:30px; }
+  .deskicon span { display:block; margin-top:5px; font-size:12px; text-shadow:0 1px 4px rgba(0,0,0,.5); }
+
+  /* ---------------- Dock ---------------- */
+  .dock-wrap { position:fixed; left:0; right:0; bottom:10px; display:flex; justify-content:center; z-index:40; pointer-events:none; }
+  .dock {
+    pointer-events:auto; display:flex; align-items:flex-end; gap:8px; padding:8px 10px;
+    border-radius:22px; background:var(--glass-tint);
+    -webkit-backdrop-filter:blur(24px) saturate(180%) brightness(1.08);
+            backdrop-filter:blur(24px) saturate(180%) brightness(1.08);
+    border:1px solid var(--glass-rim-soft); box-shadow:var(--shadow); position:relative;
+  }
+  .dock::before { /* specular rim */
+    content:""; position:absolute; inset:0; border-radius:inherit; padding:1px;
+    background:linear-gradient(150deg,var(--glass-rim) 0%,transparent 30%,transparent 72%,var(--glass-rim-soft) 100%);
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor; mask-composite:exclude; pointer-events:none;
+  }
+  .dock .app { position:relative; width:52px; height:52px; border-radius:14px; display:grid; place-items:center;
+    box-shadow:0 4px 10px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.25);
+    transition:transform .14s cubic-bezier(.2,.9,.3,1.2), margin .14s ease; cursor:pointer; }
+  .dock .app svg { width:30px; height:30px; }
+  .dock .app .dot { position:absolute; bottom:-7px; left:50%; transform:translateX(-50%); width:4px; height:4px; border-radius:50%; background:var(--text); opacity:.7; }
+  .dock .app .tip { position:absolute; bottom:64px; left:50%; transform:translateX(-50%) scale(.9);
+    padding:4px 9px; border-radius:8px; font-size:12px; white-space:nowrap; color:var(--text);
+    background:var(--glass-tint); -webkit-backdrop-filter:blur(16px) saturate(160%); backdrop-filter:blur(16px) saturate(160%);
+    border:1px solid var(--glass-rim-soft); box-shadow:var(--shadow); opacity:0; transition:opacity .12s ease, transform .12s ease; pointer-events:none; }
+  .dock .app:hover .tip { opacity:1; transform:translateX(-50%) scale(1); }
+  .dock .sep { width:1px; align-self:center; height:40px; margin:0 4px; background:var(--sep); }
+
+  /* ---------------- Action / context menu ---------------- */
+  .menu { position:fixed; min-width:230px; padding:6px; border-radius:var(--menu-radius); color:var(--text);
+    background:var(--glass-tint);
+    -webkit-backdrop-filter:blur(22px) saturate(180%) brightness(1.08); backdrop-filter:blur(22px) saturate(180%) brightness(1.08);
+    border:1px solid var(--glass-rim-soft); box-shadow:var(--shadow);
+    opacity:0; transform:scale(.94); transform-origin:top left;
+    transition:opacity .14s ease, transform .16s cubic-bezier(.2,.9,.3,1.2); z-index:100; }
+  .menu.open { opacity:1; transform:scale(1); }
+  .menu::before { content:""; position:absolute; inset:0; border-radius:inherit; padding:1px;
+    background:linear-gradient(150deg,var(--glass-rim) 0%,transparent 28%,transparent 72%,var(--glass-rim-soft) 100%);
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask-composite:exclude; pointer-events:none; }
+  .menu-item { position:relative; display:flex; align-items:center; gap:11px; padding:7px 11px; border-radius:var(--item-radius); cursor:default; white-space:nowrap; }
+  .menu-item .ico { width:17px; height:17px; flex:0 0 17px; opacity:.85; }
+  .menu-item .label { flex:1; }
+  .menu-item .shortcut { color:var(--text-dim); font-size:12px; }
+  .menu-item .chev { width:13px; height:13px; opacity:.6; }
+  .menu-item.hl { background:var(--accent-grad); color:#fff; box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 2px 8px rgba(10,132,255,.35); }
+  .menu-item.hl .ico,.menu-item.hl .shortcut,.menu-item.hl .chev { opacity:1; color:rgba(255,255,255,.9); }
+  .menu-sep { height:1px; margin:5px 9px; background:var(--sep); }
+</style>
+</head>
+<body>
+
+  <!-- ===== Top menu bar ===== -->
+  <div class="menubar">
+    <span class="brand">◆ Nexus</span>
+    <span class="mitem strong">Finder</span>
+    <span class="mitem">File</span>
+    <span class="mitem">Edit</span>
+    <span class="mitem">View</span>
+    <span class="mitem">Go</span>
+    <span class="mitem">Window</span>
+    <span class="mitem">Help</span>
+    <div class="right">
+      <span class="ri" title="Battery"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="8" width="16" height="9" rx="2.5"/><rect x="4" y="10" width="9" height="5" rx="1" fill="currentColor" stroke="none"/><path d="M20 11v3" stroke-width="2" stroke-linecap="round"/></svg></span>
+      <span class="ri" title="Wi-Fi"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 18.5a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2z"/><path d="M6.3 13.2a8 8 0 0 1 11.4 0l-1.7 1.7a5.6 5.6 0 0 0-8 0z" opacity=".95"/><path d="M3 9.9a12.5 12.5 0 0 1 18 0l-1.7 1.7a10.1 10.1 0 0 0-14.6 0z" opacity=".85"/></svg></span>
+      <span class="ri" id="searchBtn" title="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4" stroke-linecap="round"/></svg></span>
+      <span class="ri" id="ccBtn" title="Control Center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="4" width="16" height="16" rx="5"/><circle cx="9" cy="9" r="1.6" fill="currentColor"/><circle cx="15" cy="15" r="1.6" fill="currentColor"/><path d="M6.5 9h2M13 15h4.5M9 6.5v5M15 12.5v5" stroke-linecap="round"/></svg></span>
+      <span class="ri clock" id="clock">—</span>
+    </div>
+  </div>
+
+  <!-- ===== Desktop ===== -->
+  <div class="desk"><div>
+    <h1>Nexus OS</h1>
+    <p>Liquid Glass desktop — right-click anywhere</p>
+  </div></div>
+
+  <div class="deskicon">
+    <div class="glyph"><svg viewBox="0 0 24 24" fill="#fff"><path d="M4 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg></div>
+    <span>Projects</span>
+  </div>
+
+  <!-- ===== Dock ===== -->
+  <div class="dock-wrap"><div class="dock" id="dock"></div></div>
+
+<script>
+  /* ---------- live clock ---------- */
+  function tick(){
+    const d = new Date();
+    const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const mon=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    let h=d.getHours(), m=String(d.getMinutes()).padStart(2,'0');
+    const ap=h<12?'AM':'PM'; h=h%12||12;
+    document.getElementById('clock').textContent =
+      `${days[d.getDay()]} ${d.getDate()} ${mon[d.getMonth()]}  ${h}:${m} ${ap}`;
+  }
+  tick(); setInterval(tick, 10000);
+
+  /* ---------- dock apps (generic icons, gradient squircles) ---------- */
+  const APPS = [
+    {name:'Finder',   bg:'linear-gradient(180deg,#4db5ff,#1f7fd6)', run:true,  g:'<path d="M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z" fill="none" stroke="#fff" stroke-width="1.6"/><path d="M9 10v3M15 10v3M9 15c1.6 1.2 4.4 1.2 6 0" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round"/>'},
+    {name:'Terminal', bg:'linear-gradient(180deg,#2b2f3a,#11131a)', run:true,  g:'<path d="M6 8l4 4-4 4M12 16h6" stroke="#4be08a" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'},
+    {name:'Browser',  bg:'linear-gradient(180deg,#5ad0ff,#2a7bff)', g:'<circle cx="12" cy="12" r="8.2" fill="none" stroke="#fff" stroke-width="1.5"/><path d="M4 12h16M12 4c2.6 2.2 2.6 13.8 0 16M12 4c-2.6 2.2-2.6 13.8 0 16" stroke="#fff" stroke-width="1.3" fill="none"/>'},
+    {name:'Mail',     bg:'linear-gradient(180deg,#67c3ff,#2f8ae0)', g:'<rect x="4" y="6" width="16" height="12" rx="2.4" fill="none" stroke="#fff" stroke-width="1.6"/><path d="M4.5 7.5l7.5 6 7.5-6" fill="none" stroke="#fff" stroke-width="1.6"/>'},
+    {name:'Messages', bg:'linear-gradient(180deg,#4be06a,#1fae4a)', g:'<path d="M12 5c-4.4 0-8 2.9-8 6.4 0 3.6 3.6 6.4 8 6.4a10 10 0 0 0 2.6-.3l3.4 1.1-1-2.9c1.3-1.2 2-2.7 2-4.4C19 7.9 15.4 5 12 5z" fill="#fff"/>'},
+    {name:'Music',    bg:'linear-gradient(180deg,#ff6a8b,#ff2d6f)', g:'<path d="M10 16.5a2.3 2.3 0 1 1-2.3-2.3c.5 0 .9.1 1.3.3V7l7-1.6v7.3a2.3 2.3 0 1 1-2.3-2.3c.5 0 .9.1 1.3.3V8l-4 .9z" fill="#fff"/>'},
+    {name:'Photos',   bg:'linear-gradient(180deg,#ffd16a,#ff8a3d)', g:'<circle cx="12" cy="12" r="3" fill="#fff"/><circle cx="12" cy="6.5" r="2.2" fill="#fff" opacity=".9"/><circle cx="12" cy="17.5" r="2.2" fill="#fff" opacity=".9"/><circle cx="6.8" cy="9.5" r="2.2" fill="#fff" opacity=".8"/><circle cx="17.2" cy="9.5" r="2.2" fill="#fff" opacity=".8"/><circle cx="6.8" cy="14.5" r="2.2" fill="#fff" opacity=".8"/><circle cx="17.2" cy="14.5" r="2.2" fill="#fff" opacity=".8"/>'},
+    {name:'Calendar', bg:'linear-gradient(180deg,#ffffff,#eef0f4)', g:'<rect x="4.5" y="5.5" width="15" height="14" rx="2.4" fill="none" stroke="#ff3b30" stroke-width="1.6"/><path d="M4.5 9.5h15" stroke="#ff3b30" stroke-width="1.6"/><text x="12" y="17" font-size="7" text-anchor="middle" fill="#1c1c1e" font-family="sans-serif" font-weight="700">21</text>'},
+    {name:'Settings', bg:'linear-gradient(180deg,#9aa3af,#5b6472)', g:'<circle cx="12" cy="12" r="3" fill="none" stroke="#fff" stroke-width="1.6"/><path d="M12 3.5v2.3M12 18.2v2.3M3.5 12h2.3M18.2 12h2.3M6 6l1.6 1.6M16.4 16.4L18 18M18 6l-1.6 1.6M7.6 16.4L6 18" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>'},
+    {name:'Driver Checker', bg:'linear-gradient(180deg,#7a5cff,#4a2fd0)', run:true, g:'<rect x="5" y="7" width="14" height="10" rx="2" fill="none" stroke="#fff" stroke-width="1.5"/><path d="M8 7V5.5M12 7V5.5M16 7V5.5M8 17v1.5M12 17v1.5M16 17v1.5M5 10.5H3.5M5 13.5H3.5M20.5 10.5H19M20.5 13.5H19" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/><circle cx="12" cy="12" r="2" fill="#4be08a"/>'},
+  ];
+  const dock = document.getElementById('dock');
+  function buildDock(){
+    APPS.forEach(a=>{
+      const el=document.createElement('div');
+      el.className='app'; el.style.background=a.bg;
+      el.innerHTML=`<svg viewBox="0 0 24 24">${a.g}</svg><span class="tip">${a.name}</span>${a.run?'<span class="dot"></span>':''}`;
+      dock.appendChild(el);
+    });
+    const sep=document.createElement('div'); sep.className='sep'; dock.appendChild(sep);
+    const trash=document.createElement('div'); trash.className='app';
+    trash.style.background='linear-gradient(180deg,#cfd6e0,#9aa3b2)';
+    trash.innerHTML='<svg viewBox="0 0 24 24"><path d="M6 8h12l-1 11a2 2 0 0 1-2 1.8H9A2 2 0 0 1 7 19zM9 8V6.4A1.6 1.6 0 0 1 10.6 4.8h2.8A1.6 1.6 0 0 1 15 6.4V8" fill="none" stroke="#3a3f47" stroke-width="1.5"/></svg><span class="tip">Trash</span>';
+    dock.appendChild(trash);
+  }
+  buildDock();
+
+  /* dock magnification */
+  dock.addEventListener('mousemove', e=>{
+    const apps=[...dock.querySelectorAll('.app')];
+    apps.forEach(app=>{
+      const r=app.getBoundingClientRect();
+      const d=Math.abs(e.clientX-(r.left+r.width/2));
+      const s=Math.max(0, 1-d/150);          // 0..1 falloff
+      app.style.transform=`scale(${1+0.45*s}) translateY(${-14*s}px)`;
+    });
+  });
+  dock.addEventListener('mouseleave', ()=>{
+    dock.querySelectorAll('.app').forEach(a=>a.style.transform='');
+  });
+
+  /* ---------- right-click action menu ---------- */
+  const I={
+    newf:'<path d="M5 5h6l1.5 2H19v11H5z" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M12 10v5M9.5 12.5h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>',
+    info:'<circle cx="9.5" cy="9.5" r="6.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M9.5 8.5v4M9.5 6.3v.1" stroke="currentColor" stroke-width="1.6"/>',
+    paste:'<rect x="5" y="4" width="9" height="12" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="7.5" y="2.5" width="4" height="2.4" rx="1" fill="currentColor"/>',
+    wall:'<rect x="3.5" y="4.5" width="12" height="10" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="7" cy="8" r="1.1" fill="currentColor"/><path d="M4.5 13l3.5-3 2.5 2 2-1.5 2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.4"/>',
+    sort:'<path d="M5 6h9M5 9.5h6M5 13h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+  };
+  const chev='<svg class="chev" viewBox="0 0 19 19"><path d="M7 5l4 4.5-4 4.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+  const svg=p=>`<svg class="ico" viewBox="0 0 19 19" fill="currentColor">${p}</svg>`;
+  const MODEL=[
+    {label:'New Folder', icon:I.newf, shortcut:'⇧⌘N'},
+    {label:'Get Info', icon:I.info, shortcut:'⌘I'},
+    {type:'sep'},
+    {label:'Change Wallpaper…', icon:I.wall},
+    {label:'Sort By', icon:I.sort, submenu:[{label:'Name'},{label:'Date Modified'},{label:'Size'},{label:'Kind'}]},
+    {type:'sep'},
+    {label:'Paste', icon:I.paste, shortcut:'⌘V'},
+  ];
+  let openMenus=[];
+  function buildMenu(items,isSub){
+    const el=document.createElement('div'); el.className='menu'+(isSub?' submenu':'');
+    for(const it of items){
+      if(it.type==='sep'){const s=document.createElement('div');s.className='menu-sep';el.appendChild(s);continue;}
+      const row=document.createElement('div'); row.className='menu-item';
+      row.innerHTML=(it.icon?svg(it.icon):'<span class="ico"></span>')+`<span class="label">${it.label}</span>`+(it.submenu?chev:(it.shortcut?`<span class="shortcut">${it.shortcut}</span>`:''));
+      row.addEventListener('mouseenter',()=>{[...el.children].forEach(c=>c.classList.remove('hl'));row.classList.add('hl');closeFrom(el._level+1);if(it.submenu)spawnSub(it.submenu,row,el._level+1);});
+      row.addEventListener('click',e=>{e.stopPropagation();if(!it.submenu)closeAll();});
+      el.appendChild(row);
+    }
+    return el;
+  }
+  function spawnSub(items,anchor,level){const sub=buildMenu(items,true);sub._level=level;document.body.appendChild(sub);const r=anchor.getBoundingClientRect();place(sub,r.right-6,r.top-6,r.left);requestAnimationFrame(()=>sub.classList.add('open'));openMenus[level]=sub;}
+  function place(el,x,y,flip){const w=el.offsetWidth,h=el.offsetHeight;if(x+w>innerWidth-8)x=(flip??x)-w+6;if(x<8)x=8;if(y+h>innerHeight-8)y=innerHeight-h-8;if(y<34)y=34;el.style.left=x+'px';el.style.top=y+'px';}
+  function closeFrom(l){for(let i=openMenus.length-1;i>=l;i--){if(openMenus[i]){openMenus[i].remove();openMenus[i]=null;}}openMenus.length=Math.min(openMenus.length,l);}
+  function closeAll(){closeFrom(0);}
+  function openAt(x,y){closeAll();const root=buildMenu(MODEL,false);root._level=0;document.body.appendChild(root);place(root,x,y);requestAnimationFrame(()=>root.classList.add('open'));openMenus[0]=root;}
+  document.addEventListener('contextmenu',e=>{e.preventDefault();openAt(e.clientX,e.clientY);});
+  document.addEventListener('mousedown',e=>{if(!e.target.closest('.menu'))closeAll();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAll();});
+</script>
+</body>
+</html>
