@@ -1,0 +1,65 @@
+/* ============================================================
+   Freeform OS — "our settings", mirroring macOS (AppKit/HIG) metrics.
+   These are the standard macOS design values re-expressed as open
+   tokens. Not Apple's files — just the published numbers, so our
+   shell matches macOS down to the text size.
+
+   Font: SF Pro is Apple-licensed (can't ship it), so we fall back to
+   Inter (free, near-identical). -apple-system is used first so it
+   looks exactly right when viewed ON a Mac.
+   ============================================================ */
+:root {
+  /* ---- Type scale (macOS NSFont standard sizes, pt ≈ px @1x) ---- */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter",
+               "Segoe UI", system-ui, sans-serif;
+
+  --fs-largetitle: 26px;   /* NSFont largeTitle   */
+  --fs-title1:     22px;   /* title1             */
+  --fs-title2:     17px;   /* title2             */
+  --fs-title3:     15px;   /* title3             */
+  --fs-headline:   13px;   /* headline (semibold) */
+  --fs-body:       13px;   /* body / system font  (NSFont.systemFontSize) */
+  --fs-callout:    12px;   /* callout            */
+  --fs-subhead:    11px;   /* subheadline / small system font */
+  --fs-footnote:   10px;   /* footnote           */
+  --fs-caption:    10px;   /* caption            */
+  --fs-menubar:    14px;   /* menu bar / menu item text */
+
+  --fw-regular: 400;
+  --fw-medium:  500;
+  --fw-semibold:600;
+  --fw-bold:    700;
+
+  /* ---- Spacing grid (8pt system) ---- */
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
+  --sp-5: 20px; --sp-6: 24px; --sp-8: 32px;
+
+  /* ---- Control metrics (AppKit regular/small/mini) ---- */
+  --control-h:        22px;  /* regular button / text field height */
+  --control-h-small:  19px;
+  --control-h-mini:   15px;
+  --control-pad-x:    10px;
+
+  /* ---- Corner radii ---- */
+  --radius-control:  6px;    /* buttons, fields          */
+  --radius-menu:     10px;   /* menus / popovers (Big Sur+)*/
+  --radius-window:   11px;   /* window corners           */
+  --radius-tile:     12px;   /* control-center tiles     */
+
+  /* ---- Chrome sizes ---- */
+  --menubar-h:   24px;       /* macOS menu bar height    */
+  --dock-icon:   52px;       /* default dock icon size (user-adjustable 16–128) */
+  --dock-pad:    6px;
+
+  /* ---- System accent (default "Blue") & semantic ---- */
+  --sys-blue:   #0a84ff;
+  --sys-green:  #32d74b;
+  --sys-red:    #ff453a;
+  --sys-orange: #ff9f0a;
+  --sys-yellow: #ffd60a;
+  --sys-gray:   #98989d;
+
+  /* ---- Materials (vibrancy) — matches our Liquid Glass tokens ---- */
+  --material-blur: 22px;
+  --material-sat:  180%;
+}
