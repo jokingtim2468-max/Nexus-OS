@@ -122,8 +122,45 @@
   .cc .tile.active .ic { background:var(--accent-grad); }
   .cc .tile.active.svc .ic { background:linear-gradient(180deg,#45e06a,#1fae4a); }
   .cc .tile svg { width:17px; height:17px; }
+  .cc .tile .tx { flex:1; }
   .cc .tile .tx b { display:block; font-size:13px; }
   .cc .tile .tx small { color:var(--text-dim); font-size:11px; }
+  /* CC sliders (volume/brightness) */
+  .cc .ccs { grid-column:1 / -1; background:var(--glass-tint-hi); border:1px solid var(--glass-rim-soft); border-radius:13px; padding:9px 12px; }
+  .cc .ccs label { display:block; font-size:10px; font-weight:700; letter-spacing:.07em; color:var(--text-dim); margin:0 0 6px; }
+  .cc .ccs .track { display:flex; align-items:center; gap:9px; }
+  .cc .ccs .track svg { width:16px; height:16px; opacity:.85; flex:0 0 16px; }
+  .cc input[type=range]{ -webkit-appearance:none; appearance:none; flex:1; height:22px; border-radius:11px; background:rgba(0,0,0,.26); outline:none; }
+  .cc input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.45); cursor:pointer; }
+  /* macOS toggle switch + padlock (for Mullvad/Tor rows) */
+  .cc .tile .right { display:flex; align-items:center; gap:7px; }
+  .sw { width:38px; height:22px; border-radius:11px; background:rgba(120,120,128,.5); position:relative; flex:0 0 38px; transition:background .15s; }
+  .sw::after { content:""; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.4); transition:left .15s; }
+  .sw.on { background:var(--accent); } .sw.on::after { left:18px; }
+  .sw.locked { opacity:.55; }
+  .cc .lock { width:13px; height:13px; opacity:.7; }
+  /* Settings window (macOS System Settings clone) */
+  .set-wrap { display:flex; height:100%; margin:-15px -16px; }
+  .set-side { width:176px; padding:10px; border-right:1px solid var(--sep); overflow:auto; }
+  .set-side .si { display:flex; align-items:center; gap:9px; padding:7px 10px; border-radius:8px; font-size:13px; cursor:pointer; }
+  .set-side .si:hover { background:var(--glass-tint-hi); }
+  .set-side .si.sel { background:var(--accent-grad); color:#fff; }
+  .set-main { flex:1; padding:16px 20px; overflow:auto; }
+  .set-main h3 { margin:0 0 4px; font-size:18px; }
+  .set-main .cap { color:var(--text-dim); font-size:12px; margin:0 0 14px; }
+  .set-row { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:11px 0; border-bottom:1px solid var(--sep); }
+  .set-row:last-child { border:none; }
+  .set-row .lbl { font-size:13px; }
+  .swatches { display:flex; gap:8px; }
+  .swatch { width:22px; height:22px; border-radius:50%; cursor:pointer; border:2px solid transparent; }
+  .swatch.sel { border-color:#fff; box-shadow:0 0 0 1px rgba(0,0,0,.35); }
+  .seg { display:flex; background:var(--glass-tint-hi); border-radius:8px; padding:2px; }
+  .seg button { border:none; background:none; color:var(--text); font:inherit; font-size:12px; padding:5px 13px; border-radius:6px; cursor:pointer; }
+  .seg button.sel { background:var(--accent); color:#fff; }
+  .wps { display:flex; gap:8px; }
+  .wp { width:54px; height:34px; border-radius:7px; cursor:pointer; border:2px solid transparent; background-size:cover; }
+  .wp.sel { border-color:#fff; }
+  .set-main input[type=range]{ width:150px; }
 
   /* ---------------- Dock ---------------- */
   .dock-wrap { position:fixed; left:0; right:0; bottom:10px; display:flex; justify-content:center; z-index:40; pointer-events:none; }
@@ -133,7 +170,7 @@
   .dock::before { content:""; position:absolute; inset:0; border-radius:inherit; padding:1px;
     background:linear-gradient(150deg,var(--glass-rim) 0%,transparent 30%,transparent 72%,var(--glass-rim-soft) 100%);
     -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask-composite:exclude; pointer-events:none; }
-  .dock .app { position:relative; width:52px; height:52px; border-radius:14px; display:grid; place-items:center;
+  .dock .app { position:relative; width:var(--dock-size,52px); height:var(--dock-size,52px); border-radius:14px; display:grid; place-items:center;
     box-shadow:0 4px 10px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.25);
     transition:transform .14s cubic-bezier(.2,.9,.3,1.2); cursor:pointer; }
   .dock .app svg { width:30px; height:30px; }
@@ -230,8 +267,10 @@
 
   <!-- ===== Control Center ===== -->
   <div class="cc" id="cc">
-    <div class="tile svc active" data-svc><div class="ic"><svg viewBox="0 0 24 24" fill="#fff"><path d="M12 3l7 3v5c0 4.3-3 8.2-7 9.4C8 19.2 5 15.3 5 11V6z"/></svg></div><div class="tx"><b>Mullvad</b><small>Connected</small></div></div>
-    <div class="tile svc active" data-svc><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.3"/><path d="M12 4v3.3M12 16.7V20"/></svg></div><div class="tx"><b>Tor</b><small>Mullvad → Tor</small></div></div>
+    <div class="ccs"><label>VOLUME</label><div class="track"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8.5a4 4 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><input type="range" min="0" max="100" value="65"></div></div>
+    <div class="ccs"><label>BRIGHTNESS</label><div class="track"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M6 6l1.4 1.4M16.6 16.6L18 18M18 6l-1.4 1.4M7.4 16.6L6 18" stroke-linecap="round"/></svg><input type="range" min="0" max="100" value="80" id="briSlider"></div></div>
+    <div class="tile svc active" data-svc><div class="ic"><svg viewBox="0 0 24 24" fill="#fff"><path d="M12 3l7 3v5c0 4.3-3 8.2-7 9.4C8 19.2 5 15.3 5 11V6z"/></svg></div><div class="tx"><b>Mullvad VPN</b><small>Connected</small></div><div class="right"><span class="sw on locked"></span><svg class="lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div></div>
+    <div class="tile svc active" data-svc><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.3"/><path d="M12 4v3.3M12 16.7V20"/></svg></div><div class="tx"><b>Tor Route</b><small>Active</small></div><div class="right"><span class="sw on"></span></div></div>
     <div class="tile active" data-svc><div class="ic"><svg viewBox="0 0 24 24" fill="#fff"><path d="M12 18.5a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2z"/><path d="M6.3 13.2a8 8 0 0 1 11.4 0l-1.7 1.7a5.6 5.6 0 0 0-8 0z"/><path d="M3 9.9a12.5 12.5 0 0 1 18 0l-1.7 1.7a10.1 10.1 0 0 0-14.6 0z"/></svg></div><div class="tx"><b>Wi-Fi</b><small>Freeform-Net</small></div></div>
     <div class="tile" data-svc><div class="ic"><svg viewBox="0 0 24 24" fill="#fff"><path d="M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14zm0 2.5L13 11l3.5 1-3.5 1-1 3.5-1-3.5L7.5 12 11 11z"/></svg></div><div class="tx"><b>Bluetooth</b><small>Off</small></div></div>
     <div class="tile wide svc active" data-svc><div class="ic"><svg viewBox="0 0 24 24" fill="#fff"><path d="M12 3l7 3v5c0 4.3-3 8.2-7 9.4C8 19.2 5 15.3 5 11V6z"/><path d="M9.4 11.6l1.8 1.8 3.4-3.6" fill="none" stroke="#1fae4a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="tx"><b>Kill Switch</b><small>Armed — fail-closed, no leak window</small></div></div>
@@ -358,8 +397,73 @@
     return w;
   }
   function appWindow(a){
+    if(a.name==='Settings'){ openSettings(); return; }
     openWindow(a.name, CONTENT[a.name] || '<p class="muted">'+a.name+' — coming soon.</p>',
       {x: 120+Math.random()*260, y: 86+Math.random()*120, w: 480});
+  }
+
+  /* ---------- Theme engine (everything customizable, persisted) ---------- */
+  const WALLPAPERS = {
+    tahoe:'radial-gradient(140% 120% at 18% -5%,#1f7fa8 0,transparent 52%),radial-gradient(120% 120% at 92% 8%,#123f6b 0,transparent 55%),radial-gradient(130% 140% at 72% 108%,#13b3a6 0,transparent 60%),linear-gradient(160deg,#0c3350 0,#082438 55%,#05141f 100%)',
+    blue:'radial-gradient(120% 100% at 70% 20%,#9fd4ff 0,transparent 55%),radial-gradient(130% 120% at 20% 90%,#3f8fe0 0,transparent 55%),linear-gradient(160deg,#bfe3ff 0,#6ab0ef 55%,#2f74c9 100%)',
+    graphite:'radial-gradient(120% 100% at 30% 10%,#3a3a3e 0,transparent 55%),linear-gradient(160deg,#2a2a2d 0,#1b1b1e 60%,#111113 100%)',
+    sunset:'radial-gradient(130% 110% at 20% 0%,#ff9e6d 0,transparent 50%),radial-gradient(120% 120% at 90% 20%,#b14bff 0,transparent 55%),linear-gradient(160deg,#2a1440 0,#3a1c2e 60%,#14202e 100%)',
+  };
+  const DEFAULTS = { theme:'dark', accent:'#0a84ff', wallpaper:'tahoe', glass:0.10, dock:52 };
+  function loadSettings(){ try{ return {...DEFAULTS, ...JSON.parse(localStorage.getItem('ff-settings')||'{}')}; }catch(e){ return {...DEFAULTS}; } }
+  function saveSettings(s){ try{ localStorage.setItem('ff-settings', JSON.stringify(s)); }catch(e){} }
+  function lighten(hex,amt){ const n=parseInt(hex.slice(1),16); let r=(n>>16)+amt,g=((n>>8)&255)+amt,b=(n&255)+amt; r=Math.min(255,r);g=Math.min(255,g);b=Math.min(255,b); return '#'+((r<<16)|(g<<8)|b).toString(16).padStart(6,'0'); }
+  function applySettings(s){
+    const root=document.documentElement;
+    root.setAttribute('data-theme', s.theme==='light'?'light':'dark');
+    root.style.setProperty('--accent', s.accent);
+    root.style.setProperty('--accent-grad', `linear-gradient(180deg,${lighten(s.accent,40)} 0%,${s.accent} 100%)`);
+    root.style.setProperty('--glass-tint', `rgba(255,255,255,${s.glass})`);
+    root.style.setProperty('--glass-tint-hi', `rgba(255,255,255,${Math.min(0.9, s.glass+0.12)})`);
+    root.style.setProperty('--dock-size', s.dock+'px');
+    document.body.style.background = WALLPAPERS[s.wallpaper] || WALLPAPERS.tahoe;
+    document.body.style.backgroundAttachment='fixed';
+  }
+  let SETTINGS = loadSettings(); applySettings(SETTINGS);
+
+  function openSettings(){
+    const accents=['#0a84ff','#30D158','#FF453A','#FF9F0A','#BF5AF2','#FF375F','#64D2FF','#8E8E93'];
+    const body = `
+     <div class="set-wrap">
+      <div class="set-side">
+        <div class="si sel">🎨 Appearance</div>
+        <div class="si">🖼 Wallpaper</div>
+        <div class="si">📊 Dock</div>
+        <div class="si">🎛 Control Center</div>
+        <div class="si">🔒 Privacy</div>
+      </div>
+      <div class="set-main">
+        <h3>Appearance</h3>
+        <p class="cap">Everything here updates the desktop live and is saved.</p>
+        <div class="set-row"><span class="lbl">Theme</span>
+          <div class="seg" id="setTheme"><button data-v="light">Light</button><button data-v="dark">Dark</button></div></div>
+        <div class="set-row"><span class="lbl">Accent color</span>
+          <div class="swatches" id="setAccent">${accents.map(c=>`<span class="swatch" data-v="${c}" style="background:${c}"></span>`).join('')}</div></div>
+        <div class="set-row"><span class="lbl">Wallpaper</span>
+          <div class="wps" id="setWall">${Object.keys(WALLPAPERS).map(k=>`<span class="wp" data-v="${k}" style="background:${WALLPAPERS[k]}"></span>`).join('')}</div></div>
+        <div class="set-row"><span class="lbl">Glass translucency</span>
+          <input type="range" id="setGlass" min="4" max="40" value="${Math.round(SETTINGS.glass*100)}"></div>
+        <div class="set-row"><span class="lbl">Dock icon size</span>
+          <input type="range" id="setDock" min="36" max="72" value="${SETTINGS.dock}"></div>
+      </div>
+     </div>`;
+    const w = openWindow('Settings', body, {x:360, y:120, w:560});
+    const main = w.querySelector('.set-main');
+    // sidebar selection (visual)
+    w.querySelectorAll('.set-side .si').forEach(si=>si.addEventListener('click',()=>{ w.querySelectorAll('.si').forEach(x=>x.classList.remove('sel')); si.classList.add('sel'); }));
+    const mark=(sel,v)=>main.querySelectorAll(sel).forEach(e=>e.classList.toggle('sel', e.dataset.v===v));
+    mark('#setTheme button', SETTINGS.theme); mark('#setAccent .swatch', SETTINGS.accent); mark('#setWall .wp', SETTINGS.wallpaper);
+    main.querySelectorAll('#setTheme button').forEach(b=>b.addEventListener('click',()=>{ SETTINGS.theme=b.dataset.v; mark('#setTheme button',SETTINGS.theme); commit(); }));
+    main.querySelectorAll('#setAccent .swatch').forEach(s=>s.addEventListener('click',()=>{ SETTINGS.accent=s.dataset.v; mark('#setAccent .swatch',SETTINGS.accent); commit(); }));
+    main.querySelectorAll('#setWall .wp').forEach(s=>s.addEventListener('click',()=>{ SETTINGS.wallpaper=s.dataset.v; mark('#setWall .wp',SETTINGS.wallpaper); commit(); }));
+    main.querySelector('#setGlass').addEventListener('input',e=>{ SETTINGS.glass=(+e.target.value)/100; commit(); });
+    main.querySelector('#setDock').addEventListener('input',e=>{ SETTINGS.dock=+e.target.value; commit(); });
+    function commit(){ applySettings(SETTINGS); saveSettings(SETTINGS); }
   }
 
   /* ---------- Spotlight (⌘/Ctrl+Space) ---------- */
