@@ -88,7 +88,7 @@ def cmd_list() -> int:
     return 0
 
 
-def cmd_create(distro_id: str, size: str, run: bool) -> int:
+def cmd_create(distro_id: str, size: str, run: bool, keyfile: str | None = None) -> int:
     d = find_distro(distro_id)
     if not d:
         print(f"error: unknown distro '{distro_id}'", file=sys.stderr)
@@ -100,10 +100,17 @@ def cmd_create(distro_id: str, size: str, run: bool) -> int:
         return 0
     # metadata is a safe small write; the big disk is created by qemu-img
     meta = {"id": distro_id, "name": d["name"], "created": time.strftime("%Y-%m-%d"),
-            "disk": "disk.qcow2", "size": size, "shell": "MacShell (Hyprland/Quickshell)"}
+            "disk": "disk.qcow2", "size": size, "shell": "MacShell (Hyprland/Quickshell)",
+            "encrypted": bool(keyfile)}
     with open(ws_meta(distro_id), "w") as fh:
         json.dump(meta, fh, indent=2)
-    qemu_img = ["qemu-img", "create", "-f", "qcow2", disk, size]
+    if keyfile:
+        # LUKS-encrypted disk using this VM's isolated key (from vault.py unlock)
+        qemu_img = ["qemu-img", "create", "-f", "qcow2",
+                    "--object", f"secret,id=s0,file={keyfile}",
+                    "-o", "encrypt.format=luks,encrypt.key-secret=s0", disk, size]
+    else:
+        qemu_img = ["qemu-img", "create", "-f", "qcow2", disk, size]
     print(("RUN  " if run else "PLAN ") + " ".join(qemu_img))
     if run:
         if not have("qemu-img"):
@@ -115,13 +122,20 @@ def cmd_create(distro_id: str, size: str, run: bool) -> int:
     return 0
 
 
-def build_qemu(distro_id: str, iso: str | None, mem: int, cpus: int) -> list[str]:
+def build_qemu(distro_id: str, iso: str | None, mem: int, cpus: int, keyfile: str | None = None) -> list[str]:
     disk = ws_disk(distro_id)
+    drive = f"file={disk},if=virtio,format=qcow2"
+    secret = []
+    if keyfile:
+        # the disk is LUKS-encrypted (vault.py); unlock the per-VM key first
+        secret = ["-object", f"secret,id=s0,file={keyfile}"]
+        drive += ",encrypt.key-secret=s0"
     cmd = [
         "qemu-system-x86_64",
         "-enable-kvm", "-cpu", "host",
         "-m", str(mem), "-smp", str(cpus),
-        "-drive", f"file={disk},if=virtio,format=qcow2",
+        *secret,
+        "-drive", drive,
         # 3D-accelerated virtio GPU so MacShell's Liquid Glass GLSL shader runs
         "-device", "virtio-vga-gl", "-display", "gtk,gl=on",
         "-device", "virtio-net,netdev=n0", "-netdev", "user,id=n0",
@@ -133,7 +147,7 @@ def build_qemu(distro_id: str, iso: str | None, mem: int, cpus: int) -> list[str
     return cmd
 
 
-def cmd_launch(distro_id: str, iso: str | None, mem: int, cpus: int, run: bool) -> int:
+def cmd_launch(distro_id: str, iso: str | None, mem: int, cpus: int, run: bool, keyfile: str | None = None) -> int:
     d = find_distro(distro_id)
     if not d:
         print(f"error: unknown distro '{distro_id}'", file=sys.stderr)
@@ -141,7 +155,7 @@ def cmd_launch(distro_id: str, iso: str | None, mem: int, cpus: int, run: bool) 
     if not os.path.exists(ws_disk(distro_id)):
         print(f"no workspace yet — run:  python3 vmhub.py create {distro_id} --run")
         return 1
-    cmd = build_qemu(distro_id, iso, mem, cpus)
+    cmd = build_qemu(distro_id, iso, mem, cpus, keyfile)
     print(f"Launching {d['name']} VM (workspace: {ws_disk(distro_id)})")
     print(("RUN  " if run else "PLAN ") + " ".join(cmd))
     if run:
@@ -183,15 +197,15 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="FreeForm VM Hub")
     sub = ap.add_subparsers(dest="action")
     sub.add_parser("list")
-    c = sub.add_parser("create"); c.add_argument("distro"); c.add_argument("--size", default="40G"); c.add_argument("--run", action="store_true")
-    l = sub.add_parser("launch"); l.add_argument("distro"); l.add_argument("--iso", default=None); l.add_argument("--mem", type=int, default=4096); l.add_argument("--cpus", type=int, default=4); l.add_argument("--run", action="store_true")
+    c = sub.add_parser("create"); c.add_argument("distro"); c.add_argument("--size", default="40G"); c.add_argument("--run", action="store_true"); c.add_argument("--key", default=None, help="LUKS keyfile from `vault.py unlock` (encrypted disk)")
+    l = sub.add_parser("launch"); l.add_argument("distro"); l.add_argument("--iso", default=None); l.add_argument("--mem", type=int, default=4096); l.add_argument("--cpus", type=int, default=4); l.add_argument("--run", action="store_true"); l.add_argument("--key", default=None, help="LUKS keyfile from `vault.py unlock`")
     p = sub.add_parser("provision"); p.add_argument("distro")
     args = ap.parse_args(argv)
 
     if args.action == "create":
-        return cmd_create(args.distro, args.size, args.run)
+        return cmd_create(args.distro, args.size, args.run, args.key)
     if args.action == "launch":
-        return cmd_launch(args.distro, args.iso, args.mem, args.cpus, args.run)
+        return cmd_launch(args.distro, args.iso, args.mem, args.cpus, args.run, args.key)
     if args.action == "provision":
         return cmd_provision(args.distro)
     return cmd_list()
