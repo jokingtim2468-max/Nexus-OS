@@ -1,0 +1,10 @@
+{
+  "_comment": "Debian/Tails base. Shares most with ubuntu.json. Scanner fills in the rest.",
+  "apt": "Install, update and remove packages.",
+  "apt-get": "Lower-level package management.",
+  "dpkg": "Install/inspect individual .deb packages.",
+  "aptitude": "Alternative package manager with a TUI.",
+  "systemctl": "Control systemd services.",
+  "tailsconfig": "Tails persistent-storage / config (Tails only).",
+  "torbrowser-launcher": "Launch the Tor Browser."
+}

@@ -1,73 +1,27 @@
 {
-  "_comment": "Freeform OS distro loader registry. 'recommended' distros show in the loader. To add your OWN distro: drop an .iso / rootfs / manifest file into distros/custom/ and add an entry under 'custom' (or let the loader auto-detect files there). 'file' is relative to the distros/ folder; leave blank to download from 'url' on first use.",
+  "_comment": "FreeForm VM-hub distro registry. Each distro runs in its own VM workspace (apps/vmhub) with the real MacShell inside, so they all share the Mac look. These are ACTUAL distro ISOs. To add any other ISO/respin (e.g. a Dark Kali spin you downloaded): drop its .iso into distros/custom/ and add an entry under 'custom' (or let the loader auto-detect). 'commands' points to a command catalog; the shell also auto-scans the live system. 'file' is relative to distros/; blank = download from 'url' on first use.",
   "default": "ubuntu",
   "recommended": [
-    {
-      "id": "ubuntu",
-      "name": "Ubuntu",
-      "edition": "24.04 LTS",
-      "logo": "ubuntu",
-      "accent": "#e95420",
-      "commands": "commands/ubuntu.json",
-      "file": "",
-      "url": "https://releases.ubuntu.com/24.04/ubuntu-24.04-desktop-amd64.iso",
-      "desc": "Beginner-friendly, huge driver + package support."
-    },
-    {
-      "id": "kali",
-      "name": "Kali Linux",
-      "edition": "2024.x",
-      "logo": "kali",
-      "accent": "#367bf0",
-      "commands": "commands/kali.json",
-      "file": "",
-      "url": "https://cdimage.kali.org/current/",
-      "desc": "Penetration testing / security tooling (600+ tools)."
-    },
-    {
-      "id": "debian",
-      "name": "Debian",
-      "edition": "12 Bookworm",
-      "logo": "generic",
-      "accent": "#d70a53",
-      "commands": "commands/debian.json",
-      "file": "",
-      "url": "https://www.debian.org/distrib/",
-      "desc": "Rock-stable base that Ubuntu/Kali are built on."
-    },
-    {
-      "id": "fedora",
-      "name": "Fedora",
-      "edition": "Workstation 40",
-      "logo": "generic",
-      "accent": "#3c6eb4",
-      "commands": "commands/fedora.json",
-      "file": "",
-      "url": "https://fedoraproject.org/workstation/",
-      "desc": "Cutting-edge, dnf-based."
-    },
-    {
-      "id": "arch",
-      "name": "Arch Linux",
-      "edition": "rolling",
-      "logo": "generic",
-      "accent": "#1793d1",
-      "commands": "commands/arch.json",
-      "file": "",
-      "url": "https://archlinux.org/download/",
-      "desc": "Minimal, build-it-yourself, pacman."
-    },
-    {
-      "id": "mint",
-      "name": "Linux Mint",
-      "edition": "22",
-      "logo": "generic",
-      "accent": "#86be43",
-      "commands": "commands/ubuntu.json",
-      "file": "",
-      "url": "https://linuxmint.com/download.php",
-      "desc": "Ubuntu-based, very approachable."
-    }
+    { "id": "ubuntu", "name": "Ubuntu", "edition": "24.04 LTS", "family": "debian", "logo": "ubuntu", "accent": "#e95420", "commands": "commands/ubuntu.json", "file": "", "url": "https://ubuntu.com/download/desktop", "desc": "Beginner-friendly, huge driver + package support." },
+    { "id": "kubuntu", "name": "Kubuntu", "edition": "24.04 LTS", "family": "debian", "logo": "ubuntu", "accent": "#1d99f3", "commands": "commands/ubuntu.json", "file": "", "url": "https://kubuntu.org/getkubuntu/", "desc": "Ubuntu with the KDE Plasma desktop." },
+    { "id": "mint", "name": "Linux Mint", "edition": "22", "family": "debian", "logo": "generic", "accent": "#86be43", "commands": "commands/ubuntu.json", "file": "", "url": "https://linuxmint.com/download.php", "desc": "Ubuntu-based, very approachable." },
+    { "id": "popos", "name": "Pop!_OS", "edition": "22.04", "family": "debian", "logo": "generic", "accent": "#48b9c7", "commands": "commands/ubuntu.json", "file": "", "url": "https://pop.system76.com/", "desc": "System76's Ubuntu-based distro, great for NVIDIA." },
+    { "id": "zorin", "name": "Zorin OS", "edition": "17", "family": "debian", "logo": "generic", "accent": "#0cc1f3", "commands": "commands/ubuntu.json", "file": "", "url": "https://zorin.com/os/download/", "desc": "Windows/macOS-like, newcomer-friendly." },
+    { "id": "elementary", "name": "elementary OS", "edition": "8", "family": "debian", "logo": "generic", "accent": "#64baff", "commands": "commands/ubuntu.json", "file": "", "url": "https://elementary.io/", "desc": "Clean, macOS-like design out of the box." },
+    { "id": "debian", "name": "Debian", "edition": "12 Bookworm", "family": "debian", "logo": "generic", "accent": "#d70a53", "commands": "commands/debian.json", "file": "", "url": "https://www.debian.org/distrib/", "desc": "Rock-stable base Ubuntu & Kali build on." },
+    { "id": "fedora", "name": "Fedora", "edition": "Workstation 40", "family": "fedora", "logo": "generic", "accent": "#3c6eb4", "commands": "commands/fedora.json", "file": "", "url": "https://fedoraproject.org/workstation/", "desc": "Cutting-edge, dnf-based." },
+    { "id": "nobara", "name": "Nobara", "edition": "40", "family": "fedora", "logo": "generic", "accent": "#7c3aed", "commands": "commands/fedora.json", "file": "", "url": "https://nobaraproject.org/", "desc": "Fedora tuned for gaming & content creation." },
+    { "id": "opensuse", "name": "openSUSE", "edition": "Tumbleweed", "family": "suse", "logo": "generic", "accent": "#73ba25", "commands": "commands/fedora.json", "file": "", "url": "https://get.opensuse.org/", "desc": "Rolling, zypper-based, very configurable." },
+    { "id": "arch", "name": "Arch Linux", "edition": "rolling", "family": "arch", "logo": "generic", "accent": "#1793d1", "commands": "commands/arch.json", "file": "", "url": "https://archlinux.org/download/", "desc": "Minimal, build-it-yourself, pacman." },
+    { "id": "endeavouros", "name": "EndeavourOS", "edition": "rolling", "family": "arch", "logo": "generic", "accent": "#7f3fbf", "commands": "commands/arch.json", "file": "", "url": "https://endeavouros.com/", "desc": "Arch made approachable, with a friendly installer." },
+    { "id": "manjaro", "name": "Manjaro", "edition": "rolling", "family": "arch", "logo": "generic", "accent": "#35bf5c", "commands": "commands/arch.json", "file": "", "url": "https://manjaro.org/products/download/x86", "desc": "Arch-based, more user-friendly defaults." },
+    { "id": "garuda", "name": "Garuda Linux", "edition": "rolling", "family": "arch", "logo": "generic", "accent": "#d03e3e", "commands": "commands/arch.json", "file": "", "url": "https://garudalinux.org/downloads", "desc": "Arch-based, gaming-focused, flashy themes." },
+    { "id": "cachyos", "name": "CachyOS", "edition": "rolling", "family": "arch", "logo": "generic", "accent": "#00b3a4", "commands": "commands/arch.json", "file": "", "url": "https://cachyos.org/download/", "desc": "Performance-optimized Arch build." },
+    { "id": "kali", "name": "Kali Linux", "edition": "2024.x", "family": "debian", "logo": "kali", "accent": "#367bf0", "commands": "commands/kali.json", "file": "", "url": "https://www.kali.org/get-kali/", "desc": "Penetration testing / security tooling (600+ tools)." },
+    { "id": "kali-everything", "name": "Kali Everything", "edition": "2024.x · full", "family": "debian", "logo": "kali", "accent": "#1f2430", "commands": "commands/kali.json", "file": "", "url": "https://www.kali.org/get-kali/#kali-installer-images", "desc": "Kali ISO with every tool preinstalled (the big dark one)." },
+    { "id": "parrot", "name": "Parrot OS", "edition": "Security 6.x", "family": "debian", "logo": "generic", "accent": "#15bfae", "commands": "commands/kali.json", "file": "", "url": "https://parrotsec.org/download/", "desc": "Dark, privacy-focused security distro." },
+    { "id": "blackarch", "name": "BlackArch", "edition": "rolling", "family": "arch", "logo": "generic", "accent": "#2b2b2b", "commands": "commands/kali.json", "file": "", "url": "https://blackarch.org/downloads.html", "desc": "Arch-based security distro, 2800+ tools." },
+    { "id": "tails", "name": "Tails", "edition": "6.x", "family": "debian", "logo": "generic", "accent": "#56347c", "commands": "commands/debian.json", "file": "", "url": "https://tails.net/install/", "desc": "Amnesic, routes everything through Tor by design." }
   ],
   "custom": []
 }

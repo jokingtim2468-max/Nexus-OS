@@ -1,0 +1,7 @@
+# VM workspaces — disks and per-workspace state are machine-local, never committed
+workspaces/*/
+!workspaces/README.md
+
+# Python
+__pycache__/
+*.pyc

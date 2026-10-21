@@ -1,0 +1,11 @@
+{
+  "_comment": "Fedora/SUSE-family (Fedora, Nobara, openSUSE). Scanner fills in the rest. openSUSE uses zypper.",
+  "dnf": "Install, update and remove packages (Fedora/RHEL).",
+  "rpm": "Install/inspect individual .rpm packages.",
+  "zypper": "Package manager on openSUSE.",
+  "flatpak": "Install apps packaged as flatpaks.",
+  "systemctl": "Control systemd services.",
+  "journalctl": "Read systemd logs.",
+  "dnf-automatic": "Apply updates automatically.",
+  "rpm-ostree": "Image-based updates (Silverblue/Kinoite)."
+}

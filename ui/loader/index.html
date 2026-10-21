@@ -34,10 +34,12 @@
   h1{margin:0; font-size:26px; font-weight:700; letter-spacing:-.01em;}
   .sub{margin:6px 0 26px; color:var(--dim); font-size:15px;}
 
-  .grid{display:grid; grid-template-columns:repeat(3,210px); gap:14px; margin-bottom:22px;}
-  @media (max-width:720px){ .grid{grid-template-columns:repeat(2,1fr); width:90vw;} }
+  .grid{display:grid; grid-template-columns:repeat(5,186px); gap:12px; margin-bottom:20px;
+    max-height:60vh; overflow-y:auto; padding:4px;}
+  @media (max-width:980px){ .grid{grid-template-columns:repeat(3,1fr); width:92vw;} }
+  @media (max-width:640px){ .grid{grid-template-columns:repeat(2,1fr);} }
 
-  .card{position:relative; padding:16px; border-radius:16px; cursor:pointer;
+  .card{position:relative; padding:13px; border-radius:14px; cursor:pointer;
     background:var(--glass); -webkit-backdrop-filter:blur(22px) saturate(180%); backdrop-filter:blur(22px) saturate(180%);
     border:1px solid var(--rim-soft); box-shadow:var(--shadow); transition:transform .12s ease, border-color .15s ease;}
   .card::before{content:""; position:absolute; inset:0; border-radius:inherit; padding:1px;
@@ -64,7 +66,7 @@
 <body>
   <div class="logo">FF</div>
   <h1>FreeForm OS</h1>
-  <div class="sub">Choose a distribution — they all run the same FreeForm shell</div>
+  <div class="sub">Pick a distro to launch — each runs in its own VM workspace with MacShell</div>
 
   <div class="grid" id="grid"></div>
 
@@ -81,13 +83,29 @@
 <script>
   // Mirror of distros/registry.json (recommended list) so the loader renders
   // standalone. The real app reads the JSON file directly.
+  // Mirrors distros/registry.json (recommended). Real distro ISOs; each boots
+  // into its own VM workspace with MacShell.
   const DISTROS = [
-    {id:"ubuntu", name:"Ubuntu",      ed:"24.04 LTS",       accent:"#e95420", desc:"Beginner-friendly, huge driver + package support."},
-    {id:"kali",   name:"Kali Linux",  ed:"2024.x",          accent:"#367bf0", desc:"Pen-testing / security tooling (600+ tools)."},
-    {id:"debian", name:"Debian",      ed:"12 Bookworm",     accent:"#d70a53", desc:"Rock-stable base Ubuntu & Kali build on."},
-    {id:"fedora", name:"Fedora",      ed:"Workstation 40",  accent:"#3c6eb4", desc:"Cutting-edge, dnf-based."},
-    {id:"arch",   name:"Arch Linux",  ed:"rolling",         accent:"#1793d1", desc:"Minimal, build-it-yourself, pacman."},
-    {id:"mint",   name:"Linux Mint",  ed:"22",              accent:"#86be43", desc:"Ubuntu-based, very approachable."},
+    {id:"ubuntu", name:"Ubuntu", ed:"24.04 LTS", accent:"#e95420", desc:"Beginner-friendly, huge driver support."},
+    {id:"kubuntu", name:"Kubuntu", ed:"24.04 LTS", accent:"#1d99f3", desc:"Ubuntu with KDE Plasma."},
+    {id:"mint", name:"Linux Mint", ed:"22", accent:"#86be43", desc:"Ubuntu-based, very approachable."},
+    {id:"popos", name:"Pop!_OS", ed:"22.04", accent:"#48b9c7", desc:"System76's distro, great for NVIDIA."},
+    {id:"zorin", name:"Zorin OS", ed:"17", accent:"#0cc1f3", desc:"Windows/macOS-like, newcomer-friendly."},
+    {id:"elementary", name:"elementary OS", ed:"8", accent:"#64baff", desc:"Clean, macOS-like out of the box."},
+    {id:"debian", name:"Debian", ed:"12 Bookworm", accent:"#d70a53", desc:"Rock-stable base."},
+    {id:"fedora", name:"Fedora", ed:"Workstation 40", accent:"#3c6eb4", desc:"Cutting-edge, dnf-based."},
+    {id:"nobara", name:"Nobara", ed:"40", accent:"#7c3aed", desc:"Fedora tuned for gaming."},
+    {id:"opensuse", name:"openSUSE", ed:"Tumbleweed", accent:"#73ba25", desc:"Rolling, zypper-based."},
+    {id:"arch", name:"Arch Linux", ed:"rolling", accent:"#1793d1", desc:"Minimal, pacman."},
+    {id:"endeavouros", name:"EndeavourOS", ed:"rolling", accent:"#7f3fbf", desc:"Arch made approachable."},
+    {id:"manjaro", name:"Manjaro", ed:"rolling", accent:"#35bf5c", desc:"Arch-based, friendly defaults."},
+    {id:"garuda", name:"Garuda", ed:"rolling", accent:"#d03e3e", desc:"Arch-based, gaming-focused."},
+    {id:"cachyos", name:"CachyOS", ed:"rolling", accent:"#00b3a4", desc:"Performance-optimized Arch."},
+    {id:"kali", name:"Kali Linux", ed:"2024.x", accent:"#367bf0", desc:"Security tooling (600+ tools)."},
+    {id:"kali-everything", name:"Kali Everything", ed:"full", accent:"#1f2430", desc:"Every Kali tool preinstalled."},
+    {id:"parrot", name:"Parrot OS", ed:"Security 6", accent:"#15bfae", desc:"Dark, privacy-focused security."},
+    {id:"blackarch", name:"BlackArch", ed:"rolling", accent:"#2b2b2b", desc:"Arch security, 2800+ tools."},
+    {id:"tails", name:"Tails", ed:"6.x", accent:"#56347c", desc:"Amnesic, everything over Tor."},
   ];
   const grid = document.getElementById('grid');
   const start = document.getElementById('start');

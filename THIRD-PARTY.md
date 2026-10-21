@@ -43,3 +43,20 @@ that assumed GPL-3.0.
 ```bash
 git submodule update --remote vendor/WhiteSur-gtk-theme
 ```
+
+## MacShell
+
+- **Source:** https://github.com/0-ss/MacShell
+- **Vendored at:** `vendor/MacShell` (git submodule)
+- **License:** MIT
+- **Copyright:** © 2026 Rickky
+
+MacShell is FreeForm's actual desktop shell: a macOS-style menu bar + dock +
+Control Center + Spotlight + Liquid Glass GLSL shader for **Hyprland**
+(Quickshell/QML). It is installed inside each distro's VM so every workspace
+shares the same look. MIT — keep the copyright/permission notice (in
+`vendor/MacShell/LICENSE`); FreeForm is not forced open by using it.
+
+```bash
+git submodule update --remote vendor/MacShell
+```

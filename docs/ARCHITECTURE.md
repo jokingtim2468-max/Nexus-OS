@@ -1,64 +1,73 @@
-# Freeform OS — architecture
+# FreeForm — architecture (VM hub)
 
-> Renamed from "Nexus OS" per the owner. (The git repo is still `Nexus-OS`;
-> renaming the repo is a separate GitHub action and wasn't done automatically.)
+FreeForm is a **VM hub**. You open it, pick a Linux distro from the loader, and
+it runs that distro in its **own VM with a persistent workspace** (saved disk).
+Every guest runs the **real MacShell** (Hyprland + Quickshell) so all distros
+share the same macOS-style Liquid Glass look. Mullvad/Tor/kill-switch ride
+along. Later, FreeForm can be built into an **ISO** to run on bare metal as the
+main OS.
 
-## The concept
+```
+                 ┌──────────────── FreeForm (the hub) ────────────────┐
+   Loader  ───►  │  pick distro → launch its VM → persistent workspace │
+ ui/loader/      │                                                     │
+                 │   ┌─ VM: Ubuntu ─┐  ┌─ VM: Kali ─┐  ┌─ VM: Parrot ─┐ │
+                 │   │  MacShell    │  │  MacShell  │  │  MacShell    │ │
+                 │   │  workspace    │  │  workspace │  │  workspace   │ │
+                 │   └──────────────┘  └────────────┘  └──────────────┘ │
+                 │   NetGuard: Mullvad + Tor + fail-closed kill switch  │
+                 └─────────────────────────────────────────────────────┘
+```
 
-Freeform OS is **an app you open on your Mac** — not a separate OS you boot. When
-launched it presents a full-computer desktop (the Liquid Glass shell in
-`ui/desktop/`) and spins up background services:
+## Components (in this repo)
 
-- a **Windows 10 VM** for Windows apps/drivers,
-- a **VPN** connection,
-- a **Cloudflare** tunnel,
+| Piece | Path | What it does |
+|-------|------|--------------|
+| Loader | `ui/loader/` | Pick a distro (or drop your own) |
+| VM Hub | `apps/vmhub/` | Create workspace disks, build/run the QEMU command per distro |
+| Shell | `vendor/MacShell` | The real MacShell (MIT) installed inside each guest |
+| Theme base | `vendor/WhiteSur-gtk-theme` | MIT GTK theme values (for non-Hypr guests / mock) |
+| Conversion kit | `apps/conversion-kit/` | Install drivers + compat layers in a guest |
+| NetGuard | `apps/netguard/` | Mullvad auto-connect, Tor, fail-closed kill switch |
+| Driver checker | `apps/driver-checker/` | What hardware lacks a driver |
+| freefetch | `apps/freefetch/` | FF logo + specs |
+| Command registry | `apps/shell/` | `/help`, auto-scan of a distro's commands |
+| Design mock | `ui/desktop/` | HTML Liquid Glass shell (reference) |
 
-…and a **global keybind closes it** (⌘⇧Q in the prototype), stopping those
-services. Because it runs on macOS, it uses **the Mac's own drivers** for all
-real hardware — that's automatic, since it's just a macOS process.
+## VM hub details
 
-## How each piece is really built
+- **Workspaces** live in `workspaces/<id>/` (git-ignored). First launch installs
+  the distro from its ISO into the workspace disk; later launches resume it.
+- **QEMU** runs each guest with `virtio-vga-gl` + `-display gtk,gl=on` so
+  MacShell's **Liquid Glass GLSL shader** gets GPU acceleration.
+- **MacShell provisioning**: `vmhub.py provision <id>` prints the one-time steps
+  (Hyprland + Quickshell + `vendor/MacShell/install.sh`) to run in the guest.
 
-| Piece            | Prototype (this repo)        | Real implementation |
-|------------------|------------------------------|---------------------|
-| Desktop shell    | `ui/desktop/index.html`      | Electron or Tauri window (web UI = the shell) |
-| Open/close keybind | JS `keydown` ⌘⇧Q            | OS global hotkey (Electron `globalShortcut` / macOS Services) |
-| Windows 10 VM    | status tile + dock icon      | **QEMU/UTM** (Apple-silicon: HVF accel) booting a licensed Win10 image |
-| Windows apps     | "Windows Apps" dock icon     | app windows forwarded from the VM (RDP/RemoteApp-style) |
-| VPN              | menu-bar status + CC tile    | WireGuard/OpenVPN client managed by the app |
-| Cloudflare       | menu-bar status + CC tile    | `cloudflared` tunnel spawned by the app |
-| Mac drivers      | — (inherited)                | native: the app runs on macOS, so macOS drivers already serve the hardware |
-| Wallpaper        | CSS recreation of Sequoia    | load a licensed image file the user owns |
+## Any distro (actual ISOs)
 
-## Honest limitations
+Because a distro is just an ISO + workspace, **any** real distro ISO works. The
+registry already lists 20 (Ubuntu, Kubuntu, Mint, Pop!_OS, Zorin, elementary,
+Debian, Fedora, Nobara, openSUSE, Arch, EndeavourOS, Manjaro, Garuda, CachyOS,
+Kali, Kali Everything, Parrot, BlackArch, Tails). To add any other ISO or respin
+you downloaded (e.g. a specific Dark Kali spin), drop the `.iso` into
+`distros/custom/` and it appears in the loader. Every guest gets the real
+MacShell installed so they all look the same; the hub doesn't care which distro
+it is.
 
-- **Windows 10 needs a license.** You can't legally bundle or redistribute a
-  Windows image; the app would download/activate the user's own license. Win10
-  is also **end-of-life (Oct 2025)** — consider Windows 11 for the VM.
-- **The Mac's drivers do not pass into the Windows VM.** macOS (especially Apple
-  silicon) does not expose raw hardware passthrough to guests. The VM sees
-  *paravirtual* devices (virtio/VMware-style), and its guest drivers handle
-  those. So "Windows uses the Mac's official drivers" is not literally possible;
-  what's true is the **Mac handles the hardware and the VM rides on top**.
-- **Apple wallpapers are copyrighted** — recreated in CSS here, not shipped.
-- **Darling / Docker-OSX** are not needed for this design (we're *on* a Mac, not
-  emulating one).
+## Honest status & limits
 
-## Cost & safety note (per owner preferences)
+- The managers (`vmhub`, `netguard`, `conversion-kit`, etc.) are real, runnable,
+  and **safe by default** (they print plans; `--run`/`--arm`/`--install` apply).
+  They need `qemu`/`nftables`/root on the target machine — not present in this
+  cloud container, so here they run in plan mode.
+- **MacShell needs Hyprland + Quickshell + a GPU** for the shader; a headless or
+  software-rendered VM won't show the full glass refraction.
+- **Nested virtualization / KVM** must be available on the host for good VM
+  speed. On a plain laptop that's fine; inside another VM it may be slow.
 
-- **VM:** no software cost beyond a Windows license; uses CPU/RAM/battery while
-  running — the keybind-to-close matters so it's not always draining power.
-- **Cloudflare Tunnel:** free tier covers personal use. Verify before relying on
-  paid features.
-- **VPN:** free self-hosted (WireGuard on a cheap VPS) or a paid provider —
-  compare monthly cost vs. a one-time VPS.
-- Nothing here requires buying from a third-party site; if that changes, verify
-  the seller is reputable and price it first.
+## Toward "main OS" (ISO, later)
 
-## Build order (suggested)
-
-1. Wrap `ui/desktop/` in Tauri (smaller than Electron) → a real openable app.
-2. Global open/close hotkey.
-3. Spawn/stop `cloudflared` + WireGuard with live status feeding the menu bar.
-4. QEMU/UTM Win10 VM, launched/suspended with the app; forward app windows.
-5. Settings screen to point at the user's Win10 ISO/license and wallpaper file.
+The same pieces become a bootable FreeForm ISO: a minimal Linux base +
+Hyprland + MacShell + NetGuard + the conversion kit, with the loader as the
+first-run picker. The VM-hub stage is how we build and test that image before
+committing it to bare metal.

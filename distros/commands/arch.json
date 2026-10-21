@@ -1,0 +1,12 @@
+{
+  "_comment": "Arch-family (Arch, EndeavourOS, Manjaro, Garuda, CachyOS, BlackArch). Scanner fills in the rest.",
+  "pacman": "Install, update and remove packages (Arch package manager).",
+  "yay": "AUR helper — install packages from the Arch User Repository.",
+  "paru": "AUR helper (Rust) — alternative to yay.",
+  "makepkg": "Build a package from a PKGBUILD.",
+  "pacstrap": "Install a base system into a mount (used during install).",
+  "systemctl": "Control systemd services.",
+  "journalctl": "Read systemd logs.",
+  "mkinitcpio": "Generate the initramfs.",
+  "reflector": "Pick the fastest pacman mirrors."
+}
