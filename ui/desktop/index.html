@@ -161,6 +161,41 @@
   .menu-item.hl .ico,.menu-item.hl .shortcut,.menu-item.hl .chev { opacity:1; color:rgba(255,255,255,.9); }
   .menu-sep { height:1px; margin:5px 9px; background:var(--sep); }
 
+  /* ---------------- App windows ---------------- */
+  .win{position:fixed; min-width:440px; min-height:280px; max-width:72vw; max-height:72vh;
+    display:flex; flex-direction:column; overflow:hidden; border-radius:12px; z-index:80;
+    background:var(--glass-tint); -webkit-backdrop-filter:blur(26px) saturate(180%) brightness(1.06); backdrop-filter:blur(26px) saturate(180%) brightness(1.06);
+    border:1px solid var(--glass-rim-soft); box-shadow:var(--shadow);
+    opacity:0; transform:scale(.96); transform-origin:center; transition:opacity .14s ease, transform .16s cubic-bezier(.2,.9,.3,1.2);}
+  .win.open{opacity:1; transform:scale(1);}
+  .win .titlebar{height:38px; flex:0 0 38px; display:flex; align-items:center; gap:9px; padding:0 13px; cursor:grab; border-bottom:1px solid var(--sep);}
+  .win .titlebar:active{cursor:grabbing;}
+  .win .lights{display:flex; gap:8px;}
+  .win .light{width:12px; height:12px; border-radius:50%;}
+  .win .light.c{background:#ff5f57;} .win .light.m{background:#febc2e;} .win .light.x{background:#28c840;}
+  .win .title{font-size:13px; font-weight:600; opacity:.85; margin:0 auto; transform:translateX(-26px);}
+  .win .content{flex:1; padding:15px 16px; overflow:auto;}
+  .win .content pre{font-family:ui-monospace,Menlo,"SF Mono",monospace; font-size:12px; line-height:1.5; white-space:pre; margin:0; color:var(--text);}
+  .win .content .muted{color:var(--text-dim);}
+
+  /* ---------------- Spotlight ---------------- */
+  .spot{position:fixed; top:20%; left:50%; width:560px; max-width:90vw; z-index:150;
+    transform:translateX(-50%) scale(.96); opacity:0; pointer-events:none;
+    transition:opacity .13s ease, transform .15s cubic-bezier(.2,.9,.3,1.2);}
+  .spot.open{opacity:1; transform:translateX(-50%) scale(1); pointer-events:auto;}
+  .spot .bar{display:flex; align-items:center; gap:13px; padding:14px 18px; border-radius:16px;
+    background:var(--glass-tint); -webkit-backdrop-filter:blur(26px) saturate(180%); backdrop-filter:blur(26px) saturate(180%);
+    border:1px solid var(--glass-rim-soft); box-shadow:var(--shadow);}
+  .spot .bar svg{width:22px; height:22px; opacity:.6;}
+  .spot input{flex:1; background:none; border:none; outline:none; color:var(--text); font:400 20px/1 inherit;}
+  .spot .results{margin-top:8px; border-radius:14px; overflow:hidden; max-height:300px; overflow-y:auto;
+    background:var(--glass-tint); -webkit-backdrop-filter:blur(26px) saturate(180%); backdrop-filter:blur(26px) saturate(180%);
+    border:1px solid var(--glass-rim-soft); box-shadow:var(--shadow);}
+  .spot .results:empty{display:none;}
+  .spot .res{padding:9px 16px; display:flex; gap:11px; align-items:center;}
+  .spot .res .sq{width:24px; height:24px; border-radius:6px; flex:0 0 24px;}
+  .spot .res.sel{background:var(--accent-grad); color:#fff;}
+
   /* ---------------- Close overlay ---------------- */
   .closed { position:fixed; inset:0; z-index:200; display:none; place-items:center; text-align:center;
     background:rgba(3,10,16,.72); -webkit-backdrop-filter:blur(26px); backdrop-filter:blur(26px); color:#fff; }
@@ -216,6 +251,15 @@
   <!-- ===== Dock ===== -->
   <div class="dock-wrap"><div class="dock" id="dock"></div></div>
 
+  <!-- ===== Spotlight ===== -->
+  <div class="spot" id="spot">
+    <div class="bar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4" stroke-linecap="round"/></svg>
+      <input id="spotInput" placeholder="Spotlight Search" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="results" id="spotResults"></div>
+  </div>
+
   <!-- ===== Closed overlay ===== -->
   <div class="closed" id="closed"><div>
     <h2>Freeform OS closed</h2>
@@ -253,7 +297,8 @@
   ];
   const dock=document.getElementById('dock');
   APPS.forEach(a=>{const el=document.createElement('div');el.className='app';el.style.background=a.bg;
-    el.innerHTML=`<svg viewBox="0 0 24 24">${a.g}</svg><span class="tip">${a.name}</span>${a.run?'<span class="dot"></span>':''}`;dock.appendChild(el);});
+    el.innerHTML=`<svg viewBox="0 0 24 24">${a.g}</svg><span class="tip">${a.name}</span>${a.run?'<span class="dot"></span>':''}`;
+    el.addEventListener('click',()=>appWindow(a));dock.appendChild(el);});
   const sep=document.createElement('div');sep.className='sep';dock.appendChild(sep);
   const trash=document.createElement('div');trash.className='app';trash.style.background='linear-gradient(180deg,#cfd6e0,#9aa3b2)';
   trash.innerHTML='<svg viewBox="0 0 24 24"><path d="M6 8h12l-1 11a2 2 0 0 1-2 1.8H9A2 2 0 0 1 7 19zM9 8V6.4A1.6 1.6 0 0 1 10.6 4.8h2.8A1.6 1.6 0 0 1 15 6.4V8" fill="none" stroke="#3a3f47" stroke-width="1.5"/></svg><span class="tip">Trash</span>';dock.appendChild(trash);
@@ -284,6 +329,62 @@
   function openAt(x,y){closeAll();const root=buildMenu(MODEL,false);root._level=0;document.body.appendChild(root);place(root,x,y);requestAnimationFrame(()=>root.classList.add('open'));openMenus[0]=root;}
   document.addEventListener('contextmenu',e=>{e.preventDefault();openAt(e.clientX,e.clientY);});
   document.addEventListener('mousedown',e=>{if(!e.target.closest('.menu'))closeAll();});
+
+  /* ---------- app windows (open from dock / spotlight) ---------- */
+  let winZ = 80;
+  const CONTENT = {
+    'Terminal': '<pre> ███████ ███████   FreeForm OS shell\n ██      ██        OS: FreeForm (distro base)\n █████   █████     Kernel: 6.18\n ██      ██        Shell: bash\n   FreeForm OS     <span class="muted">type /help for commands</span></pre>',
+    'Driver Checker': '<pre>Devices: 78    bound: 26    missing: 52\n ok  virtio_net\n ok  virtio_blk\n ok  virtio_rng\n !!  0000:00:00.0   host bridge (no driver needed)</pre>',
+    'Finder': '<pre>Projects/\nDocuments/\nDownloads/\nPictures/\n<span class="muted">4 items</span></pre>',
+    'Windows Apps': '<pre>Wine / Proton apps\n <span class="muted">no Windows apps installed yet</span></pre>',
+  };
+  function openWindow(title, html, opts){
+    opts = opts || {};
+    const w = document.createElement('div'); w.className='win';
+    w.style.left = (opts.x ?? (innerWidth/2 - 230)) + 'px';
+    w.style.top  = (opts.y ?? 110) + 'px';
+    if (opts.w) w.style.width = opts.w + 'px';
+    w.style.zIndex = ++winZ;
+    w.innerHTML = '<div class="titlebar"><div class="lights"><span class="light c"></span><span class="light m"></span><span class="light x"></span></div>'
+      + '<div class="title">'+title+'</div></div><div class="content">'+html+'</div>';
+    document.body.appendChild(w);
+    requestAnimationFrame(()=>w.classList.add('open'));
+    w.addEventListener('mousedown',()=>{ w.style.zIndex = ++winZ; });
+    w.querySelector('.light.c').addEventListener('click',()=>{ w.classList.remove('open'); setTimeout(()=>w.remove(),160); });
+    const tb = w.querySelector('.titlebar'); let dx=0, dy=0, drag=false;
+    tb.addEventListener('mousedown',e=>{ drag=true; dx=e.clientX-w.offsetLeft; dy=e.clientY-w.offsetTop; e.preventDefault(); });
+    addEventListener('mousemove',e=>{ if(drag){ w.style.left=(e.clientX-dx)+'px'; w.style.top=Math.max(26,e.clientY-dy)+'px'; }});
+    addEventListener('mouseup',()=>drag=false);
+    return w;
+  }
+  function appWindow(a){
+    openWindow(a.name, CONTENT[a.name] || '<p class="muted">'+a.name+' — coming soon.</p>',
+      {x: 120+Math.random()*260, y: 86+Math.random()*120, w: 480});
+  }
+
+  /* ---------- Spotlight (⌘/Ctrl+Space) ---------- */
+  const spot=document.getElementById('spot'), spotInput=document.getElementById('spotInput'), spotRes=document.getElementById('spotResults');
+  let spotSel=0, spotItems=[];
+  function renderSpot(q){
+    q=(q||'').toLowerCase();
+    spotItems = APPS.filter(a=>a.name.toLowerCase().includes(q));
+    spotSel=0;
+    spotRes.innerHTML = spotItems.map((a,i)=>'<div class="res'+(i===0?' sel':'')+'" data-i="'+i+'"><span class="sq" style="background:'+a.bg+'"></span>'+a.name+'</div>').join('');
+  }
+  function openSpot(){ spot.classList.add('open'); spotInput.value=''; renderSpot(''); spotInput.focus(); }
+  function closeSpot(){ spot.classList.remove('open'); }
+  spotInput.addEventListener('input',e=>renderSpot(e.target.value));
+  spotRes.addEventListener('click',e=>{ const r=e.target.closest('.res'); if(r){ appWindow(spotItems[+r.dataset.i]); closeSpot(); }});
+  function updSpotSel(){ [...spotRes.children].forEach((c,i)=>c.classList.toggle('sel', i===spotSel)); }
+  document.addEventListener('keydown',e=>{
+    if((e.metaKey||e.ctrlKey) && e.code==='Space'){ e.preventDefault(); spot.classList.contains('open')?closeSpot():openSpot(); return; }
+    if(!spot.classList.contains('open')) return;
+    if(e.key==='Escape'){ closeSpot(); }
+    else if(e.key==='ArrowDown'){ spotSel=Math.min(spotSel+1,spotItems.length-1); updSpotSel(); e.preventDefault(); }
+    else if(e.key==='ArrowUp'){ spotSel=Math.max(spotSel-1,0); updSpotSel(); e.preventDefault(); }
+    else if(e.key==='Enter'){ if(spotItems[spotSel]){ appWindow(spotItems[spotSel]); closeSpot(); } }
+  });
+  document.addEventListener('mousedown',e=>{ if(spot.classList.contains('open') && !e.target.closest('.spot')) closeSpot(); });
 
   /* ---------- special close keybind (⌘⇧Q / Ctrl+Shift+Q) ---------- */
   const closed=document.getElementById('closed');
