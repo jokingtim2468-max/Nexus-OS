@@ -8,11 +8,15 @@
 <style>
   /* FreeForm OS — distro loader. Pick a distro (or drop your own); all share
      this same Liquid Glass UI. */
+  /* MacShell (Tahoe) palette — vendored from vendor/MacShell/MacShell/*.qml:
+     slab #2B2B2D, white overlays 0.10-0.22, text #F5F5F7, green #30D158. */
   :root{
-    --glass:rgba(255,255,255,.10); --glass-hi:rgba(255,255,255,.2);
+    --slab:#2B2B2D;
+    --glass:rgba(43,43,45,.38); --glass-hi:rgba(255,255,255,.14);
     --rim:rgba(255,255,255,.5); --rim-soft:rgba(255,255,255,.14);
-    --text:rgba(255,255,255,.95); --dim:rgba(255,255,255,.55);
-    --accent:#0a84ff; --shadow:0 1px 1px rgba(0,0,0,.1),0 14px 30px rgba(0,0,0,.4);
+    --text:#F5F5F7; --dim:rgba(245,245,247,.55);
+    --accent:#0a84ff; --green:#30D158;
+    --shadow:0 1px 1px rgba(0,0,0,.14),0 16px 34px rgba(0,0,0,.45);
   }
   *{box-sizing:border-box;}
   html,body{height:100%;margin:0;}
