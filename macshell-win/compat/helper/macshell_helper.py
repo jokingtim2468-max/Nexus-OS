@@ -18,6 +18,7 @@ Commands (what the QML calls):
   bt status | bt power on|off | bt scan | bt connect MAC | bt disconnect MAC | bt forget MAC
   airplane on|off
   store search|list|updates|install|uninstall|update ...   (the App Store app; see store.py)
+  wallpaper scan DIR MAKE [FAV...] | wallpaper set FILE   (Settings > Wallpaper; see wallpaper.py)
   wallpaper engine status|list|apply FILE [MONITOR]|stop    (Wallpaper Engine; see wallpaper_engine.py)
   about                                                   ("About This PC" facts; see about.py)
   theme list | theme apply black|white|graphite|default     (Windows/GTK app mode + Spotify; see theme.py)
@@ -342,6 +343,9 @@ def main(argv=None):
     if argv[:2] == ["wallpaper", "engine"]:
         import wallpaper_engine
         return wallpaper_engine.main(argv[2:])
+    if argv[:1] == ["wallpaper"]:
+        import wallpaper
+        return wallpaper.main(argv[1:])
     if argv[:1] == ["store"]:
         import store
         return store.main(argv[1:], name, os.environ.get("MACSHELL_HELPER_STORE_MOCK")

@@ -285,6 +285,12 @@ ShellRoot {
     Tutorial { id: tour; hub: sharedHub }
     WidgetStudio { id: widgetStudio; hub: sharedHub }
     ThemeStudio { id: themeStudio; hub: sharedHub }
+    // Windows: video / animated wallpaper layer (Linux plays videos with mpvpaper)
+    Loader {
+        active: Qt.platform.os === "windows" && macBar.wallpaperVideo !== ""
+        source: "VideoWallpaper.qml"
+        onLoaded: item.hub = sharedHub
+    }
     // Windows: system-wide shortcuts (WindowsHotkeys.qml); on Linux the compositor binds them
     Loader {
         active: Qt.platform.os === "windows"

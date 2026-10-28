@@ -87,6 +87,32 @@ EDITS = {
         ('''                                                     : (activeTl.title === "macshell Settings" ? I18n.tr("System Settings") : "MacShell");''',
          '''                                                     : (activeTl.title === "macshell Settings" ? I18n.tr("System Settings") : "FreeForm");'''),
         ('''(id === "org.quickshell" ? "MacShell" : (e ? e.name : id))''', '''(id === "org.quickshell" ? "FreeForm" : (e ? e.name : id))'''),
+        # ── wallpapers on Windows: helper scan / set, video layer (VideoWallpaper.qml) ──
+        ('''        wpScan.command = ["sh", "-c", script, "sh", root.wpDirEff, (root.wallpaperDir || "").trim() === "" ? "1" : "0"].concat(root.wallpaperFavs || []);''',
+         '''        wpScan.command = Qt.platform.os === "windows"
+            ? ["macshell-helper", "wallpaper", "scan", root.wpDirEff, (root.wallpaperDir || "").trim() === "" ? "1" : "0"].concat(root.wallpaperFavs || [])
+            : ["sh", "-c", script, "sh", root.wpDirEff, (root.wallpaperDir || "").trim() === "" ? "1" : "0"].concat(root.wallpaperFavs || []);'''),
+        ('''            Quickshell.execDetached(["macshell-helper", "wallpaper", "engine", "stop"]);
+        }
+        var pair = wpPairOf(path);''',
+         '''            Quickshell.execDetached(["macshell-helper", "wallpaper", "engine", "stop"]);
+        }
+        if (Qt.platform.os === "windows") {                                  // no awww / mpvpaper on Windows
+            wpPairLight = ""; wpPairDark = ""; root.wpAppliedPair = "";
+            if (root.wpIsVideo(path)) { root.wallpaperVideo = path; return; }   // VideoWallpaper.qml plays it
+            root.wallpaperVideo = "";
+            root.wpRestorePath = path;
+            root.wallpaperPath = path;
+            try { if (root.hub && root.hub.dock) root.hub.dock.wallpaperPath = path; } catch (e) {}
+            Quickshell.execDetached(["macshell-helper", "wallpaper", "set", path]);
+            return;
+        }
+        var pair = wpPairOf(path);'''),
+        ('''    function wpRestore() {
+        if (wpHasPair) return;''',
+         '''    function wpRestore() {
+        if (Qt.platform.os === "windows") return;      // Windows keeps the picture itself; the video layer restarts on its own
+        if (wpHasPair) return;'''),
         ('''source: root.darkMode ? Qt.resolvedUrl("apple-logo-white.svg") : Qt.resolvedUrl("apple-logo-black.svg")''',
          '''source: root.darkMode ? Qt.resolvedUrl("ff-logo-white.svg") : Qt.resolvedUrl("ff-logo-black.svg")'''),
         ('''    readonly property string logoPath: decodeURIComponent(String(Qt.resolvedUrl("assets/macshell-logo.png")).replace(/^file:\\/\\//, ""))''',

@@ -20,6 +20,13 @@ $lnk.WorkingDirectory = $root
 $ico = Join-Path $root 'shell\assets\freeform.ico'
 if (Test-Path $ico) { $lnk.IconLocation = $ico }
 $lnk.Save()
+# FreeForm's wallpapers go where Settings > Wallpaper looks by default (never overwriting yours)
+$walls = Join-Path $env:USERPROFILE 'Pictures\Wallpapers'
+New-Item -ItemType Directory -Force -Path $walls | Out-Null
+Get-ChildItem (Join-Path $root 'shell\assets\wallpapers') -File | ForEach-Object {
+    $dest = Join-Path $walls $_.Name
+    if (-not (Test-Path $dest)) { Copy-Item $_.FullName $dest }
+}
 $p = [Environment]::GetEnvironmentVariable('Path', 'User')
 if (($p -split ';') -notcontains $bin) { [Environment]::SetEnvironmentVariable('Path', ($p.TrimEnd(';') + ";$bin"), 'User') }
 if ($AutoStart) { Set-ItemProperty -Path $runKey -Name FreeForm -Value "`"$(Join-Path $root 'FreeForm.cmd')`"" }

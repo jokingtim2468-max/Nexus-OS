@@ -3922,7 +3922,9 @@ Scope {
             'for f in "$@"; do [ -f "$f" ] && echo "F:$f"; done',
             'exit 0'
         ].join("\n");
-        wpScan.command = ["sh", "-c", script, "sh", root.wpDirEff, (root.wallpaperDir || "").trim() === "" ? "1" : "0"].concat(root.wallpaperFavs || []);
+        wpScan.command = Qt.platform.os === "windows"
+            ? ["macshell-helper", "wallpaper", "scan", root.wpDirEff, (root.wallpaperDir || "").trim() === "" ? "1" : "0"].concat(root.wallpaperFavs || [])
+            : ["sh", "-c", script, "sh", root.wpDirEff, (root.wallpaperDir || "").trim() === "" ? "1" : "0"].concat(root.wallpaperFavs || []);
         wpScan.running = true;
     }
     function wpSetDir(d) {
@@ -4067,6 +4069,16 @@ Scope {
             root.weCurrent = "";
             Quickshell.execDetached(["macshell-helper", "wallpaper", "engine", "stop"]);
         }
+        if (Qt.platform.os === "windows") {                                  // no awww / mpvpaper on Windows
+            wpPairLight = ""; wpPairDark = ""; root.wpAppliedPair = "";
+            if (root.wpIsVideo(path)) { root.wallpaperVideo = path; return; }   // VideoWallpaper.qml plays it
+            root.wallpaperVideo = "";
+            root.wpRestorePath = path;
+            root.wallpaperPath = path;
+            try { if (root.hub && root.hub.dock) root.hub.dock.wallpaperPath = path; } catch (e) {}
+            Quickshell.execDetached(["macshell-helper", "wallpaper", "set", path]);
+            return;
+        }
         var pair = wpPairOf(path);
         if (pair) { wpPairLight = pair.light; wpPairDark = pair.dark; root.wpAppliedPair = ""; wpApplyAppearance(); return; }
         wpPairLight = ""; wpPairDark = ""; root.wpAppliedPair = "";
@@ -4089,6 +4101,7 @@ Scope {
     // Wallpaper that survives a reboot: awww / mpvpaper start empty at login, so the shell puts the last choice back.
     // A picture is skipped when awww already shows it; light/dark pairs are handled by wpApplyAppearance.
     function wpRestore() {
+        if (Qt.platform.os === "windows") return;      // Windows keeps the picture itself; the video layer restarts on its own
         if (wpHasPair) return;
         if (wallpaperVideo !== "") {
             setwallProc.command = ["sh", "-c", '[ -x "$1" ] && exec "$1" "$2"', "sh", setwallScript, wallpaperVideo];
