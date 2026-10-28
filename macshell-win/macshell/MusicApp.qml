@@ -65,6 +65,61 @@ Scope {
     readonly property real npPos: localActive ? player.position / 1000 : (other ? other.position : 0)
     readonly property real npLen: localActive ? player.duration / 1000 : (other ? other.length : 0)
 
+    // ── side panel: synced lyrics (LRCLIB, free and keyless: lrclib.net) or Up Next ──
+    property string sidePanel: ""                 // "" | lyrics | queue
+    readonly property string npArtistOnly: localActive ? (current.artist || "") : (other ? other.trackArtist || "" : "")
+    property var lyr: []                          // [{ t: seconds, line }]
+    property string lyrPlain: ""
+    property string lyrState: ""                  // loading | ok | none
+    property string lyrKey: ""
+    readonly property string lyrWant: npTitle ? npArtistOnly + "\u0001" + npTitle : ""
+    readonly property int lyrIndex: {
+        var i = -1;
+        for (var k = 0; k < lyr.length; k++) { if (lyr[k].t <= npPos + 0.3) i = k; else break; }
+        return i;
+    }
+    onLyrWantChanged: if (sidePanel === "lyrics") loadLyrics()
+    onSidePanelChanged: if (sidePanel === "lyrics") loadLyrics()
+    function parseLrc(text) {
+        var out = [], ls = String(text || "").split("\n");
+        for (var i = 0; i < ls.length; i++) {
+            var m = ls[i].match(/^\[(\d+):(\d+(?:\.\d+)?)\]\s*(.*)$/);
+            if (m) out.push({ t: Number(m[1]) * 60 + Number(m[2]), line: m[3] });
+        }
+        return out;
+    }
+    function loadLyrics() {
+        if (lyrKey === lyrWant) return;
+        var key = lyrWant;
+        lyrKey = key; lyr = []; lyrPlain = "";
+        if (!key) { lyrState = ""; return; }
+        lyrState = "loading";
+        var q = "artist_name=" + encodeURIComponent(npArtistOnly) + "&track_name=" + encodeURIComponent(npTitle);
+        var take = function (d) {
+            if (root.lyrKey !== key) return;
+            if (Array.isArray(d)) d = d.filter(function (x) { return x.syncedLyrics || x.plainLyrics; })[0];
+            if (!d) { root.lyrState = "none"; return; }
+            root.lyr = root.parseLrc(d.syncedLyrics || "");
+            root.lyrPlain = d.plainLyrics || "";
+            root.lyrState = root.lyr.length || root.lyrPlain ? "ok" : "none";
+        };
+        var get = function (url, onFail) {
+            var x = new XMLHttpRequest();
+            x.onreadystatechange = function () {
+                if (x.readyState !== 4) return;
+                if (x.status === 200) { try { take(JSON.parse(x.responseText)); return; } catch (e) {} }
+                if (onFail) onFail(); else if (root.lyrKey === key) root.lyrState = "none";
+            };
+            x.open("GET", url);
+            x.setRequestHeader("User-Agent", "FreeForm Music (https://github.com/jokingtim2468-max/Nexus-OS)");
+            x.send();
+        };
+        // exact match first, then a search (other spellings, live versions...)
+        get("https://lrclib.net/api/get?" + q + (npLen > 0 ? "&duration=" + Math.round(npLen) : ""),
+            function () { get("https://lrclib.net/api/search?" + q, null); });
+    }
+    readonly property var upNext: localActive ? queue.slice(qi + 1, qi + 51) : []
+
     function open() { win.visible = true; win.raise(); win.requestActivate(); if (songs.length === 0) rescan(); }
     function close() { win.visible = false; }
     function url(p) { return p ? "file:///" + String(p).split(String.fromCharCode(92)).join("/").replace(/^\/+/, "") : ""; }
@@ -296,6 +351,18 @@ Scope {
                 }
                 Row {
                     anchors.right: parent.right; anchors.rightMargin: 20; anchors.verticalCenter: parent.verticalCenter; spacing: 6
+                    // lyrics / up next (the panel on the right)
+                    Repeater {
+                        model: [{ id: "lyrics", t: "\u275D" }, { id: "queue", t: "\u2261" }]
+                        delegate: Rectangle {
+                            required property var modelData
+                            width: 28; height: 28; radius: 6; anchors.verticalCenter: parent.verticalCenter
+                            color: root.sidePanel === modelData.id ? pal.sel : "transparent"
+                            Text { anchors.centerIn: parent; text: parent.modelData.t; color: root.sidePanel === parent.modelData.id ? root.accent : pal.text; font.pixelSize: 17 }
+                            MouseArea { anchors.fill: parent; onClicked: root.sidePanel = root.sidePanel === parent.modelData.id ? "" : parent.modelData.id }
+                        }
+                    }
+                    Item { width: 10; height: 1 }
                     WGlyph { width: 14; height: 14; kind: "speaker"; color: pal.text2; anchors.verticalCenter: parent.verticalCenter }
                     Rectangle {
                         width: 90; height: 4; radius: 2; color: pal.sep; anchors.verticalCenter: parent.verticalCenter
@@ -310,10 +377,91 @@ Scope {
                 }
             }
 
+            // ── right panel: lyrics or Up Next ──
+            Rectangle {
+                id: panel
+                visible: root.sidePanel !== ""
+                anchors.right: parent.right; y: top.height
+                width: 340; height: parent.height - top.height
+                color: pal.side
+                Rectangle { width: 1; height: parent.height; color: pal.sep }
+                Text {
+                    x: 22; y: 18
+                    text: root.sidePanel === "lyrics" ? I18n.tr("Lyrics") : I18n.tr("Up Next")
+                    color: pal.text; font.family: root.fam; font.pixelSize: 20; font.weight: Font.Bold
+                }
+                // lyrics: the line being sung, centred and bright
+                ListView {
+                    id: lyrList
+                    visible: root.sidePanel === "lyrics" && root.lyr.length > 0
+                    x: 22; y: 60; width: parent.width - 44; height: parent.height - 80
+                    clip: true; spacing: 14
+                    model: root.lyr
+                    currentIndex: root.lyrIndex
+                    highlightRangeMode: ListView.ApplyRange
+                    preferredHighlightBegin: height * 0.35; preferredHighlightEnd: height * 0.45
+                    highlightMoveDuration: 400
+                    delegate: Text {
+                        required property var modelData
+                        required property int index
+                        width: lyrList.width; wrapMode: Text.WordWrap
+                        text: modelData.line || "\u266A"
+                        color: index === root.lyrIndex ? pal.text : pal.text2
+                        opacity: index === root.lyrIndex ? 1 : 0.6
+                        font.family: root.fam; font.pixelSize: index === root.lyrIndex ? 19 : 16; font.weight: Font.Bold
+                        Behavior on font.pixelSize { NumberAnimation { duration: 200 } }
+                        MouseArea { anchors.fill: parent; onClicked: if (root.localActive) player.position = parent.modelData.t * 1000; else if (root.other && root.other.canSeek) root.other.position = parent.modelData.t }
+                    }
+                }
+                // plain (unsynced) lyrics, or a status line
+                Flickable {
+                    visible: root.sidePanel === "lyrics" && root.lyr.length === 0
+                    x: 22; y: 60; width: parent.width - 44; height: parent.height - 80
+                    contentHeight: plainT.height; clip: true
+                    Text {
+                        id: plainT
+                        width: parent.width; wrapMode: Text.WordWrap; lineHeight: 1.3
+                        text: root.lyrPlain !== "" ? root.lyrPlain
+                              : root.lyrState === "loading" ? I18n.tr("Looking for lyrics\u2026")
+                              : root.npTitle === "" ? I18n.tr("Play something to see its lyrics.")
+                              : I18n.tr("No lyrics found for this song.")
+                        color: root.lyrPlain !== "" ? pal.text : pal.text2
+                        font.family: root.fam; font.pixelSize: root.lyrPlain !== "" ? 15 : 13
+                    }
+                }
+                // up next
+                Column {
+                    visible: root.sidePanel === "queue"
+                    x: 22; y: 60; width: parent.width - 44; spacing: 4
+                    Text {
+                        visible: !root.localActive
+                        width: parent.width; wrapMode: Text.WordWrap
+                        text: root.other ? I18n.tr("Playing in ") + (root.other.identity || I18n.tr("another app")) + I18n.tr(". Its queue is changed there.")
+                                         : I18n.tr("Nothing queued. Double-click a song to play it and what follows.")
+                        color: pal.text2; font.family: root.fam; font.pixelSize: 13
+                    }
+                    Repeater {
+                        model: root.upNext
+                        delegate: Item {
+                            required property var modelData
+                            required property int index
+                            width: parent.width; height: 48
+                            Cover { width: 38; height: 38; r: 4; src: parent.modelData.cover || ""; anchors.verticalCenter: parent.verticalCenter }
+                            Column {
+                                x: 48; width: parent.width - 48; anchors.verticalCenter: parent.verticalCenter
+                                Text { width: parent.width; elide: Text.ElideRight; text: parent.parent.modelData.title; color: pal.text; font.family: root.fam; font.pixelSize: 13 }
+                                Text { width: parent.width; elide: Text.ElideRight; text: parent.parent.modelData.artist || ""; color: pal.text2; font.family: root.fam; font.pixelSize: 11 }
+                            }
+                            MouseArea { anchors.fill: parent; onDoubleClicked: root.playList(root.queue, root.qi + 1 + parent.index) }
+                        }
+                    }
+                }
+            }
+
             // ── content ──
             Flickable {
                 id: content
-                x: side.width; y: top.height; width: parent.width - side.width; height: parent.height - top.height
+                x: side.width; y: top.height; width: parent.width - side.width - (root.sidePanel !== "" ? panel.width : 0); height: parent.height - top.height
                 contentHeight: body.height + 40; clip: true
                 boundsBehavior: Flickable.StopAtBounds
                 Column {
