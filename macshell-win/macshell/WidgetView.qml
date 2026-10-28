@@ -11,6 +11,10 @@
 //   shape    color, radius, opacity
 //   clock    color, hand (second-hand colour), face (dial colour or "")   — an analog clock
 //   app      name, command (what to run), icon (icon-theme name or image path), size, color
+//   weather  city, color, unit ("C"|"F")      — current weather, today's high/low (MET Norway)
+//   calendar color, accent                     — this month, today marked
+//   note     text, size, color                 — a sticky note you type into on the desktop
+//   (progress also takes source "cpu" | "ram" | "gpu")
 import QtQuick
 import QtQuick.Effects
 import Quickshell
@@ -23,6 +27,7 @@ Item {
     property bool editing: false            // the editor: buttons don't run, items can be selected
     property int selected: -1
     signal picked(int index)
+    signal itemEdited(int index, string key, var value)     // a sticky note typed into on the desktop
 
     width: widget.w || 320; height: widget.h || 120
 
@@ -137,6 +142,81 @@ Item {
                             hand(s * Math.PI / 30, r * 0.8, r * 0.02, it.d.hand || "#FF9F0A");
                             c.fillStyle = it.d.hand || "#FF9F0A"; c.beginPath(); c.arc(cx, cy, r * 0.05, 0, Math.PI * 2); c.fill();
                         }
+                    }
+                }
+                // ── weather ──
+                Item {
+                    visible: it.d.type === "weather"
+                    anchors.fill: parent
+                    readonly property var wx: it.d.type === "weather" && wv.ctx ? wv.ctx.weatherFor(it.d.city) : ({})
+                    readonly property bool far: it.d.unit === "F"
+                    function deg(c) { return c === null || c === undefined ? "--" : Math.round(far ? c * 9 / 5 + 32 : c) + "\u00B0"; }
+                    Column {
+                        anchors.fill: parent; spacing: 2
+                        Text { width: parent.width; elide: Text.ElideRight; text: parent.parent.wx.place || it.d.city || "Weather"; color: it.d.color || "white"; font.family: wv.fam; font.pixelSize: Math.max(11, parent.height * 0.13); font.weight: Font.DemiBold }
+                        Text { text: parent.parent.wx.state === "ok" ? parent.parent.deg(parent.parent.wx.temp) : "--"; color: it.d.color || "white"; font.family: wv.fam; font.pixelSize: Math.max(18, parent.height * 0.36); font.weight: Font.Light }
+                        Text { text: wv.ctx ? wv.ctx.weatherGlyph(parent.parent.wx.symbol) : ""; color: it.d.color || "white"; font.pixelSize: Math.max(12, parent.height * 0.14) }
+                        Text {
+                            width: parent.width; elide: Text.ElideRight
+                            text: parent.parent.wx.state === "ok" ? parent.parent.wx.text : parent.parent.wx.state === "loading" ? "Loading\u2026" : (parent.parent.wx.text || "")
+                            color: it.d.color || "white"; font.family: wv.fam; font.pixelSize: Math.max(10, parent.height * 0.1); font.weight: Font.DemiBold
+                        }
+                        Text {
+                            visible: parent.parent.wx.state === "ok" && parent.parent.wx.high !== null
+                            text: "H:" + parent.parent.deg(parent.parent.wx.high) + "  L:" + parent.parent.deg(parent.parent.wx.low)
+                            color: it.d.color || "white"; opacity: 0.85; font.family: wv.fam; font.pixelSize: Math.max(10, parent.height * 0.1)
+                        }
+                    }
+                }
+                // ── calendar (this month) ──
+                Item {
+                    visible: it.d.type === "calendar"
+                    anchors.fill: parent
+                    readonly property date t: wv.ctx ? wv.ctx.now : new Date()
+                    readonly property int first: new Date(t.getFullYear(), t.getMonth(), 1).getDay()
+                    readonly property int days: new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate()
+                    readonly property real cw: width / 7
+                    readonly property real ch: (height - cw * 0.9) / 7
+                    Text { width: parent.width; text: Qt.formatDate(parent.t, "MMMM").toUpperCase(); color: it.d.accent || "#FF453A"; font.family: wv.fam; font.pixelSize: Math.max(9, parent.cw * 0.42); font.weight: Font.Bold }
+                    Grid {
+                        y: parent.cw * 0.9; columns: 7
+                        Repeater {
+                            model: 7 + 42
+                            delegate: Item {
+                                required property int index
+                                readonly property int day: index - 7 - parent.parent.first + 1
+                                readonly property bool head: index < 7
+                                readonly property bool today: !head && day === parent.parent.t.getDate()
+                                width: parent.parent.cw; height: parent.parent.ch
+                                visible: head || (day >= 1 && day <= parent.parent.days)
+                                Rectangle { anchors.centerIn: parent; width: Math.min(parent.width, parent.height) * 0.9; height: width; radius: width / 2; color: it.d.accent || "#FF453A"; visible: parent.today }
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: parent.head ? "SMTWTFS".charAt(parent.index) : parent.day
+                                    color: parent.today ? "white" : (it.d.color || "white"); opacity: parent.head ? 0.6 : 1
+                                    font.family: wv.fam; font.pixelSize: Math.max(8, Math.min(parent.width, parent.height) * 0.5); font.weight: parent.today || parent.head ? Font.Bold : Font.Normal
+                                }
+                            }
+                        }
+                    }
+                }
+                // ── sticky note ──
+                Flickable {
+                    visible: it.d.type === "note"
+                    anchors.fill: parent
+                    contentHeight: noteEdit.paintedHeight; clip: true
+                    interactive: !wv.editing
+                    TextEdit {
+                        id: noteEdit
+                        width: parent.width
+                        enabled: !wv.editing                 // in the editor the block is moved, not typed into
+                        text: it.d.text || ""
+                        wrapMode: TextEdit.Wrap
+                        color: it.d.color || "#1C1C1E"
+                        selectByMouse: true
+                        font.family: wv.fam; font.pixelSize: it.d.size || 15
+                        onEditingFinished: if (text !== (it.d.text || "")) wv.itemEdited(it.index, "text", text)
+                        Text { visible: noteEdit.text === "" && !noteEdit.activeFocus; text: "Type a note\u2026"; color: noteEdit.color; opacity: 0.45; font: noteEdit.font }
                     }
                 }
                 // ── app shortcut ──

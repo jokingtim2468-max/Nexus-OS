@@ -21,6 +21,7 @@ Commands (what the QML calls):
   wallpaper scan DIR MAKE [FAV...] | wallpaper set FILE   (Settings > Wallpaper; see wallpaper.py)
   wallpaper engine status|list|apply FILE [MONITOR]|stop    (Wallpaper Engine; see wallpaper_engine.py)
   about                                                   ("About This PC" facts; see about.py)
+  stats watch                                             (CPU / RAM load for widgets; sysstat.py)
   apps sync                                               (Start Menu apps -> .desktop files; see apps.py)
   theme list | theme apply black|white|graphite|default     (Windows/GTK app mode + Spotify; see theme.py)
 """
@@ -338,6 +339,9 @@ def backend_name():
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     name = backend_name()
+    if argv[:1] == ["stats"]:
+        import sysstat
+        return sysstat.main(argv[1:])
     if argv[:1] == ["apps"]:
         import apps
         return apps.main(argv[1:])

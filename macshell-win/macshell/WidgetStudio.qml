@@ -31,7 +31,7 @@ Scope {
 
     WidgetContext { id: wctx; hub: root.hub }
 
-    function open() { win.visible = true; win.raise(); win.requestActivate(); if (widgets.length === 0) addFromTemplate(0); else if (current < 0) current = 0; }
+    function open() { win.visible = true; win.raise(); win.requestActivate(); if (widgets.length === 0) addFromTemplate(0); else if (current < 0) current = 0; listShared(); }
     function close() { win.visible = false; }
     function toggle() { if (win.visible) close(); else open(); }
 
@@ -73,6 +73,19 @@ Scope {
             { type: "app", x: 84, y: 12, w: 64, h: 86, name: "Spotify", command: "spotify", icon: "spotify", color: "#FFFFFF" },
             { type: "app", x: 154, y: 12, w: 64, h: 86, name: "Discord", command: "discord", icon: "discord", color: "#FFFFFF" },
             { type: "app", x: 224, y: 12, w: 64, h: 86, name: "Steam", command: "steam", icon: "steam", color: "#FFFFFF" } ] },
+        { name: "Weather", w: 170, h: 170, bg: { color: "#2D6CDF", opacity: 0.92, radius: 30, border: true }, items: [
+            { type: "weather", x: 16, y: 14, w: 140, h: 142, city: "London", unit: "C", color: "#FFFFFF" } ] },
+        { name: "Calendar", w: 170, h: 170, bg: { color: "#1C1C1E", opacity: 0.85, radius: 30, border: true }, items: [
+            { type: "calendar", x: 12, y: 12, w: 146, h: 146, color: "#FFFFFF", accent: "#FF453A" } ] },
+        { name: "System Monitor", w: 260, h: 150, bg: { color: "#1C1C1E", opacity: 0.85, radius: 24, border: true }, items: [
+            { type: "text", x: 18, y: 12, w: 224, h: 18, text: "CPU {cpu}", size: 13, bold: true, color: "#FFFFFF" },
+            { type: "progress", x: 18, y: 32, w: 224, h: 8, source: "cpu", color: "#0A84FF" },
+            { type: "text", x: 18, y: 52, w: 224, h: 18, text: "Memory {ramused}", size: 13, bold: true, color: "#FFFFFF" },
+            { type: "progress", x: 18, y: 72, w: 224, h: 8, source: "ram", color: "#30D158" },
+            { type: "text", x: 18, y: 92, w: 224, h: 18, text: "GPU {gpu}", size: 13, bold: true, color: "#FFFFFF" },
+            { type: "progress", x: 18, y: 112, w: 224, h: 8, source: "gpu", color: "#FF9F0A" } ] },
+        { name: "Sticky Note", w: 220, h: 200, bg: { color: "#FFD60A", opacity: 0.95, radius: 18, border: false }, items: [
+            { type: "note", x: 16, y: 14, w: 188, h: 172, text: "", size: 15, color: "#1C1C1E" } ] },
         { name: "Blank", w: 260, h: 140, bg: { color: "#1C1C1E", opacity: 0.85, radius: 22, border: true }, items: [] }
     ]
 
@@ -104,7 +117,10 @@ Scope {
                      image: { type: "image", w: 80, h: 80, src: "", radius: 12 },
                      shape: { type: "shape", w: 80, h: 40, color: "#0A84FF", radius: 10, opacity: 1 },
                      clock: { type: "clock", w: 100, h: 100, color: "#1C1C1E", hand: "#FF9F0A", face: "#FFFFFF" },
-                     app: { type: "app", w: 64, h: 84, name: "Firefox", command: "firefox", icon: "firefox", color: "#FFFFFF", size: 12 } }[type];
+                     app: { type: "app", w: 64, h: 84, name: "Firefox", command: "firefox", icon: "firefox", color: "#FFFFFF", size: 12 },
+                     weather: { type: "weather", w: 140, h: 140, city: "London", unit: "C", color: "#FFFFFF" },
+                     calendar: { type: "calendar", w: 146, h: 146, color: "#FFFFFF", accent: "#FF453A" },
+                     note: { type: "note", w: 180, h: 120, text: "", size: 15, color: "#FFFFFF" } }[type];
         var w = clone(cw); var it = clone(base); it.x = 16; it.y = 16;
         w.items.push(it); var l = widgets.slice(); l[current] = w; commit(l); sel = w.items.length - 1;
     }
@@ -116,6 +132,58 @@ Scope {
         if (!cw) return;
         var l = widgets.slice(); l.splice(current, 1); commit(l); current = Math.min(current, l.length - 1); sel = -1;
     }
+    function setItemField(index, itemIndex, key, value) {
+        var l = widgets.slice(), w = clone(l[index]);
+        if (!w.items[itemIndex]) return;
+        w.items[itemIndex][key] = value; l[index] = w; commit(l);
+    }
+    // share a widget: export it as a .ffwidget file, import one (Documents\FreeForm Widgets)
+    readonly property string shareDir: home + "/Documents/FreeForm Widgets"
+    property var shared: []                  // [{ name, path }]
+    function winPath(p) { return String(p).split("/").join(String.fromCharCode(92)); }
+    property string pendingExport: ""
+    property string pendingName: ""
+    function exportWidget() {
+        if (!cw) return;
+        var w = clone(cw); delete w.onDesktop; delete w.x; delete w.y; delete w.id;
+        pendingName = String(w.name || "Widget").replace(/[^A-Za-z0-9 _-]/g, "").trim() || "Widget";
+        pendingExport = JSON.stringify(w, null, 1);
+        mkdirProc.command = Qt.platform.os === "windows" ? ["cmd.exe", "/c", "if not exist \"" + winPath(shareDir) + "\" mkdir \"" + winPath(shareDir) + "\""]
+                                                         : ["mkdir", "-p", shareDir];
+        mkdirProc.running = true;
+    }
+    Process {
+        id: mkdirProc
+        onExited: {
+            exportFile.path = root.shareDir + "/" + root.pendingName + ".ffwidget";
+            exportFile.setText(root.pendingExport);
+            Qt.openUrlExternally("file:///" + root.shareDir.replace(/^\/+/, ""));
+            root.listShared();
+        }
+    }
+    FileView { id: exportFile; printErrors: false }
+    function listShared() { listProc.running = false; listProc.running = true; }
+    Process {
+        id: listProc
+        command: Qt.platform.os === "windows"
+            ? ["cmd.exe", "/c", "dir", "/b", root.winPath(root.shareDir) + String.fromCharCode(92) + "*.ffwidget"]
+            : ["sh", "-c", 'cd "$1" 2>/dev/null && ls -1 *.ffwidget 2>/dev/null', "sh", root.shareDir]
+        stdout: StdioCollector {
+            onStreamFinished: root.shared = text.split(/\r?\n/).filter(function (l) { return /\.ffwidget$/i.test(l); }).map(function (f) {
+                return { path: root.shareDir + "/" + f, name: f.replace(/\.ffwidget$/i, "") };
+            })
+        }
+    }
+    FileView { id: importFile; printErrors: false; blockLoading: true }
+    function importWidget(path) {
+        importFile.path = path;
+        var w = null;
+        try { w = JSON.parse(importFile.text()); } catch (e) { return; }
+        if (!w || !Array.isArray(w.items)) return;
+        w.id = Date.now().toString(36); w.onDesktop = false; w.x = 80 + widgets.length * 30; w.y = 120 + widgets.length * 30;
+        var l = widgets.slice(); l.push(w); commit(l); current = l.length - 1; sel = -1;
+    }
+
     function moveDesktop(index, x, y) {
         var l = widgets.slice(), w = clone(l[index]); w.x = Math.round(x); w.y = Math.round(y); l[index] = w; commit(l);
     }
@@ -152,7 +220,9 @@ Scope {
             color: "transparent"
             WlrLayershell.layer: WlrLayer.Bottom
             WlrLayershell.namespace: "freeform-widget"
-            WidgetView { widget: dw.w; ctx: wctx; fam: root.fam }
+            // a widget with a sticky note takes the keyboard when clicked
+            WlrLayershell.keyboardFocus: (dw.w.items || []).some(function (x) { return x.type === "note"; }) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+            WidgetView { widget: dw.w; ctx: wctx; fam: root.fam; onItemEdited: (index, key, value) => root.setItemField(dw.modelData.i, index, key, value) }
             // drag anywhere that isn't a control to move it; saved when let go
             DragHandler {
                 target: null
@@ -318,7 +388,7 @@ Scope {
                     Row {
                         x: 16; anchors.verticalCenter: parent.verticalCenter; spacing: 6
                         Repeater {
-                            model: [{ t: "text", l: "Text" }, { t: "button", l: "Button" }, { t: "art", l: "Album Art" }, { t: "progress", l: "Progress" }, { t: "image", l: "Image" }, { t: "shape", l: "Shape" }, { t: "clock", l: "Clock" }, { t: "app", l: "App Shortcut" }]
+                            model: [{ t: "text", l: "Text" }, { t: "button", l: "Button" }, { t: "art", l: "Album Art" }, { t: "progress", l: "Progress" }, { t: "image", l: "Image" }, { t: "shape", l: "Shape" }, { t: "clock", l: "Clock" }, { t: "app", l: "App Shortcut" }, { t: "weather", l: "Weather" }, { t: "calendar", l: "Calendar" }, { t: "note", l: "Note" }]
                             delegate: Chip { required property var modelData; label: "+ " + I18n.tr(modelData.l); onClicked: root.addItem(modelData.t) }
                         }
                     }
@@ -493,7 +563,7 @@ Scope {
                                 visible: root.ci && root.ci.type === "progress"
                                 spacing: 4
                                 Repeater {
-                                    model: [{ v: "media", l: "Song" }, { v: "volume", l: "Volume" }, { v: "battery", l: "Battery" }]
+                                    model: [{ v: "media", l: "Song" }, { v: "volume", l: "Volume" }, { v: "battery", l: "Battery" }, { v: "cpu", l: "CPU" }, { v: "ram", l: "Memory" }, { v: "gpu", l: "GPU" }]
                                     delegate: Chip { required property var modelData; label: I18n.tr(modelData.l); on: root.ci && (root.ci.source || "media") === modelData.v; onClicked: root.updateItem({ source: modelData.v }) }
                                 }
                             }
@@ -504,6 +574,24 @@ Scope {
                             Field { visible: root.ci && root.ci.type === "app"; text: root.ci ? root.ci.command || "" : ""; onEdited: t => root.updateItem({ command: t }) }
                             Label { visible: root.ci && root.ci.type === "app"; text: I18n.tr("ICON (icon name or image file)") }
                             Field { visible: root.ci && root.ci.type === "app"; text: root.ci ? root.ci.icon || "" : ""; onEdited: t => root.updateItem({ icon: t }) }
+                            // weather
+                            Label { visible: root.ci && root.ci.type === "weather"; text: I18n.tr("CITY") }
+                            Field { visible: root.ci && root.ci.type === "weather"; text: root.ci ? root.ci.city || "" : ""; onEdited: t => root.updateItem({ city: t }) }
+                            Row {
+                                visible: root.ci && root.ci.type === "weather"
+                                spacing: 4
+                                Repeater {
+                                    model: ["C", "F"]
+                                    delegate: Chip { required property string modelData; label: "\u00B0" + modelData; on: root.ci && (root.ci.unit || "C") === modelData; onClicked: root.updateItem({ unit: modelData }) }
+                                }
+                            }
+                            Text { visible: root.ci && root.ci.type === "weather"; width: parent.width; wrapMode: Text.WordWrap; text: I18n.tr("Weather data: MET Norway. Place search: OpenStreetMap."); color: pal.text2; font.family: root.fam; font.pixelSize: 10 }
+                            // calendar
+                            Label { visible: root.ci && root.ci.type === "calendar"; text: I18n.tr("TODAY") }
+                            Swatches { visible: root.ci && root.ci.type === "calendar"; value: root.ci ? root.ci.accent || "" : ""; onChanged: c => root.updateItem({ accent: c }) }
+                            // note
+                            Stepper { visible: root.ci && root.ci.type === "note"; label: I18n.tr("Size"); value: root.ci ? root.ci.size || 15 : 15; onChanged: v => root.updateItem({ size: Math.max(8, v) }) }
+                            Text { visible: root.ci && root.ci.type === "note"; width: parent.width; wrapMode: Text.WordWrap; text: I18n.tr("Type into the note on the desktop; it's saved by itself."); color: pal.text2; font.family: root.fam; font.pixelSize: 11 }
                             // clock
                             Label { visible: root.ci && root.ci.type === "clock"; text: I18n.tr("DIAL") }
                             Swatches { visible: root.ci && root.ci.type === "clock"; value: root.ci ? root.ci.face || "" : ""; onChanged: c => root.updateItem({ face: c }) }
@@ -551,7 +639,21 @@ Scope {
                         Stepper { label: I18n.tr("Round"); step: 2; value: root.cw && root.cw.bg ? root.cw.bg.radius : 0
                             onChanged: v => { var b = root.clone(root.cw.bg || {}); b.radius = Math.max(0, v); root.updateWidget({ bg: b }); } }
                         Item { width: 1; height: 6 }
-                        Chip { label: I18n.tr("Delete Widget"); onClicked: root.deleteWidget() }
+                        Row {
+                            spacing: 6
+                            Chip { label: I18n.tr("Export\u2026"); onClicked: root.exportWidget() }
+                            Chip { label: I18n.tr("Delete Widget"); onClicked: root.deleteWidget() }
+                        }
+                        // widgets shared with you: .ffwidget files in Documents/FreeForm Widgets
+                        Label { text: I18n.tr("IMPORT (Documents/FreeForm Widgets)") }
+                        Flow {
+                            width: parent.width; spacing: 4
+                            Repeater {
+                                model: root.shared
+                                delegate: Chip { required property var modelData; label: "+ " + modelData.name; onClicked: root.importWidget(modelData.path) }
+                            }
+                            Chip { label: I18n.tr("Refresh"); onClicked: root.listShared() }
+                        }
                     }
                 }
             }
