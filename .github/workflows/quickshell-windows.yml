@@ -13,6 +13,9 @@ on:
       - ".github/workflows/quickshell-windows.yml"
   workflow_dispatch:
 
+permissions:
+  contents: write                 # publish the freeform-latest release
+
 jobs:
   build:
     runs-on: windows-latest
@@ -96,6 +99,22 @@ jobs:
         with:
           name: FreeForm-windows-x64
           path: pkg/
+
+      # The one-line installer (tools/launcher/get.ps1) downloads this zip from the
+      # "freeform-latest" pre-release, refreshed on every push to the FreeForm branch.
+      - name: Publish freeform-latest release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/vibe-coded/sharp-noether-i8tg9c'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          Compress-Archive -Path pkg\FreeForm -DestinationPath FreeForm-windows-x64.zip -Force
+          gh release view freeform-latest -R $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create freeform-latest -R $env:GITHUB_REPOSITORY --prerelease --target $env:GITHUB_SHA `
+              --title "FreeForm (latest build)" --notes "Built automatically from the FreeForm branch."
+          }
+          gh release upload freeform-latest FreeForm-windows-x64.zip -R $env:GITHUB_REPOSITORY --clobber
 
       # Run MacShell on the Windows build and take a screenshot of the desktop (the runner has an
       # interactive desktop session). Uploads the screenshot and Quickshell's log.
