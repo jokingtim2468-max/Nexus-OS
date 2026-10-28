@@ -8,7 +8,12 @@ $url = 'https://github.com/jokingtim2468-max/Nexus-OS/releases/download/freeform
 $dest = Join-Path $env:LOCALAPPDATA 'FreeForm'
 $zip = Join-Path $env:TEMP 'FreeForm-windows-x64.zip'
 Write-Host 'Downloading FreeForm...'
-Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
+try { Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing }
+catch {
+    Write-Host "Couldn't download FreeForm: $($_.Exception.Message)" -ForegroundColor Yellow
+    Write-Host 'If it says Not Found, the first build is still being made; try again in a few minutes.'
+    return
+}
 if (Test-Path (Join-Path $dest 'FreeForm.ps1')) { & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $dest 'FreeForm.ps1') -Stop }
 $tmp = Join-Path $env:TEMP 'FreeForm-unpack'
 Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
