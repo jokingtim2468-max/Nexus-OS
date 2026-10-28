@@ -97,6 +97,14 @@ EDITS = {
          '''    readonly property var wsIds: {
         if (Qt.platform.os === "windows") return [];
         var ids = [], vals = Hyprland.workspaces.values;'''),
+        # ── Alt+Tab (WinAltTab in WindowsHotkeys.qml): focus the picked window directly ──
+        ('''        root.swOpen = false;
+        if (!a || !a.win) return;
+''',
+         '''        root.swOpen = false;
+        if (!a || !a.win) return;
+        if (Qt.platform.os === "windows") { try { a.win.activate(); } catch (e0) {} return; }
+'''),
         # ── 3. power ──
         ('''    function sh(cmd) { Quickshell.execDetached(["sh", "-c", cmd]); }''',
          '''    function sh(cmd) {

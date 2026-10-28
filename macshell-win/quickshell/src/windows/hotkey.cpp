@@ -212,4 +212,98 @@ void WinStartKey::setEnabled(bool enabled) {
 	emit this->enabledChanged();
 }
 
+namespace {
+
+struct AltTabHook {
+	HHOOK hook = nullptr;
+	bool switching = false;
+	QList<WinAltTab*> listeners;
+
+	static AltTabHook& get() {
+		static AltTabHook h;
+		return h;
+	}
+
+	template <typename F>
+	void emitAll(F f) {
+		for (auto* l: this->listeners) QMetaObject::invokeMethod(l, f, Qt::QueuedConnection);
+	}
+
+	static LRESULT CALLBACK proc(int code, WPARAM wParam, LPARAM lParam) {
+		auto& h = get();
+		if (code != HC_ACTION || h.listeners.isEmpty()) return CallNextHookEx(nullptr, code, wParam, lParam);
+
+		auto* kb = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam); // NOLINT
+		if (kb->flags & LLKHF_INJECTED) return CallNextHookEx(nullptr, code, wParam, lParam);
+
+		auto down = wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN;
+		auto vk = kb->vkCode;
+		auto altHeld = (kb->flags & LLKHF_ALTDOWN) != 0;
+		auto isAlt = vk == VK_MENU || vk == VK_LMENU || vk == VK_RMENU;
+
+		if (vk == VK_TAB && (altHeld || h.switching)) {
+			if (down && (GetAsyncKeyState(VK_CONTROL) & 0x8000) == 0 && (GetAsyncKeyState(VK_LWIN) & 0x8000) == 0) {
+				h.switching = true;
+				if (GetAsyncKeyState(VK_SHIFT) & 0x8000) h.emitAll(&WinAltTab::emitPrev);
+				else h.emitAll(&WinAltTab::emitNext);
+			}
+			return 1; // Windows' own switcher never sees it
+		}
+		if (h.switching && vk == VK_ESCAPE && down) {
+			h.switching = false;
+			h.emitAll(&WinAltTab::emitCancel);
+			return 1;
+		}
+		if (h.switching && isAlt && !down) {
+			h.switching = false;
+			// a lone Alt release would open the focused app's menu bar: an unused key in between stops that
+			INPUT seq[2] = {}; // NOLINT
+			seq[0].type = INPUT_KEYBOARD;
+			seq[0].ki.wVk = 0xFF;
+			seq[1] = seq[0];
+			seq[1].ki.dwFlags = KEYEVENTF_KEYUP;
+			SendInput(2, seq, sizeof(INPUT));
+			h.emitAll(&WinAltTab::emitCommit);
+		}
+		return CallNextHookEx(nullptr, code, wParam, lParam);
+	}
+
+	void update() {
+		auto want = !this->listeners.isEmpty();
+		if (want && !this->hook) {
+			this->hook = SetWindowsHookExW(WH_KEYBOARD_LL, &AltTabHook::proc, GetModuleHandleW(nullptr), 0);
+			if (!this->hook) qWarning() << "WinAltTab: could not install the keyboard hook";
+		} else if (!want && this->hook) {
+			UnhookWindowsHookEx(this->hook);
+			this->hook = nullptr;
+			this->switching = false;
+		}
+	}
+};
+
+} // namespace
+
+WinAltTab::WinAltTab(QObject* parent): QObject(parent) {
+	AltTabHook::get().listeners.append(this);
+	AltTabHook::get().update();
+}
+
+WinAltTab::~WinAltTab() {
+	AltTabHook::get().listeners.removeAll(this);
+	AltTabHook::get().update();
+}
+
+void WinAltTab::setEnabled(bool enabled) {
+	if (enabled == this->mEnabled) return;
+	this->mEnabled = enabled;
+	auto& h = AltTabHook::get();
+	if (enabled) {
+		if (!h.listeners.contains(this)) h.listeners.append(this);
+	} else {
+		h.listeners.removeAll(this);
+	}
+	h.update();
+	emit this->enabledChanged();
+}
+
 } // namespace qs::windows

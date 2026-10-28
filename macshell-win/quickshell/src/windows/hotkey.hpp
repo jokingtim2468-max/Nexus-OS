@@ -81,4 +81,34 @@ private:
 	bool mEnabled = true;
 };
 
+/// Alt+Tab / Alt+Shift+Tab, taken over from Windows' switcher while this object exists.
+/// next()/prev() on each Tab, commit() when Alt is let go, cancel() on Esc.
+class WinAltTab: public QObject {
+	Q_OBJECT;
+	Q_PROPERTY(bool enabled READ enabled WRITE setEnabled NOTIFY enabledChanged);
+	QML_ELEMENT;
+
+public:
+	explicit WinAltTab(QObject* parent = nullptr);
+	~WinAltTab() override;
+
+	[[nodiscard]] bool enabled() const { return this->mEnabled; }
+	void setEnabled(bool enabled);
+
+	void emitNext() { emit this->next(); }
+	void emitPrev() { emit this->prev(); }
+	void emitCommit() { emit this->commit(); }
+	void emitCancel() { emit this->cancel(); }
+
+signals:
+	void next();
+	void prev();
+	void commit();
+	void cancel();
+	void enabledChanged();
+
+private:
+	bool mEnabled = true;
+};
+
 } // namespace qs::windows

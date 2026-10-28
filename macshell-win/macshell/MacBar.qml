@@ -4300,6 +4300,7 @@ Scope {
         var a = root.swApps[root.swIndex];
         root.swOpen = false;
         if (!a || !a.win) return;
+        if (Qt.platform.os === "windows") { try { a.win.activate(); } catch (e0) {} return; }
         try { Hyprland.refreshToplevels(); } catch (e) {}
         var ts = Hyprland.toplevels.values, hit = null, i;
         for (i = 0; i < ts.length; i++) if (ts[i].wayland === a.win) { hit = ts[i]; break; }
