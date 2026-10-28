@@ -29,6 +29,33 @@ What the run also confirmed for the port:
 - 26 of 40 components import only `QtQuick` and need no changes.
 - All 7 shaders already contain **HLSL** (Direct3D) in their `.qsb` files.
 
+## Done so far
+
+### Network & Bluetooth (patch `compat/patches/net_bt_windows.py`, backend `compat/helper/`)
+- All 14 `nmcli` / `bluetoothctl` / `rfkill` call sites in `MacBar.qml` and `MacDock.qml`
+  now call **`macshell-helper`**, which prints the exact text MacShell already parses — so
+  MacShell's UI and parsing code are unchanged. Backends: **Windows** (`winnet.ps1`: WinRT
+  Radio / WiFiAdapter / NetworkInformation / Bluetooth + NetAdapter / VPN cmdlets — language
+  independent, no admin except Ethernet on/off), **Linux** (MacShell's original commands,
+  verbatim), **mock** (tests and the reference rig).
+- Ethernet: **cable icon** (RJ45 plug + cord, drawn in MacShell's Glyph style) and the Windows
+  rule — wired connected ⇒ cable icon, even if Wi-Fi is also joined. Ethernet rows in the menu
+  use it too.
+- The Wi-Fi menu gets a **Bluetooth on/off row** (shows the connected device), using
+  MacShell's own `PSwitch` and `toggleBt()`.
+- New IPC `network toggle|open|close` (same pattern as `controlcenter`) — for a Win+A hotkey.
+- Verified in real Quickshell with the mock backend (wired → cable; join Wi-Fi → ✓ in list;
+  Bluetooth off → row + bar icon update). `winnet.ps1` itself still needs a run on real Windows.
+- Known Windows limit: there's no public API to force a *paired* Bluetooth device to
+  connect/disconnect (Windows reconnects them itself); planned: `BluetoothSetServiceState`
+  for headphones, like ToothTray.
+
+### Still Linux-only underneath
+Pinning already exists in MacShell (right-click → **Keep in Dock** / **Remove from Dock**, drag
+to reorder, `pinned.json`), but on Windows it needs the app list and running windows — the
+host layer below (`DesktopEntries` → Start Menu shortcuts, `ToplevelManager`/`Hyprland` → Win32
+windows). That host is also what gets the bar and dock on screen on Windows at all.
+
 ## 1. Quickshell modules → Windows
 
 | Quickshell API (uses) | Used for | Windows replacement |

@@ -9,6 +9,11 @@
 #   tools/reference/run-macshell.sh shot name          # screenshot -> $WORK/name.png
 #   tools/reference/run-macshell.sh stop
 #
+# MACSHELL_SRC=port runs OUR patched copy (macshell-win/macshell) with compat/helper on PATH in
+# mock mode (fake network/Bluetooth state in $WORK/mock-state.json) instead of upstream.
+# Change that state with compat/helper/macshell-helper (MACSHELL_HELPER_MOCK=$WORK/mock-state.json),
+# open the network menu with:  ipc call network open.   Give it ~45 s to draw on the software GPU.
+#
 # IPC targets MacShell exposes: controlcenter, spotlight, settings (pane <id>), clock, about,
 # wallpapers, notifications, widgets, switcher, screenshot, hardware, gaming, glass.
 # Without Hyprland, window lists / workspaces / hyprctl actions are empty; everything visual works.
@@ -45,7 +50,9 @@ case "${1:-}" in
 start)
   WALL=${2:-$HOME/wall.jpg}
   mkdir -p "$RUN" "$CFG" "$HOME/.config/hypr" "$HOME/.local/share/applications" && chmod 700 "$RUN"
-  cp -r "$ROOT/vendor/MacShell/MacShell/." "$CFG/"
+  rm -rf "$CFG" && mkdir -p "$CFG"
+  if [ "${MACSHELL_SRC:-upstream}" = port ]; then cp -r "$ROOT/macshell-win/macshell/." "$CFG/"
+  else cp -r "$ROOT/vendor/MacShell/MacShell/." "$CFG/"; fi
   [ -f "$WALL" ] || { echo "need a wallpaper image: start /path/to/wall.jpg"; exit 1; }
   echo "wallpaper = ,$WALL" > "$HOME/.config/hypr/hyprpaper.conf"      # how MacShell finds the wallpaper
   # stub launchers so the Dock shows its default pins
@@ -57,6 +64,7 @@ start)
   "$(p sway)/bin/sway" -c "$WORK/sway.conf" > "$WORK/sway.log" 2>&1 & echo $! > "$WORK/sway.pid"
   for i in $(seq 1 50); do ls "$RUN"/wayland-? >/dev/null 2>&1 && break; sleep 0.2; done
   basename "$(ls "$RUN"/wayland-? | head -1)" > "$WORK/display"
+  [ "${MACSHELL_SRC:-upstream}" = port ] && export PATH="$ROOT/macshell-win/compat/helper:$PATH" MACSHELL_HELPER_MOCK="$WORK/mock-state.json"
   WAYLAND_DISPLAY=$(cat "$WORK/display") QT_QPA_PLATFORM=wayland "$QS" -p "$CFG/shell.qml" > "$WORK/qs.log" 2>&1 & echo $! > "$WORK/qs.pid"
   echo "MacShell starting (log: $WORK/qs.log)" ;;
 shot)

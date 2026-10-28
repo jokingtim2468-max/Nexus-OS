@@ -1,0 +1,3 @@
+#!/bin/sh
+# MacShell calls this name; it runs the Python helper next to it.
+exec python3 "$(dirname "$(readlink -f "$0")")/macshell_helper.py" "$@"

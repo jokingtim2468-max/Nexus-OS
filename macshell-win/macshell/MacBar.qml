@@ -685,12 +685,12 @@ Scope {
                 circ(12.4, 8.0, 0.9); ctx.fill();
                 circ(14.0, 9.6, 0.9); ctx.fill();
             } else if (k === "ethernet") {
-                // Apple's Ethernet symbol: <···>
-                poly([5.2, 4.6, 1.6, 9, 5.2, 13.4], false);
-                poly([12.8, 4.6, 16.4, 9, 12.8, 13.4], false);
-                circ(6.5, 9, 1.1); ctx.fill();
-                circ(9, 9, 1.1); ctx.fill();
-                circ(11.5, 9, 1.1); ctx.fill();
+                // Ethernet cable: RJ45 plug (body, latch, contacts) with its cord running down
+                rrect(4.2, 1.6, 9.6, 8.6, 1.4); ctx.stroke();          // plug body
+                line(7, 1.6, 7, 3.6); line(9, 1.6, 9, 3.6); line(11, 1.6, 11, 3.6);   // contacts
+                rrect(6.6, 10.2, 4.8, 2.4, 0.6); ctx.fill();            // boot / strain relief
+                ctx.beginPath(); ctx.moveTo(9, 12.6);                   // cord
+                ctx.bezierCurveTo(9, 15.4, 13.6, 14.2, 13.8, 16.8); ctx.stroke();
             } else if (k === "play") {
                 rpoly([5, 3.2, 15, 9, 5, 14.8], 0.8);
             } else if (k === "pause") {
@@ -1860,12 +1860,12 @@ Scope {
     property string wifiSsid: ""
     property int wifiSignal: 0
     property bool ethernetUp: false             // a wired connection is up (shown with Apple's <···> symbol when Wi-Fi isn't in use)
-    readonly property bool showEthernet: ethernetUp && wifiSsid === ""
+    readonly property bool showEthernet: ethernetUp                 // Windows: the cable wins when both are up
     readonly property int wifiLevel: !wifiOn ? 0 : (wifiSsid === "" ? 0 : (wifiSignal > 66 ? 3 : (wifiSignal > 33 ? 2 : 1)))
     function refreshWifi() { if (!wifiProc.running) wifiProc.running = true; }
     Process {
         id: wifiProc
-        command: ["sh", "-c", "nmcli radio wifi 2>/dev/null; nmcli -t -f ACTIVE,SSID,SIGNAL dev wifi 2>/dev/null | grep '^yes' | head -n1; echo; nmcli -t -f TYPE,STATE dev 2>/dev/null | grep -q '^ethernet:connected$' && echo eth || echo -"]
+        command: ["macshell-helper", "net", "status"]
         stdout: StdioCollector {
             onStreamFinished: {
                 var l = text.split("\n");
@@ -1882,7 +1882,7 @@ Scope {
     }
     function toggleWifi() {
         root.wifiOn = !root.wifiOn;
-        Quickshell.execDetached(["nmcli", "radio", "wifi", root.wifiOn ? "on" : "off"]);
+        Quickshell.execDetached(["macshell-helper", "wifi", "radio", root.wifiOn ? "on" : "off"]);
         settleTimer.restart();
     }
 
@@ -1917,10 +1917,7 @@ Scope {
     }
     Process {
         id: wifiListProc
-        command: ["sh", "-c",
-            "nmcli dev wifi rescan >/dev/null 2>&1; "
-            + "nmcli -t -f NAME,TYPE connection show 2>/dev/null | sed -n 's/:802-11-wireless$//p' | sed 's/^/S:/'; "
-            + "nmcli -t -f IN-USE,SSID,SIGNAL,SECURITY dev wifi list --rescan no 2>/dev/null | sed 's/^/N:/'"]
+        command: ["macshell-helper", "wifi", "list"]
         stdout: StdioCollector {
             onStreamFinished: {
                 var lines = text.split("\n"), saved = {}, best = {}, i, f;
@@ -1957,7 +1954,7 @@ Scope {
         if (wifiConnProc.running) return;
         wifiError = "";
         wifiBusy = ssid;
-        var cmd = ["nmcli", "--wait", "25", "dev", "wifi", "connect", ssid];
+        var cmd = ["macshell-helper", "wifi", "connect", ssid];
         if (pw && pw !== "") { cmd.push("password"); cmd.push(pw); }
         wifiConnProc.command = cmd;
         wifiConnProc.running = true;
@@ -1973,14 +1970,14 @@ Scope {
         }
     }
     function disconnectWifi() {
-        sh("nmcli -t -f DEVICE,TYPE dev | grep ':wifi$' | cut -d: -f1 | head -n1 | xargs -r nmcli dev disconnect");
+        Quickshell.execDetached(["macshell-helper", "wifi", "disconnect"]);
         wifiAfter.restart();
     }
     Timer { id: wifiAfter; interval: 1200; onTriggered: { root.scanWifi(); root.refreshWifi(); root.refreshConnections(); } }
     function refreshConnections() { if (!connProc.running) connProc.running = true; }
     Process {
         id: connProc
-        command: ["sh", "-c", "nmcli -t -f NAME,TYPE,DEVICE connection show 2>/dev/null"]
+        command: ["macshell-helper", "conn", "list"]
         stdout: StdioCollector {
             onStreamFinished: {
                 var rows = [], lines = text.split("\n");
@@ -1999,7 +1996,7 @@ Scope {
     }
     function toggleConnection(c) {
         if (!c) return;
-        var args = c.active ? ["nmcli", "connection", "down", "id", c.name] : ["nmcli", "connection", "up", "id", c.name];
+        var args = ["macshell-helper", "conn", c.active ? "down" : "up", c.name];
         Quickshell.execDetached(args); connectionRefresh.restart();
     }
     Timer { id: connectionRefresh; interval: 1200; onTriggered: root.refreshConnections() }
@@ -2030,17 +2027,7 @@ Scope {
     // newer BlueZ versions: older ones ignore the argument and print every device (so everything looked connected).
     Process {
         id: btProc
-        command: ["sh", "-c",
-            "p=$(timeout 4 bluetoothctl show 2>/dev/null </dev/null | grep -i 'Powered:' | head -n1); echo \"P:$p\"; "
-            + "timeout 4 bluetoothctl devices 2>/dev/null </dev/null | while read -r _ mac name; do "
-            + "[ -n \"$mac\" ] || continue; "
-            + "i=$(timeout 3 bluetoothctl info \"$mac\" 2>/dev/null </dev/null); "
-            + "pr=$(printf '%s\\n' \"$i\" | grep -Ec 'Paired: yes|Bonded: yes'); "
-            + "c=$(printf '%s\\n' \"$i\" | grep -c 'Connected: yes'); "
-            + "b=$(printf '%s\\n' \"$i\" | sed -n 's/.*Battery Percentage: 0x[0-9a-fA-F]* (\\([0-9]*\\)).*/\\1/p' | head -n1); "
-            + "printf 'D:%s\\t%s\\t%s\\t%s\\t%s\\n' \"$mac\" \"$pr\" \"$c\" \"$b\" \"$name\"; "
-            + "done"
-        ]
+        command: ["macshell-helper", "bt", "status"]
         stdout: StdioCollector {
             onStreamFinished: {
                 var lines = text.split("\n"), on = false, devList = [], connCount = 0, firstConnName = "", i;
@@ -2078,7 +2065,7 @@ Scope {
     }
     Process {
         id: btScanProc
-        command: ["sh", "-c", "bluetoothctl --timeout 10 scan on >/dev/null 2>&1 </dev/null; exit 0"]
+        command: ["macshell-helper", "bt", "scan"]
         onExited: {
             root.btScanning = false;
             root.refreshBt();
@@ -2091,21 +2078,10 @@ Scope {
         root.btError = "";
         root.btBusy = mac;
         if (connected) {
-            btActionProc.command = ["sh", "-c", "bluetoothctl disconnect \"$1\" >/dev/null 2>&1 </dev/null; exit 0", "sh", mac];
+            btActionProc.command = ["macshell-helper", "bt", "disconnect", mac];
         } else {
             // pair first when needed (with a simple agent, no PIN prompt), trust, then connect
-            btActionProc.command = ["sh", "-c",
-                "d=\"$1\"; "
-                + "fail() { m=$(printf '%s\\n' \"$1\" | grep -iE 'fail|error|not available|timeout|rejected|canceled' | tail -n1); "
-                + "[ -n \"$m\" ] || m=\"$2\"; echo \"$m\" >&2; exit 1; }; "
-                + "if ! bluetoothctl info \"$d\" 2>/dev/null </dev/null | grep -qE 'Paired: yes|Bonded: yes'; then "
-                + "o=$(timeout 45 bluetoothctl --agent NoInputNoOutput pair \"$d\" 2>&1 </dev/null); "
-                + "printf '%s\\n' \"$o\" | grep -qi 'Pairing successful' || fail \"$o\" 'Could not pair. Put the device in pairing mode and try again.'; "
-                + "fi; "
-                + "bluetoothctl trust \"$d\" >/dev/null 2>&1 </dev/null; "
-                + "o=$(timeout 25 bluetoothctl connect \"$d\" 2>&1 </dev/null); "
-                + "printf '%s\\n' \"$o\" | grep -qi 'Connection successful' || fail \"$o\" 'Could not connect to the device.'",
-                "sh", mac];
+            btActionProc.command = ["macshell-helper", "bt", "connect", mac];
         }
         btActionProc.running = true;
     }
@@ -2123,15 +2099,13 @@ Scope {
     // power: a soft-blocked adapter (rfkill, e.g. after Airplane Mode) refuses "power on", so unblock it first
     function toggleBt() {
         root.btOn = !root.btOn;
-        Quickshell.execDetached(["sh", "-c",
-            root.btOn ? "rfkill unblock bluetooth 2>/dev/null; sleep 0.3; bluetoothctl power on"
-                      : "bluetoothctl power off"]);
+        Quickshell.execDetached(["macshell-helper", "bt", "power", root.btOn ? "on" : "off"]);
         settleTimer.interval = 1500;
         settleTimer.restart();
     }
     readonly property bool airplane: !wifiOn && !btOn
     function toggleAirplane() {
-        sh(airplane ? "rfkill unblock all; sleep 0.5; bluetoothctl power on" : "rfkill block all");
+        Quickshell.execDetached(["macshell-helper", "airplane", airplane ? "off" : "on"]);
         wifiOn = airplane; btOn = airplane;
         settleTimer.restart();
     }
@@ -2554,6 +2528,14 @@ Scope {
         function toggle(): void { root.ccRequest(true); }
         function open(): void { root.ccRequest(true); }
         function close(): void { root.ccRequest(false); }
+    }
+    // qs -c MacShell ipc call network toggle | open | close   (the Wi-Fi / Ethernet / Bluetooth menu)
+    signal netRequest(int mode)                 // 0 close, 1 open, 2 toggle
+    IpcHandler {
+        target: "network"
+        function toggle(): void { root.netRequest(2); }
+        function open(): void { root.netRequest(1); }
+        function close(): void { root.netRequest(0); }
     }
     // Laptop / keyboard hardware keys (volume, mute, brightness). The compositor must bind the keys (the installer's
     // macshell.lua does); the shell then does the work itself, so the numbers, the on-screen display and the UI sounds
@@ -4343,6 +4325,11 @@ Scope {
                     function onCcRequest(open) {
                         if (!ui.toastScreen || !root.ccEnabled) return;
                         ui.pop = (open && ui.pop !== "cc") ? "cc" : "";
+                    }
+                    function onNetRequest(mode) {
+                        if (!ui.toastScreen) return;
+                        if (mode === 0 || (mode === 2 && ui.pop === "wifi")) ui.pop = "";
+                        else if (ui.pop !== "wifi") ui.openPop("wifi", wifiBtn.mapToItem(ui, 0, 0).x);
                     }
                 }
                 readonly property bool toastsShown: toastScreen && notifToasts.count > 0
@@ -6333,6 +6320,25 @@ Scope {
                                 onToggled: { root.toggleWifi(); wifiAfter.restart(); }
                             }
                         }
+                        // Bluetooth on/off, so both radios can be switched from this menu
+                        Item {
+                            visible: !wifiCol.showBack      // the popover only; the Control Center has its own tile
+                            width: parent.width; height: visible ? 30 : 0
+                            Glyph { x: 8; anchors.verticalCenter: parent.verticalCenter; width: 14; height: 14; kind: "bluetooth"; color: root.btOn ? pp.fg : pp.fg2 }
+                            Text {
+                                x: 30; anchors.verticalCenter: parent.verticalCenter
+                                text: I18n.tr("Bluetooth") + (root.btConnectedName !== "" ? " \u00b7 " + root.btConnectedName : "")
+                                color: pp.fg
+                                font.family: root.fontForWeight(font.weight, pp.fam); font.pixelSize: 13
+                            }
+                            PSwitch {
+                                t: pp
+                                anchors.right: parent.right; anchors.rightMargin: 4
+                                anchors.verticalCenter: parent.verticalCenter
+                                checked: root.btOn
+                                onToggled: root.toggleBt()
+                            }
+                        }
                         Rectangle { width: parent.width; height: 1; color: pp.sep }
                         Text { visible: root.otherConnections.length>0; width:parent.width; leftPadding:6; text:I18n.tr("Ethernet & VPN"); color:pp.fg2; font.family: root.fontForWeight(font.weight, pp.fam); font.pixelSize:11; font.weight:Font.DemiBold }
                         Column {
@@ -6343,7 +6349,7 @@ Scope {
                                     required property var modelData
                                     width: parent.width; height: 30
                                     Rectangle { anchors.fill:parent; radius:8; color:connMa.containsMouse?pp.hover:"transparent" }
-                                    Glyph { x:8; anchors.verticalCenter:parent.verticalCenter; width:14; height:14; kind:modelData.type==="vpn"?"lock":"wifi"; color:pp.fg }
+                                    Glyph { x:8; anchors.verticalCenter:parent.verticalCenter; width:14; height:14; kind:modelData.type==="vpn"?"lock":"ethernet"; color:pp.fg }
                                     Text { x:30; anchors.verticalCenter:parent.verticalCenter; width:parent.width-42; elide:Text.ElideRight; text:modelData.name+(modelData.active?I18n.tr(" · Connected"):""); color:pp.fg; font.family: root.fontForWeight(font.weight, pp.fam); font.pixelSize:12 }
                                     MouseArea { id:connMa; anchors.fill:parent; hoverEnabled:true; onClicked:root.toggleConnection(modelData) }
                                 }
