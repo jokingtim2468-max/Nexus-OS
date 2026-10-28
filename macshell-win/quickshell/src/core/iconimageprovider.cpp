@@ -36,7 +36,7 @@ IconImageProvider::requestPixmap(const QString& id, QSize* size, const QSize& re
 
 	// An image file instead of a theme name (Windows apps: icons extracted from their .exe).
 	// The id arrives URL-encoded ("C:/Users/Jo%20Doe/..."), so decode it before looking for the file.
-	auto iconFile = QUrl::fromPercentEncoding(iconName.toUtf8());
+	auto iconFile = IconImageProvider::localIconFile(QUrl::fromPercentEncoding(iconName.toUtf8()));
 	auto icon = QDir::isAbsolutePath(iconFile) && QFile::exists(iconFile) ? QIcon(iconFile) : QIcon::fromTheme(iconName);
 	if (icon.isNull() && !fallbackName.isEmpty()) icon = QIcon::fromTheme(fallbackName);
 	if (icon.isNull() && !path.isEmpty()) icon = QPixmap(path);
@@ -52,6 +52,14 @@ IconImageProvider::requestPixmap(const QString& id, QSize* size, const QSize& re
 
 	if (size != nullptr) *size = pixmap.size();
 	return pixmap;
+}
+
+QString IconImageProvider::localIconFile(const QString& icon) {
+	auto f = icon.startsWith("file://") ? QUrl(icon).toLocalFile() : icon;
+#ifdef _WIN32
+	if (f.size() > 3 && f[0] == '/' && f[2] == ':' && f[1].isLetter()) f = f.sliced(1);
+#endif
+	return f;
 }
 
 QPixmap IconImageProvider::missingPixmap(const QSize& size) {

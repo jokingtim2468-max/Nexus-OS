@@ -159,6 +159,8 @@ jobs:
           }
           function Ipc { Run-Limited "$pkg\bin\qs.exe" (@('ipc', '-p', "`"$shell`"", 'call') + $args) smoke\ipc.txt 20 }
           Start-Sleep -Seconds 35
+          Run-Limited "$pkg\bin\qs.exe" @('list', '--all', '-vv') smoke\qs-list.txt 20
+          Get-Content smoke\qs-list.txt
           Ipc tour stop; Start-Sleep -Seconds 3; Shot desktop
           Ipc widgetstudio open; Start-Sleep -Seconds 6; Shot widgetstudio; Ipc widgetstudio close
           Ipc music open; Start-Sleep -Seconds 6; Shot music; Ipc music close

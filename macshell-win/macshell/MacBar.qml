@@ -2534,6 +2534,7 @@ Scope {
     }
     function launchActive() {
         var e = lookup(activeAppId);
+        if (e && root.hub && root.hub.launchOwn && root.hub.launchOwn(e.id)) return;
         if (e) e.execute();
     }
     function search() {
@@ -2931,6 +2932,7 @@ Scope {
         u[e.id] = (u[e.id] || 0) + 1;
         appUsage = u;
         saveTimer.restart();
+        if (root.hub && root.hub.launchOwn && root.hub.launchOwn(e.id)) return;
         e.execute();
     }
     function appRunner(e) { return function () { launchApp(e); }; }

@@ -46,7 +46,21 @@ ShellRoot {
         property var widgetStudio: widgetStudio
         property var themeStudio: themeStudio
         property var missionControl: missionControl
+        property var finder: finder
         function openMusic() { if (musicLoader.item) musicLoader.item.open(); else musicLoader.active = true; }
+        // FreeForm's own apps (the ff-freeform_* entries apps sync writes): opened right here, not through `qs ipc`
+        function launchOwn(id) {
+            switch (String(id).replace(/\.desktop$/, "")) {
+            case "ff-freeform_finder": finder.open(""); return true;
+            case "ff-freeform_widget_studio": widgetStudio.open(); return true;
+            case "ff-freeform_music": openMusic(); return true;
+            case "ff-freeform_theme_studio": themeStudio.open(); return true;
+            case "ff-freeform_app_store": appStore.open(""); return true;
+            case "ff-freeform_freeform_settings": macDock.openPrefs("general"); return true;
+            case "ff-freeform_welcome_tour": tour.start(); return true;
+            }
+            return false;
+        }
         function openSettings(pane) { macDock.openPrefs(pane); }
 
         // set by MacBar / MacDock (Binding elements) when their glass needs live data
@@ -288,6 +302,7 @@ ShellRoot {
     WidgetStudio { id: widgetStudio; hub: sharedHub }
     ThemeStudio { id: themeStudio; hub: sharedHub }
     MissionControl { id: missionControl; hub: sharedHub }
+    FinderApp { id: finder; hub: sharedHub }
     // Music (MusicApp.qml) is created the first time it's opened: it needs Qt Multimedia
     Loader {
         id: musicLoader
@@ -363,6 +378,12 @@ ShellRoot {
         target: "music"
         function open(): void { sharedHub.openMusic(); }
         function close(): void { if (musicLoader.item) musicLoader.item.close(); }
+    }
+    IpcHandler {
+        target: "finder"
+        function open(): void { finder.open(""); }
+        function show(path: string): void { finder.open(path); }
+        function close(): void { finder.close(); }
     }
     IpcHandler {
         target: "missioncontrol"

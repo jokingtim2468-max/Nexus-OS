@@ -26,7 +26,9 @@ Variants {
     // Windows has no compositor wallpaper to read: start on FreeForm's own, so the glass has something to refract
     onBarChanged: {
         if (Qt.platform.os !== "windows" || !bar || bar.wallpaperPath !== "") return;
-        var p = decodeURIComponent(String(Qt.resolvedUrl("assets/wallpapers/FreeForm Tide-" + (dark ? "Dark" : "Light") + ".jpg"))).replace(/^file:\/\/\//, "");
+        // file:///D:/x -> D:/x  (file:///home/x -> /home/x)
+        var p = decodeURIComponent(String(Qt.resolvedUrl("assets/wallpapers/FreeForm Tide-" + (dark ? "Dark" : "Light") + ".jpg")))
+                    .replace(/^file:(\/\/)?/, "").replace(/^\/([A-Za-z]:)/, "$1");
         bar.wallpaperPath = p;
         if (dock) dock.wallpaperPath = p;
     }

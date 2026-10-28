@@ -208,7 +208,7 @@ Scope {
 
     FileView {
         path: {
-            var s = decodeURIComponent(Qt.resolvedUrl("assets/appstore/featured.json").toString().replace(/^file:\/\//, ""));
+            var s = decodeURIComponent(Qt.resolvedUrl("assets/appstore/featured.json").toString().replace(/^file:(\/\/)?/, "")).replace(/^\/([A-Za-z]:)/, "$1");
             return /^\/[A-Za-z]:/.test(s) ? s.substring(1) : s;          // file:///C:/... on Windows
         }
         onLoaded: { try { root.featured = JSON.parse(text()); } catch (e) { console.warn("featured.json:", e); } }

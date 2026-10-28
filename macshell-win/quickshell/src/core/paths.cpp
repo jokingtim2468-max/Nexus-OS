@@ -72,7 +72,13 @@ QString QsPaths::basePath(const QString& id) {
 }
 
 QString QsPaths::ipcPath(const QString& id) {
+#ifdef _WIN32
+	// a named pipe (\\.\pipe\<name>): a plain name from the instance id, so the server and every
+	// client agree on it exactly (a path string can differ in form while naming the same folder)
+	return QStringLiteral("quickshell-ipc-") + id;
+#else
 	return QDir(QsPaths::basePath(id)).filePath("ipc.sock");
+#endif
 }
 
 QDir* QsPaths::baseRunDir() {

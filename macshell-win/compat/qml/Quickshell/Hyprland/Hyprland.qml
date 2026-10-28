@@ -7,6 +7,8 @@ import Quickshell.Wayland
 // monitors = screens, one workspace per screen (Windows virtual desktops: a later step).
 Singleton {
     id: hl
+    // Hyprland events (never fire on Windows); declared so MacShell's Connections { onRawEvent } bind
+    signal rawEvent(var event)
     readonly property var monitors: QtObject { property var values: hl.monList }
     readonly property var workspaces: QtObject { property var values: hl.wsList }
     readonly property var toplevels: QtObject { property var values: hl.tlList }

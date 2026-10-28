@@ -10,6 +10,8 @@ public:
 	QPixmap requestPixmap(const QString& id, QSize* size, const QSize& requestedSize) override;
 
 	static QPixmap missingPixmap(const QSize& size);
+	// An icon given as a file path, cleaned up: URL-decoded, and "/D:/x" (from a file:///D:/x URL) -> "D:/x".
+	static QString localIconFile(const QString& icon);
 
 	static QString requestString(
 	    const QString& icon,

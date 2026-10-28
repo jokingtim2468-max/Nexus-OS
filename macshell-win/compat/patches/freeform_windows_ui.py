@@ -14,17 +14,33 @@ Applied after freeform_apps.py (same engine: exact find -> replace, each must ma
 """
 EDITS = {
     "MacDock.qml": [
+        ('''            if (ent && typeof ent.execute === "function") { try { ent.execute(); ok = true; } catch (err3) { ok = false; } }''',
+         '''            if (ent && root.hub && root.hub.launchOwn && root.hub.launchOwn(ent.id)) ok = true;
+            else if (ent && typeof ent.execute === "function") { try { ent.execute(); ok = true; } catch (err3) { ok = false; } }'''),
         # ── 4. Windows apps pinned by default ──
         ('''    readonly property var defaultPinned: [
         "org.gnome.Nautilus",''',
          '''    readonly property var defaultPinned: Qt.platform.os === "windows" ? [
-        "ff-file_explorer", "ff-microsoft_edge", "ff-google_chrome", "ff-firefox", "ff-terminal",
+        "ff-freeform_finder", "ff-microsoft_edge", "ff-google_chrome", "ff-firefox", "ff-terminal",
         "ff-visual_studio_code", "ff-discord", "ff-spotify", "ff-steam",
         "ff-freeform_music", "ff-freeform_widget_studio", "ff-freeform_app_store", "ff-freeform_settings"
     ] : [
         "org.gnome.Nautilus",'''),
     ],
     "MacBar.qml": [
+        # ── FreeForm's own apps open in-process (hub.launchOwn), not through a second qs.exe ──
+        ('''        saveTimer.restart();
+        e.execute();
+    }''',
+         '''        saveTimer.restart();
+        if (root.hub && root.hub.launchOwn && root.hub.launchOwn(e.id)) return;
+        e.execute();
+    }'''),
+        ('''        var e = lookup(activeAppId);
+        if (e) e.execute();''',
+         '''        var e = lookup(activeAppId);
+        if (e && root.hub && root.hub.launchOwn && root.hub.launchOwn(e.id)) return;
+        if (e) e.execute();'''),
         # ── 1. auto-hide state ──
         ('''    property bool barEnabled: true           // the menu bar strip itself''',
          '''    property bool barEnabled: true           // the menu bar strip itself

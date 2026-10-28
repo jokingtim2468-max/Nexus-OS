@@ -336,7 +336,8 @@ QString QuickshellGlobal::iconPath(const QString& icon) {
 }
 
 QString QuickshellGlobal::iconPath(const QString& icon, bool check) {
-	if (check && !(QDir::isAbsolutePath(icon) && QFile::exists(icon)) && QIcon::fromTheme(icon).isNull()) return "";
+	auto file = IconImageProvider::localIconFile(icon);
+	if (check && !(QDir::isAbsolutePath(file) && QFile::exists(file)) && QIcon::fromTheme(icon).isNull()) return "";
 	return IconImageProvider::requestString(icon);
 }
 

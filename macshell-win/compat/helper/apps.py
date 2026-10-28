@@ -40,7 +40,7 @@ def exec_arg(s):
 
 
 # FreeForm's own apps, so Spotlight and Launchpad find them: (name, IPC target, icon in shell/assets)
-OWN = [("Widget Studio", "widgetstudio", "freeform-logo.png"), ("Music", "music", "music-app.svg"),
+OWN = [("Finder", "finder", "freeform-logo.png"), ("Widget Studio", "widgetstudio", "freeform-logo.png"), ("Music", "music", "music-app.svg"),
        ("Theme Studio", "themestudio", "freeform-logo.png"), ("App Store", "appstore", "freeform-logo.png"),
        ("FreeForm Settings", "settings", "freeform-logo.png"), ("Welcome Tour", "tour", "freeform-logo.png")]
 

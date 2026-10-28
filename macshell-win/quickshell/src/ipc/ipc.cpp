@@ -11,6 +11,7 @@
 #include <qobject.h>
 
 #include "../core/generation.hpp"
+#include "../core/instanceinfo.hpp"
 #include "../core/logcat.hpp"
 #include "../core/paths.hpp"
 #include "ipccommand.hpp"
@@ -34,7 +35,11 @@ IpcServer::IpcServer(const QString& path) {
 
 void IpcServer::start() {
 	if (auto* run = QsPaths::instance()->instanceRunDir()) {
+#ifdef _WIN32
+		auto path = QsPaths::ipcPath(InstanceInfo::CURRENT.instanceId);
+#else
 		auto path = run->filePath("ipc.sock");
+#endif
 		new IpcServer(path);
 	} else {
 		qCCritical(

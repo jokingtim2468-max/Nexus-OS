@@ -226,7 +226,7 @@ Scope {
         { name: "White",    c: "#ffffff" }, { name: "Black",  c: "#1c1c1e" }
     ]
     readonly property var defaultPinned: Qt.platform.os === "windows" ? [
-        "ff-file_explorer", "ff-microsoft_edge", "ff-google_chrome", "ff-firefox", "ff-terminal",
+        "ff-freeform_finder", "ff-microsoft_edge", "ff-google_chrome", "ff-firefox", "ff-terminal",
         "ff-visual_studio_code", "ff-discord", "ff-spotify", "ff-steam",
         "ff-freeform_music", "ff-freeform_widget_studio", "ff-freeform_app_store", "ff-freeform_settings"
     ] : [
@@ -4381,7 +4381,8 @@ Scope {
             try { ent = DesktopEntries.byId(rid); } catch (err) { ent = null; }
             if (!ent) { try { ent = DesktopEntries.heuristicLookup ? DesktopEntries.heuristicLookup(item.key) : null; } catch (err2) { ent = null; } }
             var ok = false;
-            if (ent && typeof ent.execute === "function") { try { ent.execute(); ok = true; } catch (err3) { ok = false; } }
+            if (ent && root.hub && root.hub.launchOwn && root.hub.launchOwn(ent.id)) ok = true;
+            else if (ent && typeof ent.execute === "function") { try { ent.execute(); ok = true; } catch (err3) { ok = false; } }
             if (!ok) {
                 var id = rid;
                 console.log("[macdock] launching", id, "via gtk-launch (desktop entry unavailable)");

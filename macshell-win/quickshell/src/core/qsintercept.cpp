@@ -19,6 +19,12 @@
 
 QS_LOGGING_CATEGORY(logQsIntercept, "quickshell.interceptor", QtWarningMsg);
 
+namespace {
+// A local path as a file: URL path. Windows paths ("D:/x") need a leading slash, or the URL
+// becomes "file:D:/x", which Qt.resolvedUrl users and FileView can't read.
+QString filePathForUrl(const QString& path) { return path.startsWith('/') ? path : '/' + path; }
+} // namespace
+
 QUrl QsUrlInterceptor::intercept(
     const QUrl& originalUrl,
     QQmlAbstractUrlInterceptor::DataType type
@@ -60,7 +66,7 @@ QUrl QsUrlInterceptor::intercept(
 			auto newUrl = url;
 			newUrl.setScheme("file");
 			// above check asserts path starts with /qs/
-			newUrl.setPath(path);
+			newUrl.setPath(filePathForUrl(path));
 			qCDebug(logQsIntercept) << "Rewrote intercept" << url << "to" << newUrl;
 			return newUrl;
 		}
@@ -116,7 +122,7 @@ QNetworkReply* QsInterceptNetworkAccessManager::createRequest(
 		auto fileReq = req;
 		auto fileUrl = req.url();
 		fileUrl.setScheme("file");
-		fileUrl.setPath(path);
+		fileUrl.setPath(filePathForUrl(path));
 		qCDebug(logQsIntercept) << "Passing through intercept" << url << "to" << fileUrl;
 
 		fileReq.setUrl(fileUrl);
