@@ -5,6 +5,7 @@ qt_add_library(quickshell-windows STATIC
 	panel_window.cpp
 	toplevel.cpp
 	layershell.cpp
+	hotkey.cpp
 )
 
 qt_add_qml_module(quickshell-windows

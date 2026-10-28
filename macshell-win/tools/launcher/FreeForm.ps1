@@ -30,6 +30,7 @@ if ($Stop) {
     exit 0
 }
 
+$env:FREEFORM_ROOT = $root
 $env:HOME = $env:USERPROFILE                                   # MacShell keeps its settings in ~/.config
 $env:FREEFORM_HELPER = Join-Path $root 'compat\helper'
 $env:QML_IMPORT_PATH = (Join-Path $root 'bin\qml') + ';' + (Join-Path $root 'compat\qml')

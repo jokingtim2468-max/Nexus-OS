@@ -285,6 +285,12 @@ ShellRoot {
     Tutorial { id: tour; hub: sharedHub }
     WidgetStudio { id: widgetStudio; hub: sharedHub }
     ThemeStudio { id: themeStudio; hub: sharedHub }
+    // Windows: system-wide shortcuts (WindowsHotkeys.qml); on Linux the compositor binds them
+    Loader {
+        active: Qt.platform.os === "windows"
+        source: "WindowsHotkeys.qml"
+        onLoaded: item.hub = sharedHub
+    }
 
     Component.onCompleted: {
         sharedHub.bar = macBar;
