@@ -6,7 +6,8 @@
 // The preview is a plain drawing of a music app: album covers and song names are grey blocks,
 // so no real music or artwork is shown. Saved themes appear next to Black / White / Graphite and
 // apply the same way (MacShell, Windows apps, and Spotify through Spicetify when installed).
-// Saved to ~/.config/macshell/themes.json.
+// Saved to ~/.config/macshell/themes.json. Share one with Export (a .fftheme file in
+// Documents/FreeForm Themes); themes put in that folder show up under Import.
 import QtQuick
 import QtQuick.Effects
 import Quickshell
@@ -32,6 +33,7 @@ Scope {
         editing = index === undefined ? -1 : index;
         draft = editing >= 0 ? JSON.parse(JSON.stringify(themes[editing])) : newDraft();
         win.visible = true; win.raise(); win.requestActivate();
+        listShared();
     }
     function close() { win.visible = false; }
     function set(k, v) { var d = JSON.parse(JSON.stringify(draft)); d[k] = v; draft = d; }
@@ -49,6 +51,49 @@ Scope {
         var l = themes.slice(); l.splice(editing, 1); themes = l;
         store.setText(JSON.stringify({ themes: l }, null, 1));
         close();
+    }
+
+    // ── sharing: Documents/FreeForm Themes/*.fftheme ──
+    readonly property string shareDir: home + "/Documents/FreeForm Themes"
+    property var shared: []
+    property string pendingText: ""
+    property string pendingName: ""
+    function winPath(p) { return String(p).split("/").join(String.fromCharCode(92)); }
+    function exportTheme() {
+        var d = JSON.parse(JSON.stringify(draft)); delete d.id;
+        pendingName = String(d.name || "Theme").replace(/[^A-Za-z0-9 _-]/g, "").trim() || "Theme";
+        pendingText = JSON.stringify(d, null, 1);
+        mkdirProc.command = Qt.platform.os === "windows" ? ["cmd.exe", "/c", "if not exist \"" + winPath(shareDir) + "\" mkdir \"" + winPath(shareDir) + "\""]
+                                                         : ["mkdir", "-p", shareDir];
+        mkdirProc.running = true;
+    }
+    property Process mkdirProc: Process {
+        onExited: {
+            exportFile.path = root.shareDir + "/" + root.pendingName + ".fftheme";
+            exportFile.setText(root.pendingText);
+            Qt.openUrlExternally("file:///" + root.shareDir.replace(/^\/+/, ""));
+            root.listShared();
+        }
+    }
+    property FileView exportFile: FileView { printErrors: false }
+    function listShared() { listProc.running = false; listProc.running = true; }
+    property Process listProc: Process {
+        command: Qt.platform.os === "windows"
+            ? ["cmd.exe", "/c", "dir", "/b", root.winPath(root.shareDir) + String.fromCharCode(92) + "*.fftheme"]
+            : ["sh", "-c", 'cd "$1" 2>/dev/null && ls -1 *.fftheme 2>/dev/null', "sh", root.shareDir]
+        stdout: StdioCollector {
+            onStreamFinished: root.shared = text.split(/\r?\n/).filter(function (l) { return /\.fftheme$/i.test(l); }).map(function (f) {
+                return { path: root.shareDir + "/" + f, name: f.replace(/\.fftheme$/i, "") };
+            })
+        }
+    }
+    property FileView importFile: FileView { printErrors: false; blockLoading: true }
+    function importTheme(path) {
+        importFile.path = path;
+        var d = null;
+        try { d = JSON.parse(importFile.text()); } catch (e) { return; }
+        if (!d || !d.bg || !d.fg) return;
+        d.custom = true; d.id = ""; editing = -1; draft = d;           // opens in the editor: Save keeps it
     }
 
     FileView {
@@ -172,6 +217,16 @@ Scope {
                         ColorRow { label: "Text"; key: "fg" }
                         ColorRow { label: "Secondary text"; key: "sub" }
                         ColorRow { label: "Accent"; key: "accent" }
+                    }
+                }
+                // share: export this theme, import ones from Documents/FreeForm Themes
+                Flow {
+                    anchors.bottom: parent.bottom; anchors.bottomMargin: 62; x: 20; width: parent.width - 40
+                    spacing: 6
+                    Btn { label: I18n.tr("Export\u2026"); onClicked: root.exportTheme() }
+                    Repeater {
+                        model: root.shared
+                        delegate: Btn { required property var modelData; label: "+ " + modelData.name; onClicked: root.importTheme(modelData.path) }
                     }
                 }
                 Row {
