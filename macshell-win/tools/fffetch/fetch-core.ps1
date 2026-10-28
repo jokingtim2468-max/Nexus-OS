@@ -1,7 +1,7 @@
 # fetch — FreeForm's fastfetch: the FF logo and this PC's specs.
 #   fetch              (cmd or PowerShell, once FreeForm is installed; fffetch works too)
 #   fetch -NoLogo       specs only
-#   fetch -NoAnim       skip the falling-FF intro
+#   fetch -NoAnim       no falling FFs (they fall until a key is pressed)
 param([switch]$NoLogo, [switch]$NoAnim)
 $ErrorActionPreference = 'SilentlyContinue'
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
@@ -133,65 +133,54 @@ $cardW = ($body | ForEach-Object { VisLen $_ } | Measure-Object -Maximum).Maximu
 $blank = ' ' * $cardW
 $lines = @("$BG$blank$R") + @($body | ForEach-Object { "$BG$VAL$_" + (' ' * ($cardW - (VisLen $_))) + $R }) + @("$BG$blank$R")
 
-# ── intro: little FF logos fall with gravity, tumble and bounce, then pile up behind the text ──
+# ── the card, then little FF logos falling over it nonstop: behind the text, above the gray card ──
 $animate = -not $NoAnim -and -not [Console]::IsOutputRedirected -and $Host.UI.RawUI.WindowSize.Width -ge 60
-$pile = @()
+Write-Host ""
+foreach ($l in $lines) { Write-Host $l }
 if ($animate) {
-    $rows = $lines.Count + 2
-    $width = [Math]::Min($Host.UI.RawUI.WindowSize.Width - 3, 110)
-    Write-Host ("`n" * $rows) -NoNewline
-    $top = [Console]::CursorTop - $rows
+    $hint = "${DIM}press any key to stop the FFs$R"
+    Write-Host $hint
+    $top = [Console]::CursorTop - $lines.Count - 1
+    # which cells hold text (or a colour block): the FFs pass behind those
+    $solid = @(foreach ($l in $lines) {
+        $mask = New-Object bool[] ($cardW + 2); $col = 0; $bg = 237
+        foreach ($tok in [regex]::Split($l, "($e\[[0-9;]*m)")) {
+            if ($tok -match "^$e\[([0-9;]*)m$") { $m2 = [regex]::Matches($Matches[1], '48;5;(\d+)'); if ($m2.Count) { $bg = [int]$m2[$m2.Count - 1].Groups[1].Value }; continue }
+            foreach ($ch in $tok.ToCharArray()) { if ($col -lt $mask.Length) { $mask[$col] = ($ch -ne ' ') -or ($bg -ne 237) }; $col++ }
+        }
+        , $mask })
     [Console]::CursorVisible = $false
+    [Console]::TreatControlCAsInput = $true
     $rnd = New-Object Random
     $palette = @(255, 253, 250, 247, 244)
-    $floor = @{}                                   # column -> lowest free row
-    $ps = @(for ($k = 0; $k -lt 22; $k++) {
-        [pscustomobject]@{ x = [double]$rnd.Next(1, $width - 2); y = -[double]$rnd.Next(0, 14); vx = ($rnd.NextDouble() - 0.5) * 0.9
-            vy = 0.0; spin = $rnd.Next(0, 4); c = $palette[$rnd.Next(0, $palette.Count)]; done = $false; ox = -1; oy = -1; bounces = 0 } })
-    $glyphs = @('FF', "$([char]0x2132)$([char]0x2132)", 'FF', "$([char]0x2132)F")   # F, turned F: it tumbles
-    for ($f = 0; $f -lt 70 -and ($ps | Where-Object { -not $_.done }); $f++) {
-        foreach ($p in $ps) {
-            if ($p.done) { continue }
-            $p.vy += 0.16; $p.y += $p.vy; $p.x += $p.vx
-            if ($p.x -lt 0) { $p.x = 0; $p.vx = -$p.vx }
-            if ($p.x -gt $width - 2) { $p.x = $width - 2; $p.vx = -$p.vx }
-            $col = [int][Math]::Round($p.x)
-            $ground = if ($floor.ContainsKey($col)) { $floor[$col] } else { $rows - 1 }
-            if ($p.y -ge $ground) {
-                $p.y = $ground
-                if ($p.bounces -lt 2 -and [Math]::Abs($p.vy) -gt 0.5) { $p.vy = -$p.vy * 0.45; $p.vx *= 0.6; $p.bounces++ }
-                else { $p.done = $true; foreach ($dc in -1..2) { $floor[$col + $dc] = $ground - 1 } }
-            }
-            $px = [int][Math]::Round($p.x); $py = [int][Math]::Floor($p.y)
-            if ($p.oy -ge 0 -and ($p.ox -ne $px -or $p.oy -ne $py)) { [Console]::SetCursorPosition($p.ox, $top + $p.oy); [Console]::Write('  ') }
-            if ($py -ge 0) {
-                $g = if ($p.done) { 'FF' } else { $glyphs[($p.spin + $f) % 4] }
-                [Console]::SetCursorPosition($px, $top + $py); [Console]::Write("$(c $p.c)$g$R")
+    $glyphs = @('FF')                                                   # Ⅎ (turned F) is missing from most terminal fonts
+    $new = { [pscustomobject]@{ x = [double]$rnd.Next(1, $cardW - 3); y = -[double]$rnd.Next(0, $lines.Count); vx = ($rnd.NextDouble() - 0.5) * 0.3
+        vy = $rnd.NextDouble() * 0.2; spin = $rnd.Next(0, 4); c = $palette[$rnd.Next(0, $palette.Count)]; ox = -1; oy = -1 } }
+    $ps = @(for ($k = 0; $k -lt 14; $k++) { & $new })
+    # paint one cell of the card: the FF part if the cell is free, card background if not
+    $put = { param($x, $y, $txt, $fg) for ($d = 0; $d -lt $txt.Length; $d++) {
+        $cx = $x + $d
+        if ($y -lt 0 -or $y -ge $lines.Count -or $cx -lt 0 -or $cx -ge $cardW -or $solid[$y][$cx]) { continue }
+        [Console]::SetCursorPosition($cx, $top + $y); [Console]::Write("$BG$fg$($txt[$d])$R") } }
+    try {
+        for ($f = 0; -not [Console]::KeyAvailable; $f++) {
+            foreach ($p in $ps) {
+                $p.vy = [Math]::Min($p.vy + 0.04, 0.6); $p.y += $p.vy; $p.x += $p.vx   # gravity up to a gentle top speed
+                if ($p.x -lt 0 -or $p.x -gt $cardW - 3) { $p.vx = -$p.vx; $p.x = [Math]::Max(0, [Math]::Min($p.x, $cardW - 3)) }
+                $px = [int][Math]::Round($p.x); $py = [int][Math]::Floor($p.y)
+                if ($p.ox -ge 0 -and ($p.ox -ne $px -or $p.oy -ne $py)) { & $put $p.ox $p.oy '  ' }
+                if ($py -ge $lines.Count) { $n = & $new; $n.y = -1; $p.PSObject.Properties | ForEach-Object { $p.($_.Name) = $n.($_.Name) }; continue }
+                & $put $px $py $glyphs[0] (c $p.c)
                 $p.ox = $px; $p.oy = $py
             }
+            Start-Sleep -Milliseconds 40
         }
-        Start-Sleep -Milliseconds 28
+        [void][Console]::ReadKey($true)
+    } finally {
+        foreach ($p in $ps) { if ($p.ox -ge 0) { & $put $p.ox $p.oy '  ' } }
+        [Console]::SetCursorPosition(0, $top + $lines.Count); [Console]::Write(' ' * (VisLen $hint))
+        [Console]::SetCursorPosition(0, $top + $lines.Count)
+        [Console]::TreatControlCAsInput = $false
+        [Console]::CursorVisible = $true
     }
-    $pile = $ps | Where-Object { $_.oy -ge 0 }
-    [Console]::SetCursorPosition(0, $top)
 }
-
-Write-Host ""
-for ($i = 0; $i -lt $lines.Count; $i++) {
-    if ($animate) { [Console]::SetCursorPosition(0, $top + 1 + $i); [Console]::Write((' ' * (VisLen $lines[$i]))) ; [Console]::SetCursorPosition(0, $top + 1 + $i) }
-    Write-Host $lines[$i]
-}
-if ($animate) {
-    # the fallen logos stay where the text doesn't cover them: "behind" it
-    foreach ($p in $pile) {
-        $row = $p.oy - 1
-        $textLen = if ($row -ge 0 -and $row -lt $lines.Count) { VisLen ($lines[$row] -replace " +($e\[0m)?$", '') } else { 0 }
-        if ($p.ox -ge $textLen) {
-            $onCard = $row -ge 0 -and $row -lt $lines.Count -and $p.ox + 2 -le $cardW
-            [Console]::SetCursorPosition($p.ox, $top + $p.oy); [Console]::Write($(if ($onCard) { $BG } else { '' }) + "$(c $p.c)FF$R")
-        }
-    }
-    [Console]::SetCursorPosition(0, $top + $rows)
-    [Console]::CursorVisible = $true
-}
-Write-Host ""

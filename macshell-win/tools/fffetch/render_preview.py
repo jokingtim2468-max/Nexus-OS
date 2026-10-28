@@ -1,5 +1,5 @@
-"""Render what `fetch` looks like in a terminal: a PNG of the final screen and a GIF of the
-falling-FF intro (same physics as fetch-core.ps1). Used for previews/docs, not by fetch itself.
+"""Render what `fetch` looks like in a terminal: a PNG of one frame and a looping GIF of the
+FFs falling behind the text (same motion as fetch-core.ps1). Used for previews/docs, not by fetch itself.
 
     python render_preview.py captured-output.txt out.png out.gif
 
@@ -69,74 +69,66 @@ def parse(text):
     return rows
 
 
-def simulate(width, rows, seed=7, frames=70):
-    """fetch-core.ps1's falling FFs: gravity, wall bounce, up to two floor bounces, piling."""
+def snow(rows, width, seed=7, frames=90):
+    """fetch-core.ps1's falling FFs: they fall nonstop over the card, recycled at the top."""
     rnd = random.Random(seed)
     palette = [255, 253, 250, 247, 244]
-    floor = {}
-    ps = [dict(x=float(rnd.randint(1, width - 3)), y=-float(rnd.randint(0, 13)), vx=(rnd.random() - 0.5) * 0.9, vy=0.0,
-               spin=rnd.randint(0, 3), c=xterm256(rnd.choice(palette)), done=False, b=0) for _ in range(22)]
+    nrow = len(rows)
+    glyphs = ["FF"] * 4
+
+    def new():
+        return dict(x=float(rnd.randint(1, width - 4)), y=-float(rnd.randint(0, nrow)), vx=(rnd.random() - 0.5) * 0.3,
+                    vy=rnd.random() * 0.2, spin=rnd.randint(0, 3), c=xterm256(rnd.choice(palette)))
+    ps = [new() for _ in range(14)]
     out = []
     for f in range(frames):
-        for p in ps:
-            if p["done"]:
-                continue
-            p["vy"] += 0.16; p["y"] += p["vy"]; p["x"] += p["vx"]
-            if p["x"] < 0: p["x"], p["vx"] = 0, -p["vx"]
-            if p["x"] > width - 2: p["x"], p["vx"] = width - 2, -p["vx"]
-            col = int(round(p["x"]))
-            ground = floor.get(col, rows - 1)
-            if p["y"] >= ground:
-                p["y"] = ground
-                if p["b"] < 2 and abs(p["vy"]) > 0.5:
-                    p["vy"] = -p["vy"] * 0.45; p["vx"] *= 0.6; p["b"] += 1
-                else:
-                    p["done"] = True
-                    for dc in (-1, 0, 1, 2):
-                        floor[col + dc] = ground - 1
-        glyphs = ["FF", "\u2132\u2132", "FF", "\u2132F"]
-        out.append([(int(round(p["x"])), int(math.floor(p["y"])), "FF" if p["done"] else glyphs[(p["spin"] + f) % 4], p["c"])
-                    for p in ps if p["y"] >= 0])
-        if all(p["done"] for p in ps):
-            break
+        for i, p in enumerate(ps):
+            p["vy"] = min(p["vy"] + 0.04, 0.6); p["y"] += p["vy"]; p["x"] += p["vx"]
+            if p["x"] < 0 or p["x"] > width - 3:
+                p["vx"] = -p["vx"]; p["x"] = max(0, min(p["x"], width - 3))
+            if p["y"] >= nrow:
+                ps[i] = new(); ps[i]["y"] = -1
+        out.append([(int(round(p["x"])), int(math.floor(p["y"])), glyphs[(p["spin"] + f // 4) % 4], p["c"]) for p in ps if p["y"] >= 0])
     return out
 
 
-def draw(rows, falling, width, nrows, show_text=True):
+def solid(cell):
+    ch, fg, bg, b = cell
+    return ch != " " or (bg is not None and bg != xterm256(237))
+
+
+def draw(rows, falling, width, nrows):
     font, bold = ImageFont.truetype(FONT, SIZE), ImageFont.truetype(BOLD, SIZE)
     cw = font.getbbox("M")[2]
     ch = int(SIZE * 1.3)
     pad, bar = 18, 34
     im = Image.new("RGB", (pad * 2 + cw * width, bar + pad * 2 + ch * nrows), BG)
     d = ImageDraw.Draw(im)
-    # Windows Terminal-ish title bar
     d.rectangle((0, 0, im.width, bar), fill=(32, 32, 32))
     d.rounded_rectangle((8, 5, 210, bar), radius=6, fill=(12, 12, 12))
     d.text((20, 10), "Windows PowerShell", font=ImageFont.truetype(FONT, 13), fill=(220, 220, 220))
     for i, sym in enumerate(["\u2014", "\u25a1", "\u2715"]):
         d.text((im.width - 120 + i * 40, 9), sym, font=ImageFont.truetype(FONT, 13), fill=(200, 200, 200))
     y0 = bar + pad
-    textlen = {}
-    if show_text:
-        prompt = [(c, (204, 204, 204), None, False) for c in "PS C:\\Users\\you> "] + [(c, (249, 241, 165), None, False) for c in "fetch"]
-        for r, cells in enumerate([prompt] + rows):
-            textlen[r] = len(cells)
-            for c, (txt, fg, bg, b) in enumerate(cells):
-                x, y = pad + c * cw, y0 + r * ch
-                if bg:
-                    d.rectangle((x, y, x + cw, y + ch), fill=bg)
-                if txt == "\u2588":                       # full block: fill the whole cell, like a terminal
-                    d.rectangle((x, y, x + cw - 1, y + ch - 1), fill=fg)
-                elif txt != " ":
-                    d.text((x, y), txt, font=bold if b else font, fill=fg)
-    for (x, y, g, col) in falling:
-        r = y + 1                                   # the intro area starts under the prompt
-        if show_text and x < textlen.get(r, 0) and (r - 1 >= len(rows) or x < len("".join(t for t, *_ in rows[r - 1]).rstrip())):
-            continue                                # behind the text
-        cell_bg = rows[r - 1][x][2] if show_text and 0 <= r - 1 < len(rows) and x < len(rows[r - 1]) else None
-        if cell_bg:
-            d.rectangle((pad + x * cw, y0 + r * ch, pad + (x + 2) * cw - 1, y0 + (r + 1) * ch - 1), fill=cell_bg)
-        d.text((pad + x * cw, y0 + r * ch), g, font=bold, fill=col)
+    prompt = [(c, (204, 204, 204), None, False) for c in "PS C:\\Users\\you> "] + [(c, (249, 241, 165), None, False) for c in "fetch"]
+    hint = [(c, xterm256(244), None, False) for c in "press any key to stop the FFs"]
+    allrows = [prompt] + rows + [hint]
+    for r, cells in enumerate(allrows):
+        for c, (txt, fg, bg, b) in enumerate(cells):
+            x, y = pad + c * cw, y0 + r * ch
+            if bg:
+                d.rectangle((x, y, x + cw, y + ch), fill=bg)
+            if txt == "\u2588":
+                d.rectangle((x, y, x + cw - 1, y + ch - 1), fill=fg)
+            elif txt != " ":
+                d.text((x, y), txt, font=bold if b else font, fill=fg)
+    cardw = max(len(r) for r in rows)
+    for (x, y, g, col) in falling:        # behind the text, above the card
+        for k, gch in enumerate(g):
+            cx = x + k
+            if y >= len(rows) or cx >= cardw or cx >= len(rows[y]) or solid(rows[y][cx]):
+                continue
+            d.text((pad + cx * cw, y0 + (y + 1) * ch), gch, font=bold, fill=col)
     return im
 
 
@@ -144,11 +136,10 @@ def main(src, png, gif):
     rows = parse(open(src, encoding="utf-8", errors="replace").read())
     width = max(70, max(len(r) for r in rows) + 6)
     nrows = len(rows) + 3
-    frames = simulate(width - 2, len(rows) + 2)
-    draw(rows, frames[-1], width, nrows).save(png)
-    pics = [draw(rows, f, width, nrows, show_text=False) for f in frames[::2]]
-    pics.append(draw(rows, frames[-1], width, nrows))
-    pics[0].save(gif, save_all=True, append_images=pics[1:], duration=[56] * (len(pics) - 1) + [2500], loop=0)
+    frames = snow(rows, max(len(r) for r in rows))
+    draw(rows, frames[40], width, nrows).save(png)
+    pics = [draw(rows, f, width, nrows) for f in frames]
+    pics[0].save(gif, save_all=True, append_images=pics[1:], duration=40, loop=0)
 
 
 if __name__ == "__main__":
