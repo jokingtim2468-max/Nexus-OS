@@ -82,7 +82,7 @@ jobs:
           cp -r macshell-win/compat/helper macshell-win/compat/qml $P/compat/
           # the Linux sh wrapper and the .exe share a name as far as MSYS is concerned: drop the wrapper
           rm -f $P/compat/helper/macshell-helper
-          gcc -O2 -municode -mwindows -o $P/compat/helper/macshell-helper.exe $P/compat/helper/helper-shim.c
+          gcc -O2 -municode -o $P/compat/helper/macshell-helper.exe $P/compat/helper/helper-shim.c
           cp -r macshell-win/tools/fffetch $P/tools/
           cp macshell-win/tools/launcher/* $P/
           cp macshell-win/macshell/LICENSE $P/LICENSE-MacShell.txt

@@ -1,7 +1,8 @@
 // macshell-helper.exe — lets Windows programs (Quickshell's Process) run the Python helper.
 // CreateProcess only finds .exe files, so MacShell's `macshell-helper ...` calls land here.
 // Runs <package>\python\pythonw.exe (else pythonw on PATH) with macshell_helper.py next to this
-// exe, the same arguments, inherited stdin/stdout/stderr, no console window; returns its exit code.
+// exe, the same arguments, inherited stdin/stdout/stderr; returns its exit code. Console program:
+// Qt starts it with CREATE_NO_WINDOW from the shell, so no window flashes.
 #include <windows.h>
 #include <wchar.h>
 

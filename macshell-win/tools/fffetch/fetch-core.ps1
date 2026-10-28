@@ -55,27 +55,27 @@ Add-Type -AssemblyName System.Windows.Forms
 $scr = ([System.Windows.Forms.Screen]::AllScreens | ForEach-Object { "$($_.Bounds.Width)x$($_.Bounds.Height)" }) -join ', '
 $dark = (Get-ItemProperty 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize').AppsUseLightTheme -eq 0
 $ff = if (Get-Process -Name qs, quickshell -ErrorAction SilentlyContinue) { 'FreeForm (MacShell, running)' } else { 'FreeForm (not running)' }
-# the shell the user typed `fetch` in: walk up past fetch.cmd's cmd.exe and this powershell.exe
-$shellName = 'cmd'
-$procId = $PID
-for ($k = 0; $k -lt 4; $k++) {
+# the shell the user typed `fetch` in: the parents of this script's powershell.exe are
+# [cmd.exe running fetch.cmd,] then the user's shell (cmd, pwsh or Windows PowerShell)
+$chain = @(); $procId = $PID
+for ($k = 0; $k -lt 3; $k++) {
     $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$procId"
-    if (-not $proc) { break }
-    $parent = Get-CimInstance Win32_Process -Filter "ProcessId=$($proc.ParentProcessId)"
+    $parent = if ($proc) { Get-CimInstance Win32_Process -Filter "ProcessId=$($proc.ParentProcessId)" }
     if (-not $parent) { break }
-    if ($k -ge 1) {                       # 0 = cmd.exe running fetch.cmd
-        if ($parent.Name -eq 'pwsh.exe') { $shellName = 'PowerShell ' + (Get-Item $parent.ExecutablePath).VersionInfo.ProductVersion; break }
-        if ($parent.Name -eq 'powershell.exe') { $shellName = 'Windows PowerShell 5.1'; break }
-        if ($parent.Name -ne 'cmd.exe') { break }
-    }
-    $procId = $proc.ParentProcessId
+    $chain += $parent; $procId = $parent.ProcessId
+}
+$user = if ($chain.Count -gt 1 -and $chain[0].Name -eq 'cmd.exe') { $chain[1] } elseif ($chain.Count -gt 0) { $chain[0] }
+$shellName = switch ($user.Name) {
+    'pwsh.exe' { 'PowerShell ' + ((Get-Item $user.ExecutablePath).VersionInfo.ProductVersion -split '[ +]')[0] }
+    'powershell.exe' { 'Windows PowerShell ' + $PSVersionTable.PSVersion.ToString(2) }
+    default { 'cmd' }
 }
 function fmtUp($t) { $p = @(); if ($t.Days) { $p += "$($t.Days) days" }; if ($t.Hours) { $p += "$($t.Hours) hours" }; $p += "$($t.Minutes) mins"; $p -join ', ' }
 
-$user = "$env:USERNAME@$env:COMPUTERNAME"
+$userLine = "$env:USERNAME@$env:COMPUTERNAME"
 $info = @(
     "$B$accent$env:USERNAME${R}@$B$accent$env:COMPUTERNAME$R",
-    ('-' * $user.Length),
+    ('-' * $userLine.Length),
     "$B${accent}OS${R}: $($os.Caption -replace 'Microsoft ', '') $ver ($($os.OSArchitecture))",
     "$B${accent}Host${R}: $($cs.Manufacturer) $($cs.Model)",
     "$B${accent}Kernel${R}: NT $($os.Version)",
@@ -101,8 +101,9 @@ $n = [Math]::Max($logo.Count, $info.Count)
 $lines = @()
 for ($i = 0; $i -lt $n; $i++) {
     $l = if ($NoLogo) { '' } elseif ($i -lt $logo.Count) { $logo[$i] } else { '  ' + ' ' * 22 }
-    $r = if ($i -lt $info.Count) { $info[$i] } else { '' }
-    if ($NoLogo) { $lines += $r } else { $lines += ("{0}${R}   {1}" -f $l.PadRight(24 + ($l.Length - ($l -replace "$e\[[0-9;]*m", '').Length)), $r) }
+    # (PowerShell names ignore case: never call a variable $r, it is the colour reset $R)
+    $right = if ($i -lt $info.Count) { $info[$i] } else { '' }
+    if ($NoLogo) { $lines += $right } else { $lines += ("{0}${R}   {1}" -f $l.PadRight(24 + ($l.Length - ($l -replace "$e\[[0-9;]*m", '').Length)), $right) }
 }
 function VisLen([string]$t) { ($t -replace "$e\[[0-9;]*m", '').Length }
 
