@@ -50,9 +50,16 @@ jobs:
       - name: Bundle Qt runtime
         run: |
           mkdir -p dist
-          cp build/src/quickshell.exe dist/qs.exe
-          windeployqt6 --qmldir macshell-win/macshell --no-translations dist/qs.exe || true
-          ldd dist/qs.exe | grep -i ucrt64 | awk '{print $3}' | xargs -r -I{} cp -n {} dist/
+          exe=$(find build -maxdepth 2 -name quickshell.exe | head -n1)
+          test -n "$exe" || { echo "quickshell.exe not found"; exit 1; }
+          cp "$exe" dist/qs.exe
+          deploy=$(command -v windeployqt6 || command -v windeployqt || true)
+          if [ -n "$deploy" ]; then
+            "$deploy" --qmldir macshell-win/macshell --no-translations dist/qs.exe || true
+          fi
+          # any remaining MSYS2 DLLs (libstdc++, icu, zstd, ...)
+          ldd dist/qs.exe | awk '/ucrt64/ {print $3}' | xargs -r -I{} cp -n {} dist/
+          dist/qs.exe --version
 
       - uses: actions/upload-artifact@v4
         with:
