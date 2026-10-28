@@ -1,6 +1,6 @@
 # FreeForm launcher window: what the Desktop / Start Menu shortcut opens.
 #   Launch FreeForm      starts the shell (FreeForm.ps1) and closes this window
-#   Configure settings   start at sign-in, taskbar / desktop icons, skip this window, restore, uninstall
+#   Configure settings   start at sign-in, taskbar / desktop icons, skip this window, automatic updates, uninstall
 # Settings: %APPDATA%\FreeForm\launcher.json (FreeForm.ps1 reads hideTaskbar / hideIcons from it).
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
@@ -9,7 +9,7 @@ Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, Sys
 $cfgDir = Join-Path $env:APPDATA 'FreeForm'
 $cfgPath = Join-Path $cfgDir 'launcher.json'
 $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
-$cfg = [ordered]@{ hideTaskbar = $true; hideIcons = $true; skipLauncher = $false }
+$cfg = [ordered]@{ hideTaskbar = $true; hideIcons = $true; skipLauncher = $false; autoUpdate = $true }
 if (Test-Path $cfgPath) {
     try { (Get-Content $cfgPath -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $cfg[$_.Name] = $_.Value } } catch {}
 }
@@ -153,6 +153,7 @@ $logo = (Join-Path $root 'shell\assets\freeform-logo.png') -replace '\\', '/'
           <CheckBox x:Name="HideTaskbar" Content="Hide the Windows taskbar"/>
           <CheckBox x:Name="HideIcons" Content="Hide Windows desktop icons"/>
           <CheckBox x:Name="SkipLauncher" Content="Skip this window (hold Shift to see it)"/>
+          <CheckBox x:Name="AutoUpdate" Content="Update FreeForm automatically"/>
           <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
             <Button x:Name="BackBtn" Style="{StaticResource Link}" Content="&#x2190;  Back"/>
             <Button x:Name="UninstallBtn" Style="{StaticResource Link}" Content="Uninstall FreeForm" Foreground="#FF8A80" Margin="16,0,0,0"/>
@@ -182,6 +183,8 @@ $ui.AutoStart.IsChecked = [bool](Get-ItemProperty -Path $runKey -Name FreeForm -
 $ui.HideTaskbar.IsChecked = [bool]$cfg.hideTaskbar
 $ui.HideIcons.IsChecked = [bool]$cfg.hideIcons
 $ui.SkipLauncher.IsChecked = [bool]$cfg.skipLauncher
+$ui.AutoUpdate.IsChecked = [bool]$cfg.autoUpdate
+$ui.AutoUpdate.Add_Click({ $cfg.autoUpdate = [bool]$ui.AutoUpdate.IsChecked; Save-Config })
 $ui.AutoStart.Add_Click({
     if ($ui.AutoStart.IsChecked) { Set-ItemProperty -Path $runKey -Name FreeForm -Value "`"$(Join-Path $root 'FreeForm.cmd')`"" }
     else { Remove-ItemProperty -Path $runKey -Name FreeForm -ErrorAction SilentlyContinue }
@@ -232,6 +235,8 @@ $updateTimer.Add_Tick({
     if ($latest -and $latest -ne $version) {
         $ui.UpdateText.Text = "Update to $latest"
         $ui.UpdateBtn.Visibility = 'Visible'
+        # automatic updates (Configure settings): install it right away
+        if ($cfg.autoUpdate) { $ui.Status.Text = "Updating to $latest..."; $ui.UpdateBtn.RaiseEvent((New-Object System.Windows.RoutedEventArgs ([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))) }
     }
 })
 $ui.UpdateBtn.Add_Click({
