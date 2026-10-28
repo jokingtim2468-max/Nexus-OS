@@ -9,6 +9,7 @@ on:
       - "macshell-win/quickshell/**"
       - "macshell-win/macshell/**"
       - "macshell-win/compat/**"
+      - "macshell-win/tools/fffetch/**"
       - ".github/workflows/quickshell-windows.yml"
   workflow_dispatch:
 
@@ -94,6 +95,15 @@ jobs:
           "exited: $($p.HasExited)  code: $(if ($p.HasExited) { $p.ExitCode })" | Tee-Object smoke\status.txt
           if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
           Get-Content smoke\qs-err.log -Tail 80
+
+      - name: fffetch in cmd and PowerShell
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          New-Item -ItemType Directory -Force -Path smoke | Out-Null
+          cmd /c "macshell-win\tools\fffetch\fffetch.cmd" *> smoke\fffetch-cmd.txt
+          powershell -NoProfile -ExecutionPolicy Bypass -File macshell-win\tools\fffetch\fffetch.ps1 *> smoke\fffetch-ps.txt
+          Get-Content smoke\fffetch-ps.txt
 
       - uses: actions/upload-artifact@v4
         if: always()
