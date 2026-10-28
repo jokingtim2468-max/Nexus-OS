@@ -52,6 +52,10 @@ def parse(text):
                     bold = True
                 elif c == 38 and i + 2 < len(codes) and codes[i + 1] == 5:
                     fg = xterm256(codes[i + 2]); i += 2
+                elif c == 48 and i + 2 < len(codes) and codes[i + 1] == 5:
+                    bg = xterm256(codes[i + 2]); i += 2
+                elif c == 22:
+                    bold = False
                 elif 40 <= c <= 47:
                     bg = xterm256(c - 40)
                 elif 100 <= c <= 107:
@@ -68,7 +72,7 @@ def parse(text):
 def simulate(width, rows, seed=7, frames=70):
     """fetch-core.ps1's falling FFs: gravity, wall bounce, up to two floor bounces, piling."""
     rnd = random.Random(seed)
-    palette = [39, 45, 69, 75, 99, 135, 141]
+    palette = [255, 253, 250, 247, 244]
     floor = {}
     ps = [dict(x=float(rnd.randint(1, width - 3)), y=-float(rnd.randint(0, 13)), vx=(rnd.random() - 0.5) * 0.9, vy=0.0,
                spin=rnd.randint(0, 3), c=xterm256(rnd.choice(palette)), done=False, b=0) for _ in range(22)]
@@ -127,8 +131,11 @@ def draw(rows, falling, width, nrows, show_text=True):
                     d.text((x, y), txt, font=bold if b else font, fill=fg)
     for (x, y, g, col) in falling:
         r = y + 1                                   # the intro area starts under the prompt
-        if show_text and x < textlen.get(r, 0):
+        if show_text and x < textlen.get(r, 0) and (r - 1 >= len(rows) or x < len("".join(t for t, *_ in rows[r - 1]).rstrip())):
             continue                                # behind the text
+        cell_bg = rows[r - 1][x][2] if show_text and 0 <= r - 1 < len(rows) and x < len(rows[r - 1]) else None
+        if cell_bg:
+            d.rectangle((pad + x * cw, y0 + r * ch, pad + (x + 2) * cw - 1, y0 + (r + 1) * ch - 1), fill=cell_bg)
         d.text((pad + x * cw, y0 + r * ch), g, font=bold, fill=col)
     return im
 
