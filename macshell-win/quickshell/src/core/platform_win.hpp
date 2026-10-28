@@ -16,4 +16,8 @@ bool pidAlive(qint64 pid);
 // The mutex is held until the process exits.
 bool tryProcessLock(const QString& path);
 
+// Replaces symlinkat() for the by-id / by-pid / by-path run dir links. Creates an NTFS
+// directory junction (no admin rights or Developer Mode needed), replacing any old one.
+bool makeDirLink(const QString& target, const QString& link);
+
 } // namespace qs::win

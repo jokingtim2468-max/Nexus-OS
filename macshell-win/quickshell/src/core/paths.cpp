@@ -5,7 +5,18 @@
 #include <utility>
 
 #ifdef _WIN32
+#include <filesystem>
+
 #include "platform_win.hpp"
+
+namespace {
+// symlinkat() stand-in: directory junctions (see platform_win.cpp).
+template <typename Char>
+int symlinkat(const Char* target, int /*dirfd*/, const char* link) {
+	auto targetPath = QString::fromStdWString(std::filesystem::path(target).wstring());
+	return qs::win::makeDirLink(targetPath, QString::fromUtf8(link)) ? 0 : -1;
+}
+} // namespace
 #else
 #include <fcntl.h>
 #endif
