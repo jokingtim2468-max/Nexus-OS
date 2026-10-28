@@ -30,6 +30,12 @@ class Spicetify(unittest.TestCase):
         self.assertTrue(os.path.isfile(os.path.join(d, "Themes", "FreeForm", "color.ini")))
         self.assertEqual(run.call_args_list[0][0][0][1:], ["config", "current_theme", "FreeForm", "color_scheme", "graphite"])
 
+    def test_custom_theme_maps_studio_colours(self):
+        p = T.from_studio({"mode": "light", "bg": "#fafafa", "side": "#eeeeee", "accent": "#1db954"})
+        self.assertFalse(p["dark"])
+        self.assertEqual((p["main"], p["bg"], p["accent"]), ("FAFAFA", "EEEEEE", "1DB954"))
+        self.assertIn("[mine]", T.spicetify_color_ini({"mine": p}))
+
 
 if __name__ == "__main__":
     unittest.main()

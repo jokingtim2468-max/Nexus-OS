@@ -1,6 +1,7 @@
 """`macshell-helper theme apply NAME` — push a FreeForm theme preset to apps outside the shell.
 
   theme apply black|white|graphite|default
+  theme apply-custom JSON      a Theme Studio theme: {"id","mode","bg","side","card","fg","sub","accent"}
   theme list
 
 What it changes:
@@ -25,10 +26,17 @@ PRESETS = {
 }
 
 
-def spicetify_color_ini():
-    """Spicetify colour schemes: one [section] per preset."""
+def from_studio(t):
+    """A Theme Studio theme in the preset shape (hex without #)."""
+    h = lambda k, d: str(t.get(k) or d).lstrip("#").upper()
+    return {"dark": t.get("mode", "dark") != "light", "bg": h("side", "000000"), "main": h("bg", "121212"),
+            "card": h("card", "1F1F1F"), "text": h("fg", "FFFFFF"), "subtext": h("sub", "A7A7A7"), "accent": h("accent", "1DB954")}
+
+
+def spicetify_color_ini(extra=None):
+    """Spicetify colour schemes: one [section] per preset (plus a custom one)."""
     out = []
-    for name, p in PRESETS.items():
+    for name, p in list(PRESETS.items()) + list((extra or {}).items()):
         out += ["[%s]" % name,
                 "text               = %s" % p["text"],
                 "subtext            = %s" % p["subtext"],
@@ -54,14 +62,14 @@ def spicetify_dir():
     return os.path.expanduser("~/.config/spicetify")
 
 
-def apply_spotify(name):
+def apply_spotify(name, extra=None):
     exe = shutil.which("spicetify")
     if not exe:
         return "Spotify: Spicetify isn't installed, left unchanged."
     d = os.path.join(spicetify_dir(), "Themes", "FreeForm")
     os.makedirs(d, exist_ok=True)
     with open(os.path.join(d, "color.ini"), "w", encoding="utf-8") as fh:
-        fh.write(spicetify_color_ini())
+        fh.write(spicetify_color_ini(extra))
     if not os.path.exists(os.path.join(d, "user.css")):
         open(os.path.join(d, "user.css"), "w").close()
     for args in (["config", "current_theme", "FreeForm", "color_scheme", name], ["apply", "-n"]):
@@ -92,6 +100,14 @@ def main(argv):
     if a[0] == "list":
         for n, p in PRESETS.items():
             print("%s\t%s\t#%s\t#%s" % (n, "dark" if p["dark"] else "light", p["bg"], p["accent"]))
+        return 0
+    if a[0] == "apply-custom" and a[1]:
+        import json
+        t = json.loads(a[1])
+        name = "".join(ch for ch in str(t.get("id", "custom")) if ch.isalnum() or ch in "-_") or "custom"
+        p = from_studio(t)
+        print(apply_system(p))
+        print(apply_spotify(name, {name: p}))
         return 0
     if a[0] == "apply" and a[1] in PRESETS:
         print(apply_system(PRESETS[a[1]]))
