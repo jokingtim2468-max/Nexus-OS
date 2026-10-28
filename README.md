@@ -6,6 +6,23 @@ Tahoe-style Hyprland shell, rebuilt in **Python + PyQt6** for Windows.
 `vendor/MacShell` (git submodule) is the visual reference — palette, radii and
 layout come from its QML.
 
+## Porting status
+
+**MacShell's full source is now in this repo** (`macshell-win/macshell/`,
+`macshell-win/maclock/`) and is being converted to run on Windows feature by
+feature — see **[`macshell-win/PORT.md`](macshell-win/PORT.md)** for the complete
+map (every Quickshell API and every Linux tool → its Windows replacement) and the
+order of work.
+
+Try MacShell's own components on Windows now:
+
+    cd macshell-win
+    python tools/gallery.py
+
+The PyQt6 shell described below (launcher, takeover, tutorial, Settings) is the
+interim version; its bar/dock/Control Center will be replaced by MacShell's real
+ones as the port lands, keeping the launcher/auto-start/tutorial.
+
 ## Install & run (Windows 10 1803+ / 11)
 
     cd macshell-win

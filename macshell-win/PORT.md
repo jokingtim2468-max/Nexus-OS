@@ -1,0 +1,89 @@
+# Porting MacShell to Windows — the full map
+
+Source taken in full from https://github.com/0-ss/MacShell (MIT, © 2026 Rickky):
+
+- `macshell/` — the shell (all 40 QML files, 7 shaders, fonts, assets) — **our editable copy**
+- `maclock/` — the lock screen
+- `../vendor/MacShell` — pristine upstream (git submodule) to diff against / pull updates from
+
+## Strategy: run MacShell's own QML, replace only the Linux layer
+
+MacShell is QML on Qt 6. Qt's QML engine runs on Windows, so the UI code is kept
+**as is**. What doesn't exist on Windows is (1) the `Quickshell` QML modules it
+imports and (2) the ~27 Linux command-line tools it shells out to. We provide
+both as a **Windows compatibility layer** (`compat/`, PyQt6), so every feature is
+MacShell's real implementation, not a redraw.
+
+### Proven so far
+- 26 of MacShell's 40 components import only `QtQuick` — they load and render on
+  plain Qt **unchanged** (`tools/gallery.qml`: glass switch/slider/segmented,
+  clock, calendar, weather, now-playing, in MacShell's own Open Runde font).
+- All 7 shaders (`liquidglass`, `contourglow`, `tintcard`, `dust`, `burn`,
+  `fade`, `liquidglass-fixed`) already contain **HLSL (Direct3D)** variants in
+  their `.qsb` files, so Liquid Glass runs on Windows' native GPU path without
+  recompiling. (Not visually verified yet: the dev container has no GPU; check
+  with `python tools/gallery.py` on Windows.)
+
+## 1. Quickshell modules → Windows
+
+| Quickshell API (uses) | Used for | Windows replacement |
+|---|---|---|
+| `ShellRoot`, `Scope`, `Variants`, `LazyLoader`, `Quickshell.screens` (23) | app root, per-monitor instances | plain QML objects; `Qt.application.screens` |
+| `PanelWindow` + `WlrLayershell` / `WlrLayer.*` / `ExclusionMode` (10/28) | bar, dock, widget layer, overlays | frameless top-level `QQuickWindow` + Win32: always-on-top/bottom z-order, **AppBar (`SHAppBarMessage`) to reserve screen space** (fixes maximized windows), click-through via `WS_EX_TRANSPARENT` |
+| `Process` + `StdioCollector`/`SplitParser` (60/51), `Quickshell.execDetached` (56) | every system action | `compat.Process`: same API, routes each command through a **command translator** (section 2) |
+| `FileView`, `JsonAdapter` (8) | settings / pinned apps JSON | QFile-backed file object; paths moved from `~/.config/...` to `%APPDATA%\MacShell\...` |
+| `IpcHandler` (13) | `qs ipc call spotlight toggle`, lock, etc. | local named pipe + `macshell.exe ipc …` CLI |
+| `Quickshell.env`, `Quickshell.iconPath` (30/10) | env vars, app icons | `os.environ`; icon lookup from Start Menu `.lnk` / exe icons (`SHGetFileInfo`) |
+| `Hyprland.*` — `dispatch`, `toplevels`, `workspaces`, `focusedMonitor`, `monitors` (≈40) | windows list, focus, workspaces, Alt+Tab | Win32 `EnumWindows`/`SetForegroundWindow`/`ShowWindow`, **Windows virtual desktops** (VirtualDesktopAccessor), `SetWinEventHook` for open/close/focus events |
+| `ToplevelManager`, `ScreencopyView` (7/7) | dock window previews, glass backdrop of live windows | **DWM thumbnails** (`DwmRegisterThumbnail`) for previews; Windows.Graphics.Capture for live backdrops |
+| `Pipewire.*` (≈15) | volume, mic, output/input device lists | Core Audio (pycaw: `IAudioEndpointVolume`, `IMMDeviceEnumerator`, `IPolicyConfig` to switch default device) |
+| `UPower.displayDevice` | battery % / charging | `GetSystemPowerStatus` |
+| `Mpris.players` | now playing, media controls | Windows `GlobalSystemMediaTransportControlsSessionManager` (WinRT, via `winsdk`) |
+| `SystemTray.items` | tray icons in the bar | `Shell_NotifyIcon` tray mirroring (hardest item — Explorer owns the tray) |
+| `NotificationServer` | notification center | `UserNotificationListener` (WinRT) to read Windows toasts |
+| `Pam` (MacLock) | lock screen password check | `LogonUserW` against the current account; real lock via `LockWorkStation` |
+
+## 2. Linux commands → Windows (`compat.Process` translator)
+
+| Linux tool (uses) | Feature | Windows equivalent |
+|---|---|---|
+| `hyprctl` (44) | windows, monitors, dispatch, keyword | Win32 window APIs (see above) |
+| `nmcli` (18) | Wi-Fi list/connect, network status | `netsh wlan` / WinRT `WiFiAdapter` |
+| `bluetoothctl` (15) | Bluetooth toggle, devices | WinRT `Windows.Devices.Radios` / `Bluetooth` |
+| `wpctl`, `pactl` (5) | volume, mute, devices | Core Audio (pycaw) |
+| `brightnessctl` (3) | brightness | WMI `WmiMonitorBrightnessMethods` (laptops); DDC/CI for desktops |
+| `hyprsunset` | Night Shift | Windows Night light registry state / gamma ramp (`SetDeviceGammaRamp`) |
+| `powerprofilesctl` | power mode | `powercfg /setactive` (power plans / overlays) |
+| `systemd-inhibit` | Keep Awake | `SetThreadExecutionState` |
+| `systemctl` (6) | suspend / reboot / shutdown | `SetSuspendState`, `shutdown /r`, `shutdown /s` |
+| `grim`, `slurp` (11) | screenshots, region select | Qt `QScreen.grabWindow` + our own region overlay |
+| `wf-recorder`, `ffmpeg` (18) | screen recording | `ffmpeg -f gdigrab` / `ddagrab` (ships ffmpeg) |
+| `cliphist`, `wl-copy`, `wl-paste` (34) | clipboard history (Spotlight) | our own clipboard history (`AddClipboardFormatListener`), Qt clipboard |
+| `wtype`, `ydotool` (30) | type emoji / paste into apps | `SendInput` (Unicode) |
+| `swww`, `awww`, `gsettings` (41) | wallpaper set / transitions / dark mode | `SystemParametersInfoW(SPI_SETDESKWALLPAPER)`; app/system dark mode registry keys |
+| `notify-send` (12) | MacShell's own toasts | our notification popup (MacBar's own UI) |
+| `xdg-open`, `gtk-launch` (19) | open files/URLs/apps | `os.startfile`, `.lnk` launch |
+| `curl` (8) | weather, lyrics | unchanged (`curl.exe` ships with Windows 10+) |
+| `inotifywait` | watch settings files | `QFileSystemWatcher` |
+| `upower`, `jq`, `pkill`, `python3` | misc | native equivalents |
+
+## 3. Order of work
+
+1. **Compat skeleton** — `Quickshell`/`Quickshell.Io` modules, `Process` with
+   pass-through + translator table, `PanelWindow` on Win32. Goal: `shell.qml`
+   loads with bar + dock visible.
+2. **Windows & workspaces** — `Hyprland.*` on Win32 + virtual desktops, dock
+   running-app indicators, window previews, Alt+Tab.
+3. **Control Center** — audio, brightness, Wi-Fi, Bluetooth, Night Shift, Keep
+   Awake, power modes.
+4. **Spotlight** — app search (Start Menu), clipboard history, emoji.
+5. **Media & notifications** — Now Playing, notification center.
+6. **Screenshots / recording / wallpaper picker.**
+7. **Desktop widgets layer, Clock app, About.**
+8. **MacLock.**
+9. **Our branding** — FF logo replaces the Apple logo
+   (`apple-logo-*.svg`, menu bar), app name, About page — then fold in the
+   launcher / auto-start / tutorial already built in this folder.
+
+Honest size: `MacBar.qml` is 9,473 lines and `MacDock.qml` 5,553; MacShell does
+a lot. Steps 1–3 make it usable day to day; 4–8 complete the feature set.
