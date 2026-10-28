@@ -18,6 +18,7 @@
 #include <qquickitem.h>
 #include <qquickwindow.h>
 #include <qregion.h>
+#include <qtimer.h>
 #include <qsurfaceformat.h>
 #include <qtenvironmentvariables.h>
 #include <qtmetamacros.h>
@@ -663,11 +664,42 @@ void ProxyWindowBase::onPolished() {
 			mask = this->mMask->applyTo(QRect(0, 0, this->width(), this->height()));
 		}
 
-		this->window->setFlag(Qt::WindowTransparentForInput, this->mMask != nullptr && mask.isEmpty());
-		this->window->setMask(mask);
+		auto transparent = this->mMask != nullptr && mask.isEmpty();
+#ifdef _WIN32
+		// shrinking = everything becomes click-through, or the new mask lies inside the old one
+		auto shrinking = this->hasAppliedMask && !this->appliedTransparent && mask != this->appliedMask
+		              && (transparent || (!mask.isEmpty() && !this->appliedMask.isEmpty() && this->appliedMask.united(mask) == this->appliedMask));
+		if (shrinking) {
+			this->deferredMask = mask;
+			this->deferredTransparent = transparent;
+			if (this->maskShrinkTimer == nullptr) {
+				this->maskShrinkTimer = new QTimer(this);
+				this->maskShrinkTimer->setSingleShot(true);
+				this->maskShrinkTimer->setInterval(450);
+				QObject::connect(this->maskShrinkTimer, &QTimer::timeout, this, [this]() {
+					this->applyInputMask(this->deferredMask, this->deferredTransparent);
+				});
+			}
+			this->maskShrinkTimer->start();
+		} else {
+			if (this->maskShrinkTimer != nullptr) this->maskShrinkTimer->stop();
+			this->applyInputMask(mask, transparent);
+		}
+#else
+		this->applyInputMask(mask, transparent);
+#endif
 
 		this->pendingPolish.inputMask = false;
 	}
 
 	emit this->polished();
+}
+
+void ProxyWindowBase::applyInputMask(const QRegion& mask, bool transparent) {
+	if (this->window == nullptr) return;
+	this->window->setFlag(Qt::WindowTransparentForInput, transparent);
+	this->window->setMask(mask);
+	this->appliedMask = mask;
+	this->appliedTransparent = transparent;
+	this->hasAppliedMask = true;
 }

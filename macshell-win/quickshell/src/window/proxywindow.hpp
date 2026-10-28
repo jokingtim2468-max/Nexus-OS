@@ -13,6 +13,8 @@
 #include <qqmlparserstatus.h>
 #include <qquickitem.h>
 #include <qquickwindow.h>
+#include <qregion.h>
+#include <qtimer.h>
 #include <qsurfaceformat.h>
 #include <qtmetamacros.h>
 #include <qtypes.h>
@@ -203,6 +205,16 @@ protected:
 	struct {
 		bool inputMask : 1 = false;
 	} pendingPolish;
+
+	// Windows: QWindow::setMask clips drawing as well as input, so a mask that shrinks (a popover
+	// closing) is applied only after its close animation has had time to play.
+	void applyInputMask(const QRegion& mask, bool transparent);
+	QRegion appliedMask;
+	bool appliedTransparent = false;
+	bool hasAppliedMask = false;
+	QRegion deferredMask;
+	bool deferredTransparent = false;
+	QTimer* maskShrinkTimer = nullptr;
 
 	Q_OBJECT_BINDABLE_PROPERTY_WITH_ARGS(
 	    ProxyWindowBase,
