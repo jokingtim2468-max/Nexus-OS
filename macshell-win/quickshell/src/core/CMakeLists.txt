@@ -1,4 +1,6 @@
-pkg_check_modules(libdrm REQUIRED IMPORTED_TARGET libdrm)
+if (NOT WIN32)
+	pkg_check_modules(libdrm REQUIRED IMPORTED_TARGET libdrm)
+endif()
 qt_add_library(quickshell-core STATIC
 	plugin.cpp
 	shell.cpp
@@ -55,7 +57,13 @@ qt_add_qml_module(quickshell-core
 
 install_qml_module(quickshell-core)
 
-target_link_libraries(quickshell-core PRIVATE Qt::Quick Qt::QuickPrivate Qt::Widgets quickshell-build PkgConfig::libdrm)
+target_link_libraries(quickshell-core PRIVATE Qt::Quick Qt::QuickPrivate Qt::Widgets quickshell-build)
+
+if (WIN32)
+	target_sources(quickshell-core PRIVATE platform_win.cpp)
+else()
+	target_link_libraries(quickshell-core PRIVATE PkgConfig::libdrm)
+endif()
 
 qs_module_pch(quickshell-core SET large)
 

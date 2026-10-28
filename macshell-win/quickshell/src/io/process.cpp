@@ -312,7 +312,13 @@ void Process::onStderrReadyRead() {
 
 void Process::signal(qint32 signal) {
 	if (this->process == nullptr) return;
+#ifdef _WIN32
+	// No POSIX signals: SIGTERM/SIGINT ask the process to close, anything else kills it.
+	if (signal == SIGTERM || signal == SIGINT) this->process->terminate();
+	else this->process->kill();
+#else
 	kill(static_cast<qint32>(this->process->processId()), signal); // NOLINT
+#endif
 }
 
 void Process::write(const QString& data) {

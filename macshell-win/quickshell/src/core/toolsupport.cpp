@@ -1,7 +1,11 @@
 #include "toolsupport.hpp"
 #include <cerrno>
 
+#ifdef _WIN32
+#include "platform_win.hpp"
+#else
 #include <fcntl.h>
+#endif
 #include <qcontainerfwd.h>
 #include <qdebug.h>
 #include <qdir.h>
@@ -54,6 +58,16 @@ bool QmlToolingSupport::lockTooling() {
 		return false;
 	}
 
+#ifdef _WIN32
+	if (qs::win::tryProcessLock(lockPath)) {
+		qCInfo(logTooling) << "Acquired tooling support lock";
+		QmlToolingSupport::toolingLock = file;
+		return true;
+	} else {
+		qCInfo(logTooling) << "Tooling support locked by another instance";
+		return false;
+	}
+#else
 	struct flock lock = {
 	    .l_type = F_WRLCK,
 	    .l_whence = SEEK_SET, // NOLINT (fcntl.h??)
@@ -74,6 +88,7 @@ bool QmlToolingSupport::lockTooling() {
 		                                 << " with error code " << errno << ": " << qt_error_string();
 		return false;
 	}
+#endif
 }
 
 QString QmlToolingSupport::getQmllsConfig() {

@@ -3,7 +3,9 @@
 #include <cstring>
 #include <string_view>
 
+#ifndef _WIN32
 #include <fcntl.h>
+#endif
 #include <qconfig.h>
 #include <qcontainerfwd.h>
 #include <qdebug.h>
@@ -12,12 +14,20 @@
 #include <qhashfunctions.h>
 #include <qscopeguard.h>
 #include <qtversion.h>
+#ifndef _WIN32
 #include <unistd.h>
 #include <xf86drm.h>
+#endif
+#include <qsysinfo.h>
 
 #include "build.hpp"
 
+#ifdef _WIN32
+#include <cstdlib>
+#define environ _environ
+#else
 extern char** environ; // NOLINT
+#endif
 
 namespace qs::debuginfo {
 
@@ -27,6 +37,10 @@ QString qsVersion() {
 
 QString qtVersion() { return qVersion() % QStringLiteral(" (built against " QT_VERSION_STR ")"); }
 
+#ifdef _WIN32
+// No DRM on Windows; the GPU is reported by Qt's RHI backend in the log instead.
+QString gpuInfo() { return "GPU info: not available on Windows\n"; }
+#else
 QString gpuInfo() {
 	auto deviceCount = drmGetDevices2(0, nullptr, 0);
 	if (deviceCount < 0) return "Failed to get DRM device count: " % QString::number(deviceCount);
@@ -96,12 +110,18 @@ QString gpuInfo() {
 
 	return info;
 }
+#endif
 
 QString systemInfo() {
 	QString info;
 	auto stream = QTextStream(&info);
 
 	stream << gpuInfo() << '\n';
+
+#ifdef _WIN32
+	stream << "OS: " << QSysInfo::prettyProductName() << " (" << QSysInfo::kernelVersion() << ")\n";
+	return info;
+#endif
 
 	stream << "/etc/os-release:";
 	auto osReleaseFile = QFile("/etc/os-release");

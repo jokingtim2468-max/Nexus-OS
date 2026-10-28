@@ -3,7 +3,9 @@
 #include <cerrno>
 #include <cstdio>
 
+#ifndef _WIN32
 #include <fcntl.h>
+#endif
 #include <qbytearrayview.h>
 #include <qcoreapplication.h>
 #include <qdatetime.h>
@@ -27,7 +29,11 @@
 #include <qthread.h>
 #include <qtmetamacros.h>
 #include <qtypes.h>
+#ifdef _WIN32
+#include <qtemporaryfile.h>
+#else
 #include <sys/mman.h>
+#endif
 #ifdef __linux__
 #include <sys/sendfile.h>
 #include <sys/types.h>
@@ -51,6 +57,17 @@ using namespace qt_logging_registry;
 QS_LOGGING_CATEGORY(logLogging, "quickshell.logging", QtWarningMsg);
 
 namespace {
+#ifdef _WIN32
+// Windows: no sendfile / raw fds; copy through Qt.
+bool copyLog(QFile* source, QFile* dest) {
+	while (!source->atEnd()) {
+		auto chunk = source->read(64 * 1024);
+		if (chunk.isEmpty() || dest->write(chunk) != chunk.size()) return false;
+	}
+
+	return true;
+}
+#else
 bool copyFileData(int sourceFd, int destFd, qint64 size) {
 	auto usize = static_cast<size_t>(size);
 
@@ -99,6 +116,11 @@ bool copyFileData(int sourceFd, int destFd, qint64 size) {
 	return true;
 #endif
 }
+
+bool copyLog(QFile* source, QFile* dest) {
+	return copyFileData(source->handle(), dest->handle(), source->size());
+}
+#endif
 } // namespace
 
 bool LogMessage::operator==(const LogMessage& other) const {
@@ -375,6 +397,41 @@ CategoryFilter LogManager::getFilter(QLatin1StringView category) {
 }
 
 void ThreadLogging::init() {
+#ifdef _WIN32
+	// Windows: anonymous temp files stand in for memfds until the run dir exists.
+	auto* logTmp = new QTemporaryFile();
+	if (logTmp->open()) {
+		this->file = logTmp;
+		this->fileStream.setDevice(this->file);
+	} else {
+		qCCritical(logLogging) << "Failed to create temp file for initial log storage";
+		delete logTmp;
+	}
+
+	auto* dlogTmp = new QTemporaryFile();
+	if (dlogTmp->open()) {
+		this->detailedFile = dlogTmp;
+		this->detailedWriter.setDevice(this->detailedFile);
+
+		if (!this->detailedWriter.writeHeader()) {
+			qCCritical(logLogging) << "Could not write header for detailed logs.";
+			this->detailedWriter.setDevice(nullptr);
+			delete this->detailedFile;
+			this->detailedFile = nullptr;
+		}
+	} else {
+		qCCritical(logLogging) << "Failed to create temp file for initial detailed log storage";
+		delete dlogTmp;
+	}
+
+	QObject::connect(
+	    LogManager::instance(),
+	    &LogManager::logMessage,
+	    this,
+	    &ThreadLogging::onMessage,
+	    Qt::DirectConnection
+	);
+#else
 	auto logMfd = memfd_create("quickshell:logs", 0);
 
 	if (logMfd == -1) {
@@ -432,6 +489,7 @@ void ThreadLogging::init() {
 
 	qCDebug(logLogging) << "Created memfd" << logMfd << "for early logs.";
 	qCDebug(logLogging) << "Created memfd" << dlogMfd << "for early detailed logs.";
+#endif
 }
 
 void ThreadLogging::initFs() {
@@ -470,6 +528,7 @@ void ThreadLogging::initFs() {
 		delete detailedFile;
 		detailedFile = nullptr;
 	} else {
+#ifndef _WIN32
 		struct flock lock = {
 		    .l_type = F_WRLCK,
 		    .l_whence = SEEK_SET,
@@ -482,6 +541,7 @@ void ThreadLogging::initFs() {
 			qCWarning(logLogging) << "Unable to set lock marker on detailed log file. --follow from "
 			                         "other instances will not work.";
 		}
+#endif
 
 		qCInfo(logLogging) << "Saving detailed logs to" << path;
 	}
@@ -493,7 +553,7 @@ void ThreadLogging::initFs() {
 		if (oldFile) {
 			oldFile->seek(0);
 
-			if (!copyFileData(oldFile->handle(), file->handle(), oldFile->size())) {
+			if (!copyLog(oldFile, file)) {
 				qCritical(logLogging) << "Failed to copy log from memfd with error code " << errno
 				                      << qt_error_string(errno);
 			}
@@ -508,13 +568,15 @@ void ThreadLogging::initFs() {
 		auto* oldFile = this->detailedFile;
 		if (oldFile) {
 			oldFile->seek(0);
-			if (!copyFileData(oldFile->handle(), detailedFile->handle(), oldFile->size())) {
+			if (!copyLog(oldFile, detailedFile)) {
 				qCritical(logLogging) << "Failed to copy detailed log from memfd with error code " << errno
 				                      << qt_error_string(errno);
 			}
 		}
 
+#ifndef _WIN32
 		crash::CrashInfo::INSTANCE.logFd = detailedFile->handle();
+#endif
 
 		this->detailedFile = detailedFile;
 		this->detailedWriter.setDevice(detailedFile);
@@ -974,6 +1036,9 @@ bool LogReader::continueReading() {
 }
 
 void LogFollower::FcntlWaitThread::run() {
+#ifdef _WIN32
+	// TODO(windows): LockFileEx-based wait; until then --follow polls via the file watcher.
+#else
 	struct flock lock = {
 	    .l_type = F_RDLCK, // won't block other read locks when we take it
 	    .l_whence = SEEK_SET,
@@ -989,6 +1054,7 @@ void LogFollower::FcntlWaitThread::run() {
 		    << "Failed to wait for write locks to be removed from log file with error code " << errno
 		    << ": " << qt_error_string();
 	}
+#endif
 }
 
 bool LogFollower::follow() {

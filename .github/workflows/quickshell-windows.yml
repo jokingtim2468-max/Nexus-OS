@@ -1,0 +1,60 @@
+name: Quickshell (Windows)
+
+# Builds our Windows port of Quickshell (macshell-win/quickshell) into qs.exe.
+# Runs on GitHub's Windows runners (free for public repos) with MSYS2's Qt 6.
+
+on:
+  push:
+    paths:
+      - "macshell-win/quickshell/**"
+      - ".github/workflows/quickshell-windows.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            git
+          pacboy: >-
+            toolchain:p
+            cmake:p
+            ninja:p
+            pkgconf:p
+            cli11:p
+            qt6-base:p
+            qt6-declarative:p
+            qt6-shadertools:p
+            qt6-svg:p
+            qt6-imageformats:p
+
+      - name: Configure
+        run: |
+          cmake -S macshell-win/quickshell -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DDISTRIBUTOR="FreeForm (Nexus-OS) Windows port" \
+            -DGIT_REVISION="${GITHUB_SHA}"
+
+      - name: Build
+        run: cmake --build build -- -k 0
+
+      - name: Bundle Qt runtime
+        run: |
+          mkdir -p dist
+          cp build/src/quickshell.exe dist/qs.exe
+          windeployqt6 --qmldir macshell-win/macshell --no-translations dist/qs.exe || true
+          ldd dist/qs.exe | grep -i ucrt64 | awk '{print $3}' | xargs -r -I{} cp -n {} dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qs-windows-x64
+          path: dist/

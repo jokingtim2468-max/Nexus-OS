@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(QS_BUILD_OPTIONS "")
 
 # should be changed for forks
-set(CRASHREPORT_URL "https://github.com/outfoxxed/quickshell/issues/new?template=crash2.yml" CACHE STRING "Bugreport URL")
+set(CRASHREPORT_URL "https://github.com/jokingtim2468-max/Nexus-OS/issues/new" CACHE STRING "Bugreport URL")
 
 function(boption VAR NAME DEFAULT)
 	cmake_parse_arguments(PARSE_ARGV 3 arg "" "REQUIRES" "")
@@ -48,14 +48,21 @@ boption(BUILD_TESTING "Build tests (dev)" OFF)
 boption(ASAN "ASAN (dev)" OFF) # note: better output with gcc than clang
 boption(FRAME_POINTERS "Keep Frame Pointers (dev)" ${ASAN})
 
-if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+# Windows port: features that need Wayland/X11/D-Bus/Linux services default OFF.
+if (WIN32)
+	set(QS_UNIX_DEFAULT OFF)
+else()
+	set(QS_UNIX_DEFAULT ON)
+endif()
+
+if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD" OR WIN32)
 	boption(USE_JEMALLOC "Use jemalloc" OFF)
 else()
 	boption(USE_JEMALLOC "Use jemalloc" ON)
 endif()
-boption(CRASH_HANDLER "Crash Handling" ON)
+boption(CRASH_HANDLER "Crash Handling" ${QS_UNIX_DEFAULT})
 boption(SOCKETS "Unix Sockets" ON)
-boption(WAYLAND "Wayland" ON)
+boption(WAYLAND "Wayland" ${QS_UNIX_DEFAULT})
 boption(WAYLAND_WLR_LAYERSHELL "  Wlroots Layer-Shell" ON REQUIRES WAYLAND)
 boption(WAYLAND_SESSION_LOCK "  Session Lock" ON REQUIRES WAYLAND)
 boption(WAYLAND_TOPLEVEL_MANAGEMENT "  Foreign Toplevel Management" ON REQUIRES WAYLAND)
@@ -68,24 +75,27 @@ boption(SCREENCOPY "  Screencopy" ON REQUIRES WAYLAND)
 boption(SCREENCOPY_ICC "    Image Copy Capture" ON REQUIRES WAYLAND)
 boption(SCREENCOPY_WLR "    Wlroots Screencopy" ON REQUIRES WAYLAND)
 boption(SCREENCOPY_HYPRLAND_TOPLEVEL "    Hyprland Toplevel Export" ON REQUIRES WAYLAND)
-boption(X11 "X11" ON)
-boption(I3 "I3/Sway" ON)
+boption(X11 "X11" ${QS_UNIX_DEFAULT})
+boption(I3 "I3/Sway" ${QS_UNIX_DEFAULT})
 boption(I3_IPC "  I3/Sway IPC" ON REQUIRES I3)
-boption(SERVICE_STATUS_NOTIFIER "System Tray" ON)
-boption(SERVICE_PIPEWIRE "PipeWire" ON)
-boption(SERVICE_MPRIS "Mpris" ON)
-boption(SERVICE_PAM "Pam" ON)
-boption(SERVICE_POLKIT "Polkit" ON)
-boption(SERVICE_GREETD "Greetd" ON)
-boption(SERVICE_UPOWER "UPower" ON)
-boption(SERVICE_NOTIFICATIONS "Notifications" ON)
-boption(BLUETOOTH "Bluetooth" ON)
-boption(NETWORK "Network" ON)
+boption(SERVICE_STATUS_NOTIFIER "System Tray" ${QS_UNIX_DEFAULT})
+boption(SERVICE_PIPEWIRE "PipeWire" ${QS_UNIX_DEFAULT})
+boption(SERVICE_MPRIS "Mpris" ${QS_UNIX_DEFAULT})
+boption(SERVICE_PAM "Pam" ${QS_UNIX_DEFAULT})
+boption(SERVICE_POLKIT "Polkit" ${QS_UNIX_DEFAULT})
+boption(SERVICE_GREETD "Greetd" ${QS_UNIX_DEFAULT})
+boption(SERVICE_UPOWER "UPower" ${QS_UNIX_DEFAULT})
+boption(SERVICE_NOTIFICATIONS "Notifications" ${QS_UNIX_DEFAULT})
+boption(BLUETOOTH "Bluetooth" ${QS_UNIX_DEFAULT})
+boption(NETWORK "Network" ${QS_UNIX_DEFAULT})
 
 include(cmake/install-qml-module.cmake)
 include(cmake/util.cmake)
 
-add_compile_options(-Wall -Wextra -Wno-vla-cxx-extension)
+add_compile_options(-Wall -Wextra)
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+	add_compile_options(-Wno-vla-cxx-extension)
+endif()
 
 # pipewire defines these, breaking PCH
 add_compile_definitions(_REENTRANT)
@@ -160,12 +170,14 @@ if (USE_JEMALLOC)
 	target_link_libraries(quickshell PRIVATE ${JEMALLOC_LIBRARIES})
 endif()
 
+if (NOT WIN32)
 install(CODE "
 	execute_process(
 		COMMAND ${CMAKE_COMMAND} -E create_symlink \
 		${CMAKE_INSTALL_FULL_BINDIR}/quickshell \$ENV{DESTDIR}${CMAKE_INSTALL_FULL_BINDIR}/qs
 	)
 ")
+endif()
 
 install(
 	FILES ${CMAKE_SOURCE_DIR}/assets/org.quickshell.desktop

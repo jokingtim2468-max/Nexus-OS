@@ -23,7 +23,11 @@
 #include <qstandardpaths.h>
 #include <qtenvironmentvariables.h>
 #include <qtversion.h>
+#ifdef _WIN32
+#include <qprocess.h>
+#else
 #include <unistd.h>
+#endif
 
 #include "../core/debuginfo.hpp"
 #include "../core/instanceinfo.hpp"
@@ -510,6 +514,20 @@ int runCommand(int argc, char** argv) {
 
 	// Has to happen before extra threads are spawned.
 	if (state.misc.daemonize) {
+#ifdef _WIN32
+		// No fork() on Windows: start a detached copy of ourselves without the flag.
+		auto args = QStringList();
+		for (auto i = 1; i < argc; i++) {
+			auto arg = QString::fromLocal8Bit(argv[i]); // NOLINT
+			if (arg != "-d" && arg != "--daemonize") args << arg;
+		}
+
+		if (!QProcess::startDetached(QString::fromLocal8Bit(argv[0]), args)) { // NOLINT
+			qFatal() << "Failed to start daemon process";
+		}
+
+		return 0;
+#else
 		auto closepipes = std::array<int, 2>();
 		if (pipe(closepipes.data()) == -1) {
 			qFatal().nospace() << "Failed to create messaging pipes for daemon with error " << errno
@@ -538,6 +556,7 @@ int runCommand(int argc, char** argv) {
 
 			return ret;
 		}
+#endif
 	}
 
 	{

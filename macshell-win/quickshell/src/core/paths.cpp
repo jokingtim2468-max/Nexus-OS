@@ -4,7 +4,11 @@
 #include <tuple>
 #include <utility>
 
+#ifdef _WIN32
+#include "platform_win.hpp"
+#else
 #include <fcntl.h>
+#endif
 #include <qcontainerfwd.h>
 #include <qdatastream.h>
 #include <qdir.h>
@@ -64,7 +68,11 @@ QDir* QsPaths::baseRunDir() {
 	if (this->baseRunState == DirState::Unknown) {
 		auto runtimeDir = qEnvironmentVariable("XDG_RUNTIME_DIR");
 		if (runtimeDir.isEmpty()) {
+#ifdef _WIN32
+			runtimeDir = QDir::tempPath(); // per-user %TEMP%
+#else
 			runtimeDir = QString("/run/user/%1").arg(getuid());
+#endif
 			qCInfo(logPaths) << "XDG_RUNTIME_DIR was not set, defaulting to" << runtimeDir;
 		}
 
@@ -361,6 +369,13 @@ void QsPaths::createLock() {
 			return;
 		}
 
+#ifdef _WIN32
+		// No fcntl locks; checkLock tests liveness by the pid stored here.
+		auto stream = QDataStream(file);
+		stream << InstanceInfo::CURRENT;
+		file->flush();
+		qCDebug(logPaths) << "Created instance lock at" << path;
+#else
 		struct flock lock = {
 		    .l_type = F_WRLCK,
 		    .l_whence = SEEK_SET,
@@ -378,6 +393,7 @@ void QsPaths::createLock() {
 			file->flush();
 			qCDebug(logPaths) << "Created instance lock at" << path;
 		}
+#endif
 	} else {
 		qCCritical(
 		    logPaths
@@ -389,6 +405,21 @@ bool QsPaths::checkLock(const QString& path, InstanceLockInfo* info, bool allowD
 	auto file = QFile(QDir(path).filePath("instance.lock"));
 	if (!file.open(QFile::ReadOnly)) return false;
 
+#ifdef _WIN32
+	auto stored = InstanceInfo();
+	auto stream = QDataStream(&file);
+	stream >> stored;
+
+	auto isLocked = qs::win::pidAlive(stored.pid);
+	if (!isLocked && !allowDead) return false;
+
+	if (info) {
+		info->pid = isLocked ? stored.pid : -1;
+		info->instance = stored;
+	}
+
+	return true;
+#else
 	struct flock lock = {
 	    .l_type = F_WRLCK,
 	    .l_whence = SEEK_SET,
@@ -410,6 +441,7 @@ bool QsPaths::checkLock(const QString& path, InstanceLockInfo* info, bool allowD
 	}
 
 	return true;
+#endif
 }
 
 std::tuple<QVector<InstanceLockInfo>, QVector<InstanceLockInfo>, QVector<InstanceLockInfo>>
