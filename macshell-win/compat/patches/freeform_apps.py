@@ -30,6 +30,7 @@ EDITS = {
             m.push(mi("App Store\\u2026", "", function () { if (hub && hub.appStore) hub.appStore.open(""); }));
             m.push(mi("Welcome Tour\\u2026", "", function () { if (hub && hub.tour) hub.tour.start(); }));
             m.push(mi("Widget Studio\\u2026", "", function () { if (hub && hub.widgetStudio) hub.widgetStudio.open(); }));
+            m.push(mi("Music\\u2026", "", function () { if (hub && hub.openMusic) hub.openMusic(); }));
             m.push(msep());
             m.push(mi("Lock Screen", "", function () { root.lockScreen(); }));'''),
         # ── Wallpaper Engine state + apply ──

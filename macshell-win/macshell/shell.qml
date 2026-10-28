@@ -45,6 +45,7 @@ ShellRoot {
         property var tour: tour
         property var widgetStudio: widgetStudio
         property var themeStudio: themeStudio
+        function openMusic() { if (musicLoader.item) musicLoader.item.open(); else musicLoader.active = true; }
         function openSettings(pane) { macDock.openPrefs(pane); }
 
         // set by MacBar / MacDock (Binding elements) when their glass needs live data
@@ -285,6 +286,13 @@ ShellRoot {
     Tutorial { id: tour; hub: sharedHub }
     WidgetStudio { id: widgetStudio; hub: sharedHub }
     ThemeStudio { id: themeStudio; hub: sharedHub }
+    // Music (MusicApp.qml) is created the first time it's opened: it needs Qt Multimedia
+    Loader {
+        id: musicLoader
+        active: false
+        source: "MusicApp.qml"
+        onLoaded: { item.hub = sharedHub; item.open(); }
+    }
     // Windows: video / animated wallpaper layer (Linux plays videos with mpvpaper)
     Loader {
         active: Qt.platform.os === "windows" && macBar.wallpaperVideo !== ""
@@ -347,6 +355,12 @@ ShellRoot {
     }
     // qs -c MacShell ipc call widgetstudio open | close | toggle      (make your own desktop widgets)
     // qs -c MacShell ipc call themestudio open | close      (make your own theme)
+    // qs -c MacShell ipc call music open      (the Music app)
+    IpcHandler {
+        target: "music"
+        function open(): void { sharedHub.openMusic(); }
+        function close(): void { if (musicLoader.item) musicLoader.item.close(); }
+    }
     IpcHandler {
         target: "themestudio"
         function open(): void { themeStudio.open(); }
