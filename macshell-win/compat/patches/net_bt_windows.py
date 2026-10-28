@@ -252,9 +252,9 @@ EDITS = {
 }
 
 
-def apply(check=False):
+def apply(check=False, edits_by_file=None):
     ok = True
-    for fname, edits in EDITS.items():
+    for fname, edits in (edits_by_file or EDITS).items():
         path = os.path.join(ROOT, fname)
         text = open(path, encoding="utf-8").read()
         new = text
