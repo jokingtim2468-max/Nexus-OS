@@ -139,7 +139,12 @@ Scope {
             readonly property var w: modelData.w
             property real dragX: 0
             property real dragY: 0
-            screen: Quickshell.screens.length > 0 ? Quickshell.screens[0] : null
+            // the screen it was put on (by name), else the first one (e.g. that monitor is unplugged)
+            screen: {
+                var ss = Quickshell.screens;
+                for (var k = 0; k < ss.length; k++) if (ss[k].name === dw.w.screen) return ss[k];
+                return ss.length > 0 ? ss[0] : null;
+            }
             anchors { top: true; left: true }
             margins { left: Math.max(0, (dw.w.x || 0) + dragX); top: Math.max(0, (dw.w.y || 0) + dragY) }
             implicitWidth: dw.w.w; implicitHeight: dw.w.h
@@ -319,6 +324,16 @@ Scope {
                     }
                     Row {
                         anchors.right: parent.right; anchors.rightMargin: 16; anchors.verticalCenter: parent.verticalCenter; spacing: 6
+                        // multi-monitor: which screen the widget lives on (click to cycle)
+                        Chip {
+                            visible: !!root.cw && Quickshell.screens.length > 1
+                            label: I18n.tr("Screen: ") + (root.cw && root.cw.screen ? root.cw.screen : (Quickshell.screens.length ? Quickshell.screens[0].name : ""))
+                            onClicked: {
+                                var ss = Quickshell.screens, cur = root.cw.screen || ss[0].name, i = 0;
+                                for (var k = 0; k < ss.length; k++) if (ss[k].name === cur) i = k;
+                                root.updateWidget({ screen: ss[(i + 1) % ss.length].name, x: 80, y: 120 });
+                            }
+                        }
                         Chip {
                             visible: !!root.cw
                             label: root.cw && root.cw.onDesktop ? I18n.tr("On Desktop ✓") : I18n.tr("Show on Desktop")

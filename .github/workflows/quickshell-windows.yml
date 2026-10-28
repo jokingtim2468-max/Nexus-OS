@@ -13,6 +13,11 @@ on:
       - ".github/workflows/quickshell-windows.yml"
   workflow_dispatch:
 
+# a newer push replaces a build still running for the same branch
+concurrency:
+  group: quickshell-windows-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write                 # publish the freeform-latest release
 
@@ -119,6 +124,7 @@ jobs:
       - name: Smoke run MacShell
         shell: pwsh
         continue-on-error: true
+        timeout-minutes: 15
         run: |
           $ErrorActionPreference = 'Continue'
           $root = (Get-Location).Path
@@ -129,7 +135,13 @@ jobs:
           $env:HOME = $env:USERPROFILE
           $env:PATH = "$pkg\python;$env:FREEFORM_HELPER;$env:PATH"
           New-Item -ItemType Directory -Force -Path smoke | Out-Null
-          & "$env:FREEFORM_HELPER\macshell-helper.exe" apps sync *> smoke\apps-sync.txt
+          # never let a stuck step hang the job: everything below runs with a time limit
+          function Run-Limited($exe, $argList, $out, $seconds) {
+            $pr = Start-Process -FilePath $exe -ArgumentList $argList -NoNewWindow -PassThru -RedirectStandardOutput "$out.out" -RedirectStandardError "$out.err"
+            if (-not $pr.WaitForExit($seconds * 1000)) { "TIMED OUT after $seconds s: $exe $argList" | Tee-Object -Append $out; Stop-Process -Id $pr.Id -Force }
+            Get-Content "$out.out", "$out.err" -ErrorAction SilentlyContinue | Add-Content $out
+          }
+          Run-Limited "$env:FREEFORM_HELPER\macshell-helper.exe" @('apps', 'sync') smoke\apps-sync.txt 420
           "apps sync: $(Get-Content smoke\apps-sync.txt -Raw)"
           Get-ChildItem "$env:USERPROFILE\.local\share\applications" -ErrorAction SilentlyContinue | Select-Object -First 60 Name | Out-File smoke\apps-list.txt
           Get-Content smoke\apps-list.txt
@@ -145,7 +157,7 @@ jobs:
             $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
             $bmp.Save("smoke\$name.png", [System.Drawing.Imaging.ImageFormat]::Png)
           }
-          function Ipc { & "$pkg\bin\qs.exe" ipc -p $shell call @args *>> smoke\ipc.txt }
+          function Ipc { Run-Limited "$pkg\bin\qs.exe" (@('ipc', '-p', "`"$shell`"", 'call') + $args) smoke\ipc.txt 20 }
           Start-Sleep -Seconds 35
           Ipc tour stop; Start-Sleep -Seconds 3; Shot desktop
           Ipc widgetstudio open; Start-Sleep -Seconds 6; Shot widgetstudio; Ipc widgetstudio close
@@ -159,6 +171,7 @@ jobs:
 
       - name: Check PowerShell scripts and the launcher window
         shell: pwsh
+        timeout-minutes: 5
         run: |
           $bad = 0
           foreach ($f in Get-ChildItem macshell-win -Recurse -Filter *.ps1) {
@@ -175,6 +188,7 @@ jobs:
       - name: fetch in cmd and PowerShell
         shell: pwsh
         continue-on-error: true
+        timeout-minutes: 10
         run: |
           New-Item -ItemType Directory -Force -Path smoke | Out-Null
           cmd /c "macshell-win\tools\fffetch\fetch.cmd" *> smoke\fffetch-cmd.txt

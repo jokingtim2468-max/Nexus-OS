@@ -1,6 +1,6 @@
 # apps.ps1 — every app in the Start Menu (shortcuts + Microsoft Store apps), with a 256 px icon.
 # Prints one JSON array: [{ name, launch, target, icon }]. Used by `macshell-helper apps sync`.
-param([string]$IconDir)
+param([string]$IconDir, [switch]$NoIcons)   # -NoIcons: fast list, only icons already extracted
 $ErrorActionPreference = 'SilentlyContinue'
 New-Item -ItemType Directory -Force -Path $IconDir | Out-Null
 Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @'
@@ -38,14 +38,16 @@ foreach ($lnk in Get-ChildItem $dirs -Recurse -Filter *.lnk) {
     if ($lnk.BaseName -match '(?i)uninstall|readme|help|website|documentation') { continue }
     $key = $lnk.BaseName.ToLower(); if ($seen[$key]) { continue }; $seen[$key] = 1
     $png = Join-Path $IconDir ((Safe $lnk.BaseName) + '.png')
-    if (-not (Test-Path $png)) { [void][FFIcon]::Save($lnk.FullName, $png) }
+    if (-not $NoIcons -and -not (Test-Path $png)) { [void][FFIcon]::Save($lnk.FullName, $png) }
     $out += @{ name = $lnk.BaseName; launch = $lnk.FullName; target = $t; icon = $(if (Test-Path $png) { $png } else { '' }) }
 }
+[Console]::Error.WriteLine("[apps] Start Menu shortcuts: $($out.Count)")
 foreach ($a in Get-StartApps) {                                          # Store apps: AUMIDs contain '!'
     if ($a.AppID -notmatch '!') { continue }
     $key = $a.Name.ToLower(); if ($seen[$key]) { continue }; $seen[$key] = 1
     $png = Join-Path $IconDir ((Safe $a.Name) + '.png')
-    if (-not (Test-Path $png)) { [void][FFIcon]::Save("shell:AppsFolder\$($a.AppID)", $png) }
+    if (-not $NoIcons -and -not (Test-Path $png)) { [void][FFIcon]::Save("shell:AppsFolder\$($a.AppID)", $png) }
     $out += @{ name = $a.Name; launch = "shell:AppsFolder\$($a.AppID)"; target = ''; icon = $(if (Test-Path $png) { $png } else { '' }) }
 }
+[Console]::Error.WriteLine("[apps] with Store apps: $($out.Count)")
 ConvertTo-Json -InputObject $out -Compress -Depth 3

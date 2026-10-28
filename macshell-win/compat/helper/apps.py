@@ -91,16 +91,39 @@ def main(argv):
     if os.name != "nt":
         return 0                                                         # Linux has real .desktop files
     icons = os.path.join(os.environ.get("LOCALAPPDATA", ""), "FreeForm", "icons")
-    r = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
-                        "-File", os.path.join(HERE, "apps.ps1"), icons],
-                       capture_output=True, text=True, encoding="utf-8", errors="replace", creationflags=0x08000000)
-    try:
-        apps = json.loads(r.stdout or "[]")
-    except ValueError:
+    root = os.environ.get("FREEFORM_ROOT", "")
+    own = own_entries(root) if root else ()
+    # 1) the app list fast (icons only where already extracted), 2) again extracting missing icons.
+    # Each pass has a time limit, so a stuck shortcut or Store app can't leave the app list empty.
+    count = 0
+    for extra, limit in ((["-NoIcons"], 90), ([], 300)):
+        apps = list_apps(icons, extra, limit)
+        if apps is None:
+            continue
+        count = write_all(apps, desktop_dir(), own)
+    if not count:
         print("apps: could not list Start Menu apps", file=sys.stderr)
         return 1
-    if isinstance(apps, dict):
-        apps = [apps]
-    root = os.environ.get("FREEFORM_ROOT", "")
-    print("%d apps" % write_all(apps, desktop_dir(), own_entries(root) if root else ()))
+    print("%d apps" % count)
     return 0
+
+
+def list_apps(icons, extra, limit):
+    try:
+        r = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+                            "-File", os.path.join(HERE, "apps.ps1"), icons] + extra,
+                           capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           creationflags=0x08000000, timeout=limit)
+    except subprocess.TimeoutExpired:
+        print("apps: listing timed out after %d s%s" % (limit, " (icon pass)" if not extra else ""), file=sys.stderr)
+        return None
+    out = (r.stdout or "").strip()
+    if out and out[0] not in "[{":                                       # anything printed before the JSON
+        starts = [i for i in (out.find("["), out.find("{")) if i >= 0]
+        out = out[min(starts):] if starts else out
+    try:
+        apps = json.loads(out or "[]")
+    except ValueError:
+        print("apps: unreadable list: %s" % (r.stderr or out)[-300:], file=sys.stderr)
+        return None
+    return [apps] if isinstance(apps, dict) else apps
