@@ -43,6 +43,7 @@ ShellRoot {
         property var about: aboutApp
         property var appStore: appStore
         property var tour: tour
+        property var widgetStudio: widgetStudio
         function openSettings(pane) { macDock.openPrefs(pane); }
 
         // set by MacBar / MacDock (Binding elements) when their glass needs live data
@@ -281,6 +282,7 @@ ShellRoot {
     AboutApp { id: aboutApp; hub: sharedHub }
     AppStore { id: appStore; hub: sharedHub }
     Tutorial { id: tour; hub: sharedHub }
+    WidgetStudio { id: widgetStudio; hub: sharedHub }
 
     Component.onCompleted: {
         sharedHub.bar = macBar;
@@ -328,6 +330,13 @@ ShellRoot {
         function stop(): void { tour.stop(); }
         function next(): void { tour.next(); }
         function step(n: int): void { tour.start(); tour.step = n; }
+    }
+    // qs -c MacShell ipc call widgetstudio open | close | toggle      (make your own desktop widgets)
+    IpcHandler {
+        target: "widgetstudio"
+        function open(): void { widgetStudio.open(); }
+        function close(): void { widgetStudio.close(); }
+        function toggle(): void { widgetStudio.toggle(); }
     }
     IpcHandler {
         target: "notifications"
