@@ -41,6 +41,7 @@ ShellRoot {
         property var widgets: macWidgets
         property var clock: clockApp
         property var about: aboutApp
+        property var appStore: appStore
         function openSettings(pane) { macDock.openPrefs(pane); }
 
         // set by MacBar / MacDock (Binding elements) when their glass needs live data
@@ -277,6 +278,7 @@ ShellRoot {
     MacWidgets { id: macWidgets; hub: sharedHub }
     ClockApp { id: clockApp; hub: sharedHub }
     AboutApp { id: aboutApp; hub: sharedHub }
+    AppStore { id: appStore; hub: sharedHub }
 
     Component.onCompleted: {
         sharedHub.bar = macBar;
@@ -307,6 +309,15 @@ ShellRoot {
         function open(): void { aboutApp.open(); }
         function close(): void { aboutApp.close(); }
         function toggle(): void { aboutApp.toggle(); }
+    }
+    // qs -c MacShell ipc call appstore open | close | toggle | page updates | search firefox
+    IpcHandler {
+        target: "appstore"
+        function open(): void { appStore.open(""); }
+        function close(): void { appStore.close(); }
+        function toggle(): void { appStore.toggle(); }
+        function page(id: string): void { appStore.open(id); }
+        function search(q: string): void { appStore.open("search"); appStore.search(q); }
     }
     IpcHandler {
         target: "notifications"

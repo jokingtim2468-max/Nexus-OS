@@ -1,2 +1,4 @@
 .macshell-reference/
 __pycache__/
+macshell-win/compat/helper/mock-state.json
+macshell-win/compat/helper/store-mock.json

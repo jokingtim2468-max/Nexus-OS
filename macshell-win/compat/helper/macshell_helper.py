@@ -17,6 +17,7 @@ Commands (what the QML calls):
   conn list | conn up|down NAME
   bt status | bt power on|off | bt scan | bt connect MAC | bt disconnect MAC | bt forget MAC
   airplane on|off
+  store search|list|updates|install|uninstall|update ...   (the App Store app; see store.py)
 """
 import json
 import os
@@ -329,6 +330,10 @@ def backend_name():
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     name = backend_name()
+    if argv[:1] == ["store"]:
+        import store
+        return store.main(argv[1:], name, os.environ.get("MACSHELL_HELPER_STORE_MOCK")
+                          or os.path.join(HERE, "store-mock.json"))
     if name == "linux":
         return run_linux(argv)
     be = WindowsBackend() if name == "windows" else MockBackend(
