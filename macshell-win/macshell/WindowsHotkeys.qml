@@ -2,6 +2,7 @@
 //   Alt+Space    Spotlight              Win+Alt+A   Control Center
 //   Win+Alt+N    Wi-Fi / network menu   Win+Alt+F   turn FreeForm off (Windows taskbar comes back)
 //   Win (alone)  Launchpad (all apps) instead of the Start menu; Win+<key> shortcuts stay Windows'.
+//   Win+Tab      Mission Control (instead of Task View)
 //   Alt+Tab      MacShell's app switcher (Alt+Shift+Tab backwards, Esc cancels)
 import QtQuick
 import Quickshell
@@ -12,7 +13,10 @@ Item {
     property var hub: null
     readonly property var bar: hub ? hub.bar : null
 
-    WinStartKey { onPressed: if (hk.bar) hk.bar.spotOpen("apps") }
+    WinStartKey {
+        onPressed: if (hk.bar) hk.bar.spotOpen("apps")
+        onOverview: if (hk.hub && hk.hub.missionControl) hk.hub.missionControl.toggle()
+    }
     WinAltTab {
         onNext: if (hk.bar) hk.bar.swNext(1)
         onPrev: if (hk.bar) hk.bar.swNext(-1)

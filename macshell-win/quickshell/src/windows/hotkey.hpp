@@ -34,9 +34,12 @@ public:
 	[[nodiscard]] bool registered() const { return this->mId != 0; }
 
 	void trigger() { emit this->pressed(); }
+	void triggerOverview() { emit this->overview(); }
 
 signals:
 	void pressed();
+	/// Win+Tab (taken from Windows' Task View).
+	void overview();
 	void sequenceChanged();
 	void enabledChanged();
 	void registeredChanged();
@@ -72,9 +75,12 @@ public:
 	void setEnabled(bool enabled);
 
 	void trigger() { emit this->pressed(); }
+	void triggerOverview() { emit this->overview(); }
 
 signals:
 	void pressed();
+	/// Win+Tab (taken from Windows' Task View).
+	void overview();
 	void enabledChanged();
 
 private:

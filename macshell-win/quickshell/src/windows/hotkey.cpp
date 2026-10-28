@@ -129,6 +129,7 @@ struct StartKeyHook {
 	HHOOK hook = nullptr;
 	bool winDown = false;
 	bool combo = false;
+	bool swallowed = false; // we ate a key of this Win combo (Win+Tab): Windows must not see a lone Win
 	QList<WinStartKey*> listeners;
 
 	static StartKeyHook& get() {
@@ -151,6 +152,17 @@ struct StartKeyHook {
 			h.winDown = true;
 		} else if (isWin && !down) {
 			h.winDown = false;
+			if (h.swallowed) {
+				h.swallowed = false;
+				// Windows saw Win down + Win up only: an unused key in between keeps the Start menu shut
+				INPUT seq[2] = {}; // NOLINT
+				seq[0].type = INPUT_KEYBOARD;
+				seq[0].ki.wVk = 0xFF;
+				seq[1] = seq[0];
+				seq[1].ki.dwFlags = KEYEVENTF_KEYUP;
+				SendInput(2, seq, sizeof(INPUT));
+				return CallNextHookEx(nullptr, code, wParam, lParam);
+			}
 			if (!h.combo && !h.listeners.isEmpty()) {
 				// A key nobody uses between Win down and up: Windows then treats it as a shortcut,
 				// not a Start-menu tap (the same trick PowerToys uses).
@@ -168,6 +180,12 @@ struct StartKeyHook {
 				for (auto* l: h.listeners) QMetaObject::invokeMethod(l, &WinStartKey::trigger, Qt::QueuedConnection);
 				return 1;
 			}
+		} else if (h.winDown && kb->vkCode == VK_TAB && !h.listeners.isEmpty()) {
+			// Win+Tab: Mission Control instead of Task View
+			h.combo = true;
+			h.swallowed = true;
+			if (down) for (auto* l: h.listeners) QMetaObject::invokeMethod(l, &WinStartKey::triggerOverview, Qt::QueuedConnection);
+			return 1;
 		} else if (h.winDown && down) {
 			h.combo = true; // Win+E, Win+L, Win+Shift+S ... stay Windows'
 		}

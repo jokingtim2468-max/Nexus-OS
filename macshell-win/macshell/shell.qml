@@ -45,6 +45,7 @@ ShellRoot {
         property var tour: tour
         property var widgetStudio: widgetStudio
         property var themeStudio: themeStudio
+        property var missionControl: missionControl
         function openMusic() { if (musicLoader.item) musicLoader.item.open(); else musicLoader.active = true; }
         function openSettings(pane) { macDock.openPrefs(pane); }
 
@@ -286,6 +287,7 @@ ShellRoot {
     Tutorial { id: tour; hub: sharedHub }
     WidgetStudio { id: widgetStudio; hub: sharedHub }
     ThemeStudio { id: themeStudio; hub: sharedHub }
+    MissionControl { id: missionControl; hub: sharedHub }
     // Music (MusicApp.qml) is created the first time it's opened: it needs Qt Multimedia
     Loader {
         id: musicLoader
@@ -360,6 +362,12 @@ ShellRoot {
         target: "music"
         function open(): void { sharedHub.openMusic(); }
         function close(): void { if (musicLoader.item) musicLoader.item.close(); }
+    }
+    IpcHandler {
+        target: "missioncontrol"
+        function open(): void { missionControl.open = true; }
+        function close(): void { missionControl.close(); }
+        function toggle(): void { missionControl.toggle(); }
     }
     IpcHandler {
         target: "themestudio"

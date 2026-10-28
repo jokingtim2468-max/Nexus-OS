@@ -391,6 +391,7 @@ Scope {
     // Log out of Hyprland. 0.55+ (Lua) takes a Lua expression; UWSM sessions are stopped through uwsm so the session ends cleanly.
     // Lock Screen: starts MacLock via IPC helper; does nothing if already locked
     function lockScreen() {
+        if (Qt.platform.os === "windows") { Quickshell.execDetached(["rundll32.exe", "user32.dll,LockWorkStation"]); return; }
         sh('sh ~/.config/quickshell/MacLock/lock-via-ipc.sh');
     }
     function sleepMachine() {

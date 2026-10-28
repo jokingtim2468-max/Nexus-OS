@@ -8,7 +8,10 @@
 #include <qpointer.h>
 #include <qqmlintegration.h>
 #include <qquickitem.h>
+#include <qimage.h>
 #include <qsize.h>
+#include <qsgnode.h>
+#include <qtimer.h>
 #include <qtmetamacros.h>
 
 class WinPanelInterface;
@@ -81,8 +84,10 @@ private:
 	QString mNamespace = "quickshell";
 };
 
-// TODO(windows): capture via Windows.Graphics.Capture / DWM thumbnails. Until then it has no
-// content, which MacShell already handles (plain glass instead of refracted windows).
+// Live picture of an app window (a Toplevel from ToplevelManager) for the Dock's previews,
+// Mission Control and the app switcher: PrintWindow(PW_RENDERFULLCONTENT) into an image,
+// twice a second while live and visible. Screens are not captured (the picture would contain
+// the shell's own glass), so screen sources have no content, which MacShell handles.
 class ScreencopyView: public QQuickItem {
 	Q_OBJECT;
 	// clang-format off
@@ -96,9 +101,9 @@ class ScreencopyView: public QQuickItem {
 	QML_ELEMENT;
 
 public:
-	explicit ScreencopyView(QQuickItem* parent = nullptr): QQuickItem(parent) {}
+	explicit ScreencopyView(QQuickItem* parent = nullptr);
 
-	Q_INVOKABLE void captureFrame() {}
+	Q_INVOKABLE void captureFrame();
 
 	[[nodiscard]] QObject* captureSource() const { return this->mCaptureSource; }
 	void setCaptureSource(QObject* source);
@@ -106,8 +111,8 @@ public:
 	void setPaintCursor(bool paintCursor);
 	[[nodiscard]] bool live() const { return this->mLive; }
 	void setLive(bool live);
-	[[nodiscard]] bool hasContent() const { return false; }
-	[[nodiscard]] QSize sourceSize() const { return {}; }
+	[[nodiscard]] bool hasContent() const { return !this->mImage.isNull(); }
+	[[nodiscard]] QSize sourceSize() const { return this->mSourceSize; }
 	[[nodiscard]] QSizeF constraintSize() const { return this->mConstraintSize; }
 	void setConstraintSize(QSizeF size);
 
@@ -119,11 +124,22 @@ signals:
 	void sourceSizeChanged();
 	void constraintSizeChanged();
 
+protected:
+	QSGNode* updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* data) override;
+	void itemChange(ItemChange change, const ItemChangeData& value) override;
+
 private:
+	void updateTimer();
+	void updateImplicitSize();
+
 	QPointer<QObject> mCaptureSource;
 	bool mPaintCursor = false;
 	bool mLive = false;
 	QSizeF mConstraintSize;
+	QImage mImage;
+	QSize mSourceSize;
+	bool mImageDirty = false;
+	QTimer mTimer;
 };
 
 } // namespace qs::windows

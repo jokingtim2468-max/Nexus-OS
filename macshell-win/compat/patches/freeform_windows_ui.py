@@ -115,6 +115,12 @@ EDITS = {
         }
         Quickshell.execDetached(["sh", "-c", cmd]);
     }'''),
+        # Windows' own lock screen: it runs on the secure desktop, which nothing (FreeForm included) can draw over
+        ('''    function lockScreen() {
+''',
+         '''    function lockScreen() {
+        if (Qt.platform.os === "windows") { Quickshell.execDetached(["rundll32.exe", "user32.dll,LockWorkStation"]); return; }
+'''),
         ('''    function sleepMachine() {
 ''',
          '''    function sleepMachine() {
