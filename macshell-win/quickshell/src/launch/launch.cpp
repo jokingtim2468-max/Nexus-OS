@@ -132,6 +132,14 @@ int launch(const LaunchArgs& args, char** argv) {
 
 	file.close();
 
+	// Extra folders holding icon themes (Windows has no /usr/share/icons). List separator: ';' on Windows.
+	auto iconThemePath = qEnvironmentVariable("QS_ICON_THEME_PATH");
+	if (!iconThemePath.isEmpty()) {
+		auto paths = iconThemePath.split(QDir::listSeparator(), Qt::SkipEmptyParts);
+		paths.append(QIcon::themeSearchPaths());
+		QIcon::setThemeSearchPaths(paths);
+	}
+
 	if (!pragmas.iconTheme.isEmpty()) {
 		QIcon::setThemeName(pragmas.iconTheme);
 	}

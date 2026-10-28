@@ -60,24 +60,24 @@ function fmtUp($t) { $p = @(); if ($t.Days) { $p += "$($t.Days) days" }; if ($t.
 
 $user = "$env:USERNAME@$env:COMPUTERNAME"
 $info = @(
-    "$B$accent$env:USERNAME$R@$B$accent$env:COMPUTERNAME$R",
+    "$B$accent$env:USERNAME${R}@$B$accent$env:COMPUTERNAME$R",
     ('-' * $user.Length),
-    "$B${accent}OS$R: $($os.Caption -replace 'Microsoft ', '') $ver ($($os.OSArchitecture))",
-    "$B${accent}Host$R: $($cs.Manufacturer) $($cs.Model)",
-    "$B${accent}Kernel$R: NT $($os.Version)",
-    "$B${accent}Uptime$R: $(fmtUp $up)",
-    "$B${accent}Apps$R: $apps (installed)",
-    "$B${accent}Shell$R: $shellName",
-    "$B${accent}Display$R: $scr",
-    "$B${accent}Desktop$R: $ff",
-    "$B${accent}Theme$R: $(if ($dark) { 'Dark' } else { 'Light' })",
-    "$B${accent}CPU$R: $($cpu.Name.Trim()) ($($cpu.NumberOfLogicalProcessors) threads)"
+    "$B${accent}OS${R}: $($os.Caption -replace 'Microsoft ', '') $ver ($($os.OSArchitecture))",
+    "$B${accent}Host${R}: $($cs.Manufacturer) $($cs.Model)",
+    "$B${accent}Kernel${R}: NT $($os.Version)",
+    "$B${accent}Uptime${R}: $(fmtUp $up)",
+    "$B${accent}Apps${R}: $apps (installed)",
+    "$B${accent}Shell${R}: $shellName",
+    "$B${accent}Display${R}: $scr",
+    "$B${accent}Desktop${R}: $ff",
+    "$B${accent}Theme${R}: $(if ($dark) { 'Dark' } else { 'Light' })",
+    "$B${accent}CPU${R}: $($cpu.Name.Trim()) ($($cpu.NumberOfLogicalProcessors) threads)"
 )
-foreach ($g in $gpus) { $info += "$B${accent}GPU$R: $($g.Name)" }
-$info += "$B${accent}Memory$R: $ram GiB / $ramT GiB ($ramP%)"
-$info += "$B${accent}Disk ($($env:SystemDrive))$R: $dU GB / $dT GB"
-if ($bat) { $info += "$B${accent}Battery$R: $($bat.EstimatedChargeRemaining)%" }
-$info += "$B${accent}Locale$R: $((Get-Culture).Name)"
+foreach ($g in $gpus) { $info += "$B${accent}GPU${R}: $($g.Name)" }
+$info += "$B${accent}Memory${R}: $ram GiB / $ramT GiB ($ramP%)"
+$info += "$B${accent}Disk ($($env:SystemDrive))${R}: $dU GB / $dT GB"
+if ($bat) { $info += "$B${accent}Battery${R}: $($bat.EstimatedChargeRemaining)%" }
+$info += "$B${accent}Locale${R}: $((Get-Culture).Name)"
 $info += ""
 $info += ((0..7 | ForEach-Object { "$e[4${_}m   " }) -join '') + $R
 $info += ((0..7 | ForEach-Object { "$e[10${_}m   " }) -join '') + $R
