@@ -14,10 +14,12 @@ feature — see **[`macshell-win/PORT.md`](macshell-win/PORT.md)** for the compl
 map (every Quickshell API and every Linux tool → its Windows replacement) and the
 order of work.
 
-Try MacShell's own components on Windows now:
+To see the real, unmodified MacShell for reference (Linux + Nix, no GPU needed):
 
-    cd macshell-win
-    python tools/gallery.py
+    macshell-win/tools/reference/run-macshell.sh setup
+    macshell-win/tools/reference/run-macshell.sh start /path/to/wallpaper.jpg
+    macshell-win/tools/reference/run-macshell.sh ipc call controlcenter open
+    macshell-win/tools/reference/run-macshell.sh shot cc
 
 The PyQt6 shell described below (launcher, takeover, tutorial, Settings) is the
 interim version; its bar/dock/Control Center will be replaced by MacShell's real

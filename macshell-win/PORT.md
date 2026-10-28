@@ -14,15 +14,20 @@ imports and (2) the ~27 Linux command-line tools it shells out to. We provide
 both as a **Windows compatibility layer** (`compat/`, PyQt6), so every feature is
 MacShell's real implementation, not a redraw.
 
-### Proven so far
-- 26 of MacShell's 40 components import only `QtQuick` — they load and render on
-  plain Qt **unchanged** (`tools/gallery.qml`: glass switch/slider/segmented,
-  clock, calendar, weather, now-playing, in MacShell's own Open Runde font).
-- All 7 shaders (`liquidglass`, `contourglow`, `tintcard`, `dust`, `burn`,
-  `fade`, `liquidglass-fixed`) already contain **HLSL (Direct3D)** variants in
-  their `.qsb` files, so Liquid Glass runs on Windows' native GPU path without
-  recompiling. (Not visually verified yet: the dev container has no GPU; check
-  with `python tools/gallery.py` on Windows.)
+### Reference: the real MacShell, running
+
+`tools/reference/run-macshell.sh` launches the **unmodified upstream MacShell** in
+real Quickshell 0.3.2 (headless sway + Mesa software GL, Linux + Nix) and drives it
+through MacShell's own IPC (`controlcenter`, `spotlight`, `settings pane <id>`,
+`clock`, `wallpapers`, …). Every Windows screen is compared against it. Verified:
+menu bar, Dock, Control Center (Liquid Glass shader compiles and renders),
+Spotlight, the System Settings window with all its panes, and the Clock app.
+
+What the run also confirmed for the port:
+- The Settings window (Wi-Fi … About, ~23 panes) lives in `MacDock.qml`, so
+  "every setting" comes straight from MacShell's code.
+- 26 of 40 components import only `QtQuick` and need no changes.
+- All 7 shaders already contain **HLSL** (Direct3D) in their `.qsb` files.
 
 ## 1. Quickshell modules → Windows
 
