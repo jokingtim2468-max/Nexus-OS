@@ -157,7 +157,7 @@ jobs:
             $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
             $bmp.Save("smoke\$name.png", [System.Drawing.Imaging.ImageFormat]::Png)
           }
-          function Ipc { Run-Limited "$pkg\bin\qs.exe" (@('ipc', '-p', "`"$shell`"", 'call') + $args) smoke\ipc.txt 20 }
+          function Ipc { Run-Limited "$pkg\bin\qs.exe" (@('ipc', '-vv', '-p', "`"$shell`"", 'call') + $args) smoke\ipc.txt 30 }
           Start-Sleep -Seconds 35
           Run-Limited "$pkg\bin\qs.exe" @('list', '--all', '-vv') smoke\qs-list.txt 20
           Get-Content smoke\qs-list.txt
@@ -169,6 +169,8 @@ jobs:
           "exited: $($p.HasExited)  code: $(if ($p.HasExited) { $p.ExitCode })" | Tee-Object smoke\status.txt
           if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
           Get-Content smoke\ipc.txt
+          "── IPC on the shell's side"
+          Select-String -Path smoke\qs-err.log, smoke\qs-out.log -Pattern 'ipc|IPC' | Select-Object -First 40 | ForEach-Object { $_.Line }
           Select-String -Path smoke\qs-err.log, smoke\qs-out.log -Pattern 'ERROR|WARN.*(qml|QML)|is not a type|not installed|ReferenceError|TypeError' | Select-Object -First 80 | ForEach-Object { $_.Line }
 
       - name: Check PowerShell scripts and the launcher window

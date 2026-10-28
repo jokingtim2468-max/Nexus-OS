@@ -9,6 +9,8 @@
 #include <qflags.h>
 #include <qlocalserver.h>
 #include <qlocalsocket.h>
+#include <qcoreapplication.h>
+#include <qelapsedtimer.h>
 #include <qlogging.h>
 #include <qloggingcategory.h>
 #include <qobject.h>
@@ -195,11 +197,18 @@ public:
 
 	template <typename T>
 	bool waitForResponse(T& slot) {
-		while (this->socket.waitForReadyRead(-1)) {
-			this->stream.startTransaction();
-			this->stream >> slot;
-			if (!this->stream.commitTransaction()) continue;
-			return true;
+		// Bounded polling instead of waitForReadyRead(-1): on Windows named pipes without an event
+		// loop that call can block forever. Gives up after 15 s with an error instead of hanging.
+		QElapsedTimer timer;
+		timer.start();
+		while (timer.elapsed() < 15000) {
+			if (this->socket.bytesAvailable() > 0 || this->socket.waitForReadyRead(100)) {
+				this->stream.startTransaction();
+				this->stream >> slot;
+				if (this->stream.commitTransaction()) return true;
+			}
+			if (this->socket.state() == QLocalSocket::UnconnectedState) break;
+			QCoreApplication::processEvents();
 		}
 
 		qCCritical(logIpc) << "Error occurred while waiting for response.";
