@@ -9,7 +9,7 @@ on:
       - "macshell-win/quickshell/**"
       - "macshell-win/macshell/**"
       - "macshell-win/compat/**"
-      - "macshell-win/tools/fffetch/**"
+      - "macshell-win/tools/**"
       - ".github/workflows/quickshell-windows.yml"
   workflow_dispatch:
 
@@ -71,6 +71,29 @@ jobs:
           name: qs-windows-x64
           path: dist/
 
+      # The FreeForm package: qs.exe + Qt, MacShell, the Windows layer, a private Python, launcher.
+      - name: Package FreeForm
+        run: |
+          gcc -O2 -municode -mwindows -o macshell-win/compat/helper/macshell-helper.exe macshell-win/compat/helper/helper-shim.c
+          P=pkg/FreeForm
+          mkdir -p $P/compat $P/tools
+          cp -r dist $P/bin
+          cp -r macshell-win/macshell $P/shell
+          cp -r macshell-win/compat/helper macshell-win/compat/qml $P/compat/
+          cp -r macshell-win/tools/fffetch $P/tools/
+          cp macshell-win/tools/launcher/* $P/
+          cp macshell-win/macshell/LICENSE $P/LICENSE-MacShell.txt
+          cp macshell-win/quickshell/LICENSE $P/LICENSE-Quickshell.txt
+          # official embeddable Python from python.org (PSF licence), private to FreeForm
+          curl -sSL -o py.zip https://www.python.org/ftp/python/3.12.7/python-3.12.7-embed-amd64.zip
+          mkdir -p $P/python && (cd $P/python && unzip -q ../../../py.zip)
+          rm -rf $P/compat/helper/__pycache__ $P/shell/hypr-scripts-reference
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FreeForm-windows-x64
+          path: pkg/
+
       # Run MacShell on the Windows build and take a screenshot of the desktop (the runner has an
       # interactive desktop session). Uploads the screenshot and Quickshell's log.
       - name: Smoke run MacShell
@@ -79,7 +102,8 @@ jobs:
         run: |
           $root = (Get-Location).Path
           $env:QML_IMPORT_PATH = "$root\dist\qml;$root\macshell-win\compat\qml"
-          $env:FREEFORM_HELPER = "$root\macshell-win\compat\helper"
+          $env:FREEFORM_HELPER = "$root\pkg\FreeForm\compat\helper"
+          $env:PATH = "$root\pkg\FreeForm\python;$env:PATH"
           $env:HOME = $env:USERPROFILE
           $env:PATH = "$env:FREEFORM_HELPER;$env:PATH"
           New-Item -ItemType Directory -Force -Path smoke | Out-Null
@@ -102,6 +126,9 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path smoke | Out-Null
           cmd /c "macshell-win\tools\fffetch\fffetch.cmd" *> smoke\fffetch-cmd.txt
+          & pkg\FreeForm\compat\helper\macshell-helper.exe net status *> smoke\helper-net.txt
+          & pkg\FreeForm\compat\helper\macshell-helper.exe bt status *> smoke\helper-bt.txt
+          & pkg\FreeForm\compat\helper\macshell-helper.exe store search vlc *> smoke\helper-store.txt
           powershell -NoProfile -ExecutionPolicy Bypass -File macshell-win\tools\fffetch\fffetch.ps1 *> smoke\fffetch-ps.txt
           Get-Content smoke\fffetch-ps.txt
 
