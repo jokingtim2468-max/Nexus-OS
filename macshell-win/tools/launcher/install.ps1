@@ -35,5 +35,5 @@ Get-ChildItem (Join-Path $root 'shell\assets\wallpapers') -File | ForEach-Object
 $p = [Environment]::GetEnvironmentVariable('Path', 'User')
 if (($p -split ';') -notcontains $bin) { [Environment]::SetEnvironmentVariable('Path', ($p.TrimEnd(';') + ";$bin"), 'User') }
 if ($AutoStart) { Set-ItemProperty -Path $runKey -Name FreeForm -Value "`"$(Join-Path $root 'FreeForm.cmd')`"" }
-Write-Host 'FreeForm installed: double-click FreeForm on your Desktop (or Start Menu > FreeForm). Type fetch in a new terminal.'
+Write-Host 'FreeForm installed: double-click FreeForm on your Desktop (or Start Menu > FreeForm) to open the launcher. Type fetch in a new terminal.'
 if ($AutoStart) { Write-Host 'It will start when you sign in.' }

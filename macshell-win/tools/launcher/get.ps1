@@ -22,3 +22,5 @@ New-Item -ItemType Directory -Force -Path $dest | Out-Null
 Copy-Item (Join-Path $tmp 'FreeForm\*') $dest -Recurse -Force    # updates in place, keeps nothing of yours in here
 Remove-Item $tmp, $zip -Recurse -Force -ErrorAction SilentlyContinue
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $dest 'install.ps1')
+# open the launcher window (Launch FreeForm / Configure settings)
+Start-Process -FilePath (Join-Path $dest 'FreeFormLauncher.cmd') -WindowStyle Hidden

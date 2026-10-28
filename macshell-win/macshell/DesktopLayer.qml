@@ -23,6 +23,13 @@ Variants {
     readonly property string fam: dock ? dock.fontFamily : "Open Runde"
     function url(p) { return p ? "file:///" + String(p).split(String.fromCharCode(92)).join("/").replace(/^\/+/, "") : ""; }
     model: Quickshell.screens
+    // Windows has no compositor wallpaper to read: start on FreeForm's own, so the glass has something to refract
+    onBarChanged: {
+        if (Qt.platform.os !== "windows" || !bar || bar.wallpaperPath !== "") return;
+        var p = decodeURIComponent(String(Qt.resolvedUrl("assets/wallpapers/FreeForm Tide-" + (dark ? "Dark" : "Light") + ".jpg"))).replace(/^file:\/\/\//, "");
+        bar.wallpaperPath = p;
+        if (dock) dock.wallpaperPath = p;
+    }
 
     PanelWindow {
         id: desk
@@ -38,7 +45,9 @@ Variants {
         Image {
             anchors.fill: parent
             visible: dl.video === ""
-            source: dl.url(dl.picture)
+            // nothing picked yet: FreeForm's own wallpaper
+            source: dl.picture !== "" ? dl.url(dl.picture)
+                    : Qt.resolvedUrl("assets/wallpapers/FreeForm Tide-" + (dl.dark ? "Dark" : "Light") + ".jpg")
             fillMode: Image.PreserveAspectCrop
             asynchronous: true; smooth: true; cache: false
             sourceSize: Qt.size(desk.width, desk.height)
