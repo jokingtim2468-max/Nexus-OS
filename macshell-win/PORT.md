@@ -82,6 +82,17 @@ Next in this layer: a Windows `PanelWindow` backend (frameless top-most window +
 the bar/dock area), then `Hyprland`/`ToplevelManager` on Win32 windows and virtual desktops, and
 `DesktopEntries` from Start Menu shortcuts (dock pinning + running apps).
 
+### FreeForm additions (our own files; hooked in by `compat/patches/freeform_apps.py`)
+- **App Store** (`macshell/AppStore.qml`, `assets/appstore/featured.json`, helper `store.py`):
+  Apple App Store layout; installs through **winget** on Windows (built in; source `msstore` is
+  the Microsoft Store) and **Flatpak** on Linux. Apple menu → App Store…, IPC `appstore`.
+- **Wallpaper Engine** (helper `wallpaper_engine.py`): Settings → Wallpaper lists Workshop and
+  own projects from every Steam library; click = `wallpaper64.exe -control openWallpaper`
+  (documented CLI), picking a normal wallpaper = `closeWallpaper`. Liquid Glass refracts the
+  preview. Linux: `linux-wallpaperengine` when installed.
+- `compat/patches/apply_all.py` regenerates `MacBar.qml`/`MacDock.qml` = upstream + all patches
+  (`--check` verifies).
+
 ### Still Linux-only underneath
 Pinning already exists in MacShell (right-click → **Keep in Dock** / **Remove from Dock**, drag
 to reorder, `pinned.json`), but on Windows it needs the app list and running windows — the

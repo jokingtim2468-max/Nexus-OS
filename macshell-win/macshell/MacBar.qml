@@ -4021,7 +4021,50 @@ Scope {
     }
     Timer { interval: 2500; running: true; onTriggered: root.wpApplyAppearance() }
 
+    // ── Wallpaper Engine (FreeForm): Steam Workshop wallpapers, see compat/helper/wallpaper_engine.py ──
+    property bool weInstalled: false
+    property var weItems: []                 // { id, title, type, preview, file }
+    property string weCurrent: ""            // project.json of the Wallpaper Engine wallpaper on screen
+    function weRefresh() {
+        if (!weStatusProc.running) weStatusProc.running = true;
+        if (!weListProc.running) weListProc.running = true;
+    }
+    Process {
+        id: weStatusProc
+        command: ["macshell-helper", "wallpaper", "engine", "status"]
+        stdout: StdioCollector { onStreamFinished: root.weInstalled = text.indexOf("installed") === 0 }
+    }
+    Process {
+        id: weListProc
+        command: ["macshell-helper", "wallpaper", "engine", "list"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var out = [], lines = text.split("\n");
+                for (var i = 0; i < lines.length; i++) {
+                    var l = lines[i].replace(/\r$/, "");
+                    if (l.indexOf("W:") !== 0) continue;
+                    var f = l.substring(2).split("\t");
+                    if (f.length >= 5) out.push({ id: f[0], title: f[1], type: f[2], preview: f[3], file: f[4] });
+                }
+                root.weItems = out;
+            }
+        }
+    }
+    // a local path (C:\... on Windows, /home/... on Linux) as a file:// URL for Image
+    function weUrl(p) { return p ? "file:///" + p.split(String.fromCharCode(92)).join("/").replace(/^\/+/, "") : ""; }
+    function weApply(w) {
+        root.weCurrent = w.file;
+        if (w.preview !== "") {                                              // the glass refracts its preview
+            root.wallpaperPath = w.preview;
+            try { if (root.hub && root.hub.dock) root.hub.dock.wallpaperPath = w.preview; } catch (e) {}
+        }
+        Quickshell.execDetached(["macshell-helper", "wallpaper", "engine", "apply", w.file]);
+    }
     function wpApply(path) {
+        if (root.weCurrent !== "") {                                         // a normal wallpaper replaces Wallpaper Engine's
+            root.weCurrent = "";
+            Quickshell.execDetached(["macshell-helper", "wallpaper", "engine", "stop"]);
+        }
         var pair = wpPairOf(path);
         if (pair) { wpPairLight = pair.light; wpPairDark = pair.dark; root.wpAppliedPair = ""; wpApplyAppearance(); return; }
         wpPairLight = ""; wpPairDark = ""; root.wpAppliedPair = "";

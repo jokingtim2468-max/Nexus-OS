@@ -18,6 +18,7 @@ Commands (what the QML calls):
   bt status | bt power on|off | bt scan | bt connect MAC | bt disconnect MAC | bt forget MAC
   airplane on|off
   store search|list|updates|install|uninstall|update ...   (the App Store app; see store.py)
+  wallpaper engine status|list|apply FILE [MONITOR]|stop    (Wallpaper Engine; see wallpaper_engine.py)
 """
 import json
 import os
@@ -330,6 +331,9 @@ def backend_name():
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     name = backend_name()
+    if argv[:2] == ["wallpaper", "engine"]:
+        import wallpaper_engine
+        return wallpaper_engine.main(argv[2:])
     if argv[:1] == ["store"]:
         import store
         return store.main(argv[1:], name, os.environ.get("MACSHELL_HELPER_STORE_MOCK")
