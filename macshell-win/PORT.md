@@ -90,6 +90,12 @@ the bar/dock area), then `Hyprland`/`ToplevelManager` on Win32 windows and virtu
   own projects from every Steam library; click = `wallpaper64.exe -control openWallpaper`
   (documented CLI), picking a normal wallpaper = `closeWallpaper`. Liquid Glass refracts the
   preview. Linux: `linux-wallpaperengine` when installed.
+- **Welcome tour** (`macshell/Tutorial.qml`): runs once on first start (marker
+  `~/.config/macshell/tour.json`), again from Apple menu → Welcome Tour… or IPC `tour start`.
+  Ten steps: menu bar, finding apps (Spotlight), Dock + pinning, installing apps (App Store),
+  Wi-Fi & Bluetooth, themes (Appearance), wallpapers + Wallpaper Engine, Settings. The screen
+  dims around a moving highlight; "Show Me" opens the real feature and the tour waits behind a
+  "Continue Tour" pill. Replaces the interim PyQt `tutorial.py`.
 - `compat/patches/apply_all.py` regenerates `MacBar.qml`/`MacDock.qml` = upstream + all patches
   (`--check` verifies).
 

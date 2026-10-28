@@ -2,7 +2,7 @@
 
 Applied after net_bt_windows.py (same engine: exact find -> replace, each must match once).
 
-1. Apple menu: "App Store..." under System Settings, like macOS (opens AppStore.qml).
+1. Apple menu: "App Store..." and "Welcome Tour..." under System Settings (AppStore.qml, Tutorial.qml).
 2. Wallpaper Engine: Settings > Wallpaper lists your Steam Workshop wallpapers (animated
    previews); clicking one plays it through Wallpaper Engine, and the Liquid Glass refracts its
    preview. Picking a normal wallpaper afterwards closes Wallpaper Engine's. Not installed ->
@@ -22,6 +22,7 @@ EDITS = {
             m.push(mi("Lock Screen", "", function () { root.lockScreen(); }));''',
          '''            m.push(mi("System Settings\\u2026", "", function () { root.openSettings(); }));
             m.push(mi("App Store\\u2026", "", function () { if (hub && hub.appStore) hub.appStore.open(""); }));
+            m.push(mi("Welcome Tour\\u2026", "", function () { if (hub && hub.tour) hub.tour.start(); }));
             m.push(msep());
             m.push(mi("Lock Screen", "", function () { root.lockScreen(); }));'''),
         # ── Wallpaper Engine state + apply ──

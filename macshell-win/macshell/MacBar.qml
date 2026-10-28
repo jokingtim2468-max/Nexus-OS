@@ -3003,6 +3003,7 @@ Scope {
             m.push(msep());
             m.push(mi("System Settings\u2026", "", function () { root.openSettings(); }));
             m.push(mi("App Store\u2026", "", function () { if (hub && hub.appStore) hub.appStore.open(""); }));
+            m.push(mi("Welcome Tour\u2026", "", function () { if (hub && hub.tour) hub.tour.start(); }));
             m.push(msep());
             m.push(mi("Lock Screen", "", function () { root.lockScreen(); }));
             m.push(mi("Sleep", "", function () { root.sleepMachine(); }));

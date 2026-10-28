@@ -42,6 +42,7 @@ ShellRoot {
         property var clock: clockApp
         property var about: aboutApp
         property var appStore: appStore
+        property var tour: tour
         function openSettings(pane) { macDock.openPrefs(pane); }
 
         // set by MacBar / MacDock (Binding elements) when their glass needs live data
@@ -279,6 +280,7 @@ ShellRoot {
     ClockApp { id: clockApp; hub: sharedHub }
     AboutApp { id: aboutApp; hub: sharedHub }
     AppStore { id: appStore; hub: sharedHub }
+    Tutorial { id: tour; hub: sharedHub }
 
     Component.onCompleted: {
         sharedHub.bar = macBar;
@@ -318,6 +320,14 @@ ShellRoot {
         function toggle(): void { appStore.toggle(); }
         function page(id: string): void { appStore.open(id); }
         function search(q: string): void { appStore.open("search"); appStore.search(q); }
+    }
+    // qs -c MacShell ipc call tour start | stop      (FreeForm's welcome tour)
+    IpcHandler {
+        target: "tour"
+        function start(): void { tour.start(); }
+        function stop(): void { tour.stop(); }
+        function next(): void { tour.next(); }
+        function step(n: int): void { tour.start(); tour.step = n; }
     }
     IpcHandler {
         target: "notifications"
