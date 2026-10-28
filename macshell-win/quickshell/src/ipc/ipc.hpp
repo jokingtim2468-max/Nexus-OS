@@ -192,7 +192,8 @@ public:
 		this->stream << message;
 		this->socket.flush();
 		// Windows pipes write asynchronously: without an event loop the request only goes out here
-		this->socket.waitForBytesWritten(5000);
+		auto written = this->socket.waitForBytesWritten(5000);
+		qCDebug(logIpc) << "Sent request; written:" << written << "still queued:" << this->socket.bytesToWrite();
 	}
 
 	template <typename T>

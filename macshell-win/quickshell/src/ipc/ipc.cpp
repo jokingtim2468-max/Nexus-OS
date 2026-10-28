@@ -82,6 +82,7 @@ void IpcServerConnection::onDisconnected() {
 }
 
 void IpcServerConnection::onReadyRead() {
+	qCDebug(logIpc) << "IPC request data:" << this->socket->bytesAvailable() << "bytes";
 	this->stream.startTransaction();
 
 	this->stream.startTransaction();
