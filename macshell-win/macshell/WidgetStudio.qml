@@ -56,6 +56,23 @@ Scope {
             { type: "progress", x: 18, y: 74, w: 160, h: 8, source: "volume", color: "#0A84FF" },
             { type: "button", x: 190, y: 62, w: 28, h: 28, action: "volume.down", icon: "auto", color: "#FFFFFF" },
             { type: "button", x: 218, y: 62, w: 28, h: 28, action: "volume.up", icon: "auto", color: "#FFFFFF" } ] },
+        { name: "Now Playing (large)", w: 360, h: 150, bg: { color: "#1C1C1E", opacity: 0.86, radius: 26, border: true }, items: [
+            { type: "art", x: 16, y: 16, w: 118, h: 118, radius: 16 },
+            { type: "text", x: 148, y: 18, w: 198, h: 22, text: "{title}", size: 16, bold: true, color: "#FFFFFF" },
+            { type: "text", x: 148, y: 40, w: 198, h: 18, text: "{artist}", size: 13, color: "#B0B0B5" },
+            { type: "progress", x: 148, y: 72, w: 196, h: 6, source: "media", color: "#FFFFFF", seek: true },
+            { type: "text", x: 148, y: 80, w: 80, h: 16, text: "{elapsed}", size: 11, color: "#B0B0B5" },
+            { type: "text", x: 264, y: 80, w: 80, h: 16, text: "{remaining}", size: 11, color: "#B0B0B5", align: "right" },
+            { type: "button", x: 164, y: 102, w: 34, h: 34, action: "media.previous", icon: "auto", color: "#FFFFFF" },
+            { type: "button", x: 226, y: 100, w: 38, h: 38, action: "media.toggle", icon: "auto", color: "#FFFFFF" },
+            { type: "button", x: 292, y: 102, w: 34, h: 34, action: "media.next", icon: "auto", color: "#FFFFFF" } ] },
+        { name: "Analog Clock", w: 150, h: 150, bg: { color: "#1C1C1E", opacity: 0.85, radius: 34, border: true }, items: [
+            { type: "clock", x: 12, y: 12, w: 126, h: 126, color: "#1C1C1E", hand: "#FF9F0A", face: "#FFFFFF" } ] },
+        { name: "App Shortcuts", w: 300, h: 110, bg: { color: "#1C1C1E", opacity: 0.6, radius: 24, border: true }, items: [
+            { type: "app", x: 14, y: 12, w: 64, h: 86, name: "Firefox", command: "firefox", icon: "firefox", color: "#FFFFFF" },
+            { type: "app", x: 84, y: 12, w: 64, h: 86, name: "Spotify", command: "spotify", icon: "spotify", color: "#FFFFFF" },
+            { type: "app", x: 154, y: 12, w: 64, h: 86, name: "Discord", command: "discord", icon: "discord", color: "#FFFFFF" },
+            { type: "app", x: 224, y: 12, w: 64, h: 86, name: "Steam", command: "steam", icon: "steam", color: "#FFFFFF" } ] },
         { name: "Blank", w: 260, h: 140, bg: { color: "#1C1C1E", opacity: 0.85, radius: 22, border: true }, items: [] }
     ]
 
@@ -85,7 +102,9 @@ Scope {
                      art: { type: "art", w: 72, h: 72, radius: 12 },
                      progress: { type: "progress", w: 160, h: 8, source: "media", color: "#FFFFFF" },
                      image: { type: "image", w: 80, h: 80, src: "", radius: 12 },
-                     shape: { type: "shape", w: 80, h: 40, color: "#0A84FF", radius: 10, opacity: 1 } }[type];
+                     shape: { type: "shape", w: 80, h: 40, color: "#0A84FF", radius: 10, opacity: 1 },
+                     clock: { type: "clock", w: 100, h: 100, color: "#1C1C1E", hand: "#FF9F0A", face: "#FFFFFF" },
+                     app: { type: "app", w: 64, h: 84, name: "Firefox", command: "firefox", icon: "firefox", color: "#FFFFFF", size: 12 } }[type];
         var w = clone(cw); var it = clone(base); it.x = 16; it.y = 16;
         w.items.push(it); var l = widgets.slice(); l[current] = w; commit(l); sel = w.items.length - 1;
     }
@@ -294,7 +313,7 @@ Scope {
                     Row {
                         x: 16; anchors.verticalCenter: parent.verticalCenter; spacing: 6
                         Repeater {
-                            model: [{ t: "text", l: "Text" }, { t: "button", l: "Button" }, { t: "art", l: "Album Art" }, { t: "progress", l: "Progress" }, { t: "image", l: "Image" }, { t: "shape", l: "Shape" }]
+                            model: [{ t: "text", l: "Text" }, { t: "button", l: "Button" }, { t: "art", l: "Album Art" }, { t: "progress", l: "Progress" }, { t: "image", l: "Image" }, { t: "shape", l: "Shape" }, { t: "clock", l: "Clock" }, { t: "app", l: "App Shortcut" }]
                             delegate: Chip { required property var modelData; label: "+ " + I18n.tr(modelData.l); onClicked: root.addItem(modelData.t) }
                         }
                     }
@@ -384,7 +403,7 @@ Scope {
                         Column {
                             visible: !!root.ci
                             width: parent.width; spacing: 8
-                            Text { text: root.ci ? I18n.tr({ text: "Text", button: "Button", art: "Album Art", progress: "Progress Bar", image: "Image", shape: "Shape" }[root.ci.type]) : ""; color: pal.text; font.family: root.fam; font.pixelSize: 17; font.weight: Font.Bold }
+                            Text { text: root.ci ? I18n.tr({ text: "Text", button: "Button", art: "Album Art", progress: "Progress Bar", image: "Image", shape: "Shape", clock: "Clock", app: "App Shortcut" }[root.ci.type]) : ""; color: pal.text; font.family: root.fam; font.pixelSize: 17; font.weight: Font.Bold }
                             Grid {
                                 columns: 2; spacing: 6
                                 Stepper { label: "X"; value: root.ci ? root.ci.x : 0; onChanged: v => root.updateItem({ x: v }) }
@@ -463,6 +482,18 @@ Scope {
                                     delegate: Chip { required property var modelData; label: I18n.tr(modelData.l); on: root.ci && (root.ci.source || "media") === modelData.v; onClicked: root.updateItem({ source: modelData.v }) }
                                 }
                             }
+                            // app shortcut
+                            Label { visible: root.ci && root.ci.type === "app"; text: I18n.tr("NAME") }
+                            Field { visible: root.ci && root.ci.type === "app"; text: root.ci ? root.ci.name || "" : ""; onEdited: t => root.updateItem({ name: t }) }
+                            Label { visible: root.ci && root.ci.type === "app"; text: I18n.tr("OPENS (app, path or command)") }
+                            Field { visible: root.ci && root.ci.type === "app"; text: root.ci ? root.ci.command || "" : ""; onEdited: t => root.updateItem({ command: t }) }
+                            Label { visible: root.ci && root.ci.type === "app"; text: I18n.tr("ICON (icon name or image file)") }
+                            Field { visible: root.ci && root.ci.type === "app"; text: root.ci ? root.ci.icon || "" : ""; onEdited: t => root.updateItem({ icon: t }) }
+                            // clock
+                            Label { visible: root.ci && root.ci.type === "clock"; text: I18n.tr("DIAL") }
+                            Swatches { visible: root.ci && root.ci.type === "clock"; value: root.ci ? root.ci.face || "" : ""; onChanged: c => root.updateItem({ face: c }) }
+                            Label { visible: root.ci && root.ci.type === "clock"; text: I18n.tr("SECOND HAND") }
+                            Swatches { visible: root.ci && root.ci.type === "clock"; value: root.ci ? root.ci.hand || "" : ""; onChanged: c => root.updateItem({ hand: c }) }
                             // image
                             Label { visible: root.ci && root.ci.type === "image"; text: I18n.tr("IMAGE FILE OR LINK") }
                             Field { visible: root.ci && root.ci.type === "image"; text: root.ci ? root.ci.src || "" : ""; onEdited: t => root.updateItem({ src: t }) }

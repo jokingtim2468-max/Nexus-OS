@@ -9,8 +9,11 @@
 //   progress source ("media"|"volume"|"battery"), color, track, seek (click to seek)
 //   image    src (file path or URL), radius, fit ("cover"|"contain")
 //   shape    color, radius, opacity
+//   clock    color, hand (second-hand colour), face (dial colour or "")   — an analog clock
+//   app      name, command (what to run), icon (icon-theme name or image path), size, color
 import QtQuick
 import QtQuick.Effects
+import Quickshell
 
 Item {
     id: wv
@@ -100,6 +103,77 @@ Item {
                         asynchronous: true; smooth: true
                         layer.enabled: (it.d.radius || 0) > 0
                         layer.effect: MultiEffect { maskEnabled: true; maskSource: imgMask; maskThresholdMin: 0.5; maskSpreadAtMin: 1.0 }
+                    }
+                }
+                // ── analog clock ──
+                Item {
+                    visible: it.d.type === "clock"
+                    anchors.fill: parent
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: Math.min(parent.width, parent.height); height: width; radius: width / 2
+                        color: it.d.face !== undefined ? (it.d.face || "transparent") : "#FFFFFF"
+                    }
+                    Canvas {
+                        id: clk
+                        anchors.fill: parent
+                        visible: it.d.type === "clock"
+                        property var t: wv.ctx ? wv.ctx.now : new Date()
+                        onTChanged: requestPaint()
+                        onPaint: {
+                            var c = getContext("2d"); c.reset();
+                            var r = Math.min(width, height) / 2, cx = width / 2, cy = height / 2, col = it.d.color || "#1C1C1E";
+                            c.strokeStyle = col; c.fillStyle = col; c.lineCap = "round";
+                            for (var i = 0; i < 12; i++) {
+                                var a = i * Math.PI / 6;
+                                c.lineWidth = i % 3 === 0 ? r * 0.05 : r * 0.025;
+                                c.beginPath(); c.moveTo(cx + Math.sin(a) * r * 0.78, cy - Math.cos(a) * r * 0.78);
+                                c.lineTo(cx + Math.sin(a) * r * 0.9, cy - Math.cos(a) * r * 0.9); c.stroke();
+                            }
+                            function hand(a, len, w, color) { c.strokeStyle = color; c.lineWidth = w; c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + Math.sin(a) * len, cy - Math.cos(a) * len); c.stroke(); }
+                            var h = t.getHours() % 12, m = t.getMinutes(), s = t.getSeconds();
+                            hand((h + m / 60) * Math.PI / 6, r * 0.5, r * 0.08, col);
+                            hand((m + s / 60) * Math.PI / 30, r * 0.72, r * 0.055, col);
+                            hand(s * Math.PI / 30, r * 0.8, r * 0.02, it.d.hand || "#FF9F0A");
+                            c.fillStyle = it.d.hand || "#FF9F0A"; c.beginPath(); c.arc(cx, cy, r * 0.05, 0, Math.PI * 2); c.fill();
+                        }
+                    }
+                }
+                // ── app shortcut ──
+                Item {
+                    id: appIt
+                    visible: it.d.type === "app"
+                    anchors.fill: parent
+                    readonly property string iconSrc: !it.d.icon ? "" : (/[\\/.]/.test(it.d.icon) ? wv.url(it.d.icon) : Quickshell.iconPath(it.d.icon, true))
+                    Column {
+                        anchors.centerIn: parent
+                        spacing: 4
+                        scale: ama.pressed && !wv.editing ? 0.9 : 1
+                        Behavior on scale { NumberAnimation { duration: 120 } }
+                        Item {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            width: Math.min(appIt.width, appIt.height - (it.d.name ? 20 : 0)); height: width
+                            Image { anchors.fill: parent; source: appIt.iconSrc; visible: status === Image.Ready; sourceSize: Qt.size(width * 2, height * 2); smooth: true; mipmap: true }
+                            Rectangle {
+                                anchors.fill: parent; radius: width * 0.225; visible: appIt.iconSrc === ""
+                                gradient: Gradient { GradientStop { position: 0; color: "#5E5CE6" } GradientStop { position: 1; color: "#0A84FF" } }
+                                Text { anchors.centerIn: parent; text: (it.d.name || "?").charAt(0).toUpperCase(); color: "white"; font.pixelSize: parent.width * 0.45; font.weight: Font.Bold }
+                            }
+                        }
+                        Text {
+                            visible: !!it.d.name
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            width: appIt.width; horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight
+                            text: it.d.name || ""; color: it.d.color || "white"
+                            font.family: wv.fam; font.pixelSize: it.d.size || 12
+                        }
+                    }
+                    MouseArea {
+                        id: ama
+                        anchors.fill: parent
+                        enabled: !wv.editing
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: if (wv.ctx) wv.ctx.run("open.app", it.d.command || "")
                     }
                 }
                 // ── shape ──

@@ -29,13 +29,17 @@ QtObject {
     property Timer clock: Timer { interval: 1000; running: true; repeat: true; onTriggered: ctx.now = new Date() }
     property PwObjectTracker tracker: PwObjectTracker { objects: [ctx.sink] }
 
-    readonly property var tokens: ["title", "artist", "album", "player", "time", "time24", "date", "day", "battery", "volume"]
+    readonly property var tokens: ["title", "artist", "album", "player", "elapsed", "duration", "remaining", "time", "time24", "date", "day", "battery", "volume"]
+    function mmss(sec) { sec = Math.max(0, Math.floor(sec || 0)); var m = Math.floor(sec / 60), s = sec % 60; return m + ":" + (s < 10 ? "0" : "") + s; }
     function value(token) {
         switch (token) {
         case "title": return player ? player.trackTitle || "Not Playing" : "Not Playing";
         case "artist": return player ? player.trackArtist || "" : "";
         case "album": return player ? player.trackAlbum || "" : "";
         case "player": return player ? player.identity || "" : "";
+        case "elapsed": return player ? mmss(player.position) : "0:00";
+        case "duration": return player ? mmss(player.length) : "0:00";
+        case "remaining": return player ? "-" + mmss(player.length - player.position) : "-0:00";
         case "time": return Qt.formatTime(now, "h:mm AP");
         case "time24": return Qt.formatTime(now, "HH:mm");
         case "date": return Qt.formatDate(now, "MMMM d");
@@ -47,7 +51,7 @@ QtObject {
     }
     function fill(text) {
         // reading these makes bindings that call fill() update when they change
-        var _ = [now, player, player ? player.trackTitle : "", player ? player.trackArtist : "", volume, battery];
+        var _ = [now, player, player ? player.trackTitle : "", player ? player.trackArtist : "", player ? player.position : 0, volume, battery];
         return String(text || "").replace(/\{([a-z0-9]+)\}/g, function (m, t) { return ctx.value(t); });
     }
     function progressOf(source) {
