@@ -1,7 +1,0 @@
-# VM workspaces — disks, encrypted keys, and per-workspace state are machine-local
-workspaces/*
-!workspaces/README.md
-
-# Python
-__pycache__/
-*.pyc
