@@ -94,7 +94,8 @@ if (Test-Path $cfgPath) {
 # crash history: [timestamps of recent crashes]
 function Get-Crashes { try { @((Get-Content $crashPath -Raw | ConvertFrom-Json).crashes) | Where-Object { $_ } } catch { @() } }
 function Set-Crashes($list) { New-Item -ItemType Directory -Force -Path $stateDir | Out-Null; @{ crashes = @($list) } | ConvertTo-Json | Set-Content $crashPath }
-function Recent($list) { @($list | Where-Object { ([datetime]$_) -gt (Get-Date).AddMinutes(-10) }) }
+# (PowerShell 5.1 pipes a single $null for an empty list: skip empty entries before reading dates)
+function Recent($list) { @($list | Where-Object { $_ -and ([datetime]$_) -gt (Get-Date).AddMinutes(-10) }) }
 if ($Force) { Set-Crashes @() }
 if ((Recent (Get-Crashes)).Count -ge 3) {
     Add-Type -AssemblyName PresentationFramework
