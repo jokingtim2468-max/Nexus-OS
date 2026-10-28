@@ -50,6 +50,32 @@ What the run also confirmed for the port:
   connect/disconnect (Windows reconnects them itself); planned: `BluetoothSetServiceState`
   for headphones, like ToothTray.
 
+### Quickshell itself on Windows (`quickshell/`, CI: `.github/workflows/quickshell-windows.yml`)
+Instead of re-implementing Quickshell's QML modules in Python, we build **Quickshell itself** as a
+native Windows `qs.exe` (C++/Qt 6, MSYS2 UCRT64 toolchain). MacShell then runs unmodified-as-possible
+on the same engine it runs on Linux, at native speed and without WSL or a VM — the lowest resource
+option. Done so far:
+- Build profile: Wayland, X11, i3, D-Bus services (tray, MPRIS, UPower, notifications, Bluetooth,
+  NetworkManager), PipeWire, PAM, polkit, greetd, crash handler, jemalloc and libdrm default **OFF**
+  on Windows. Each gets a Windows backend later (table below).
+- POSIX → Windows in core/launch/io:
+  | Linux | Windows |
+  |---|---|
+  | DRM GPU info (`debuginfo.cpp`) | OS name/version via `QSysInfo` |
+  | `memfd_create` early logs, `sendfile` copy (`logging.cpp`) | anonymous `QTemporaryFile`, Qt copy |
+  | `fcntl` instance lock + `F_GETLK` liveness (`paths.cpp`) | pid stored in the lock file, `OpenProcess` liveness (`platform_win.cpp`) |
+  | `fcntl` tooling lock (`toolsupport.cpp`) | session-local named mutex |
+  | `/run/user/<uid>` runtime dir | `%TEMP%` |
+  | `fork`+`setsid` for `--daemonize` (`command.cpp`) | `QProcess::startDetached` copy |
+  | `kill(pid, sig)` in `Process.signal()` | `terminate()` / `kill()` |
+  | Unix socket IPC (`qs ipc call …`) | unchanged — `QLocalSocket` is a named pipe on Windows |
+- CI builds `qs.exe` plus the Qt runtime DLLs on `windows-latest` (free for public repos) and
+  uploads it as the `qs-windows-x64` artifact.
+
+Next in this layer: a Windows `PanelWindow` backend (frameless top-most window + AppBar to reserve
+the bar/dock area), then `Hyprland`/`ToplevelManager` on Win32 windows and virtual desktops, and
+`DesktopEntries` from Start Menu shortcuts (dock pinning + running apps).
+
 ### Still Linux-only underneath
 Pinning already exists in MacShell (right-click → **Keep in Dock** / **Remove from Dock**, drag
 to reorder, `pinned.json`), but on Windows it needs the app list and running windows — the
