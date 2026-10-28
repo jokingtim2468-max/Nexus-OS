@@ -3,6 +3,8 @@
 #include <qabstractnativeeventfilter.h>
 #include <qcoreapplication.h>
 #include <qhash.h>
+#include <qlist.h>
+#include <qmetaobject.h>
 #include <qlogging.h>
 #include <windows.h>
 
@@ -114,6 +116,100 @@ void WinHotkey::update() {
 	this->mId = id;
 	filter->byId.insert(id, this);
 	emit this->registeredChanged();
+}
+
+} // namespace qs::windows
+
+namespace qs::windows {
+
+namespace {
+
+// State of the hook: is Win down, and was anything else pressed while it was?
+struct StartKeyHook {
+	HHOOK hook = nullptr;
+	bool winDown = false;
+	bool combo = false;
+	QList<WinStartKey*> listeners;
+
+	static StartKeyHook& get() {
+		static StartKeyHook h;
+		return h;
+	}
+
+	static LRESULT CALLBACK proc(int code, WPARAM wParam, LPARAM lParam) {
+		auto& h = get();
+		if (code != HC_ACTION) return CallNextHookEx(nullptr, code, wParam, lParam);
+
+		auto* kb = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam); // NOLINT
+		if (kb->flags & LLKHF_INJECTED) return CallNextHookEx(nullptr, code, wParam, lParam);
+
+		auto isWin = kb->vkCode == VK_LWIN || kb->vkCode == VK_RWIN;
+		auto down = wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN;
+
+		if (isWin && down) {
+			if (!h.winDown) h.combo = false;
+			h.winDown = true;
+		} else if (isWin && !down) {
+			h.winDown = false;
+			if (!h.combo && !h.listeners.isEmpty()) {
+				// A key nobody uses between Win down and up: Windows then treats it as a shortcut,
+				// not a Start-menu tap (the same trick PowerToys uses).
+				// So: swallow this Win-up, then inject dummy-down, dummy-up, Win-up (injected events
+				// skip this hook).
+				INPUT seq[3] = {}; // NOLINT
+				seq[0].type = INPUT_KEYBOARD;
+				seq[0].ki.wVk = 0xFF;
+				seq[1] = seq[0];
+				seq[1].ki.dwFlags = KEYEVENTF_KEYUP;
+				seq[2].type = INPUT_KEYBOARD;
+				seq[2].ki.wVk = static_cast<WORD>(kb->vkCode);
+				seq[2].ki.dwFlags = KEYEVENTF_KEYUP;
+				SendInput(3, seq, sizeof(INPUT));
+				for (auto* l: h.listeners) QMetaObject::invokeMethod(l, &WinStartKey::trigger, Qt::QueuedConnection);
+				return 1;
+			}
+		} else if (h.winDown && down) {
+			h.combo = true; // Win+E, Win+L, Win+Shift+S ... stay Windows'
+		}
+
+		return CallNextHookEx(nullptr, code, wParam, lParam);
+	}
+
+	void update() {
+		auto want = !this->listeners.isEmpty();
+		if (want && !this->hook) {
+			this->hook = SetWindowsHookExW(WH_KEYBOARD_LL, &StartKeyHook::proc, GetModuleHandleW(nullptr), 0);
+			if (!this->hook) qWarning() << "WinStartKey: could not install the keyboard hook";
+		} else if (!want && this->hook) {
+			UnhookWindowsHookEx(this->hook);
+			this->hook = nullptr;
+		}
+	}
+};
+
+} // namespace
+
+WinStartKey::WinStartKey(QObject* parent): QObject(parent) {
+	StartKeyHook::get().listeners.append(this);
+	StartKeyHook::get().update();
+}
+
+WinStartKey::~WinStartKey() {
+	StartKeyHook::get().listeners.removeAll(this);
+	StartKeyHook::get().update();
+}
+
+void WinStartKey::setEnabled(bool enabled) {
+	if (enabled == this->mEnabled) return;
+	this->mEnabled = enabled;
+	auto& h = StartKeyHook::get();
+	if (enabled) {
+		if (!h.listeners.contains(this)) h.listeners.append(this);
+	} else {
+		h.listeners.removeAll(this);
+	}
+	h.update();
+	emit this->enabledChanged();
 }
 
 } // namespace qs::windows

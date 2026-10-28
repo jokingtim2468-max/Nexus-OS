@@ -1,9 +1,12 @@
 # FreeForm launcher (Windows): starts MacShell on qs.exe from this package and takes over the desktop.
 #
 #   FreeForm.ps1                 start (hides the Windows taskbar while FreeForm runs)
-#   FreeForm.ps1 -KeepTaskbar    start but leave the Windows taskbar alone
-#   FreeForm.ps1 -Stop           stop FreeForm and bring the taskbar back
-#   FreeForm.ps1 -Restore        just bring the taskbar back (if anything went wrong)
+#   FreeForm.ps1 -KeepTaskbar    start but leave the Windows taskbar and desktop icons alone
+#   FreeForm.ps1 -Stop           stop FreeForm and bring the taskbar and desktop icons back
+#   FreeForm.ps1 -Restore        just bring the taskbar and desktop icons back (if anything went wrong)
+#
+# FreeForm only covers Windows visually: the taskbar and desktop icons are hidden (not removed),
+# the Windows wallpaper is untouched and everything comes back when FreeForm exits.
 #
 # Package layout (next to this file):  bin\qs.exe (+ Qt), shell\ (MacShell), compat\, python\, tools\
 param([switch]$KeepTaskbar, [switch]$Stop, [switch]$Restore)
@@ -22,11 +25,26 @@ function Set-Taskbar([bool]$visible) {
         while (($h = [FF.Win]::FindWindowEx([IntPtr]::Zero, $h, $cls, $null)) -ne [IntPtr]::Zero) { [void][FF.Win]::ShowWindow($h, $cmd) }
     }
 }
+# Explorer's desktop icon list lives under Progman, or under a WorkerW once a wallpaper slideshow ran
+function Set-DesktopIcons([bool]$visible) {
+    $cmd = if ($visible) { 5 } else { 0 }
+    $hosts = @([FF.Win]::FindWindow('Progman', $null))
+    $w = [IntPtr]::Zero
+    while (($w = [FF.Win]::FindWindowEx([IntPtr]::Zero, $w, 'WorkerW', $null)) -ne [IntPtr]::Zero) { $hosts += $w }
+    foreach ($h in $hosts) {
+        $view = [FF.Win]::FindWindowEx($h, [IntPtr]::Zero, 'SHELLDLL_DefView', $null)
+        if ($view -ne [IntPtr]::Zero) {
+            $list = [FF.Win]::FindWindowEx($view, [IntPtr]::Zero, 'SysListView32', $null)
+            if ($list -ne [IntPtr]::Zero) { [void][FF.Win]::ShowWindow($list, $cmd) }
+        }
+    }
+}
+function Restore-Windows { Set-Taskbar $true; Set-DesktopIcons $true }
 
-if ($Restore) { Set-Taskbar $true; exit 0 }
+if ($Restore) { Restore-Windows; exit 0 }
 if ($Stop) {
     Get-Process -Name qs -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$root*" } | Stop-Process -Force
-    Set-Taskbar $true
+    Restore-Windows
     exit 0
 }
 
@@ -42,10 +60,12 @@ $shell = Join-Path $root 'shell\shell.qml'
 # Start Menu apps -> MacShell's app list (Dock, Spotlight, Launchpad); refreshed in the background
 Start-Process -FilePath (Join-Path $env:FREEFORM_HELPER 'macshell-helper.exe') -ArgumentList 'apps', 'sync' -WindowStyle Hidden
 $p = Start-Process -FilePath $qs -ArgumentList @('-p', "`"$shell`"") -WindowStyle Hidden -PassThru
-if (-not $KeepTaskbar) {
+# Stay alive (hidden) so Windows always comes back, also when FreeForm crashes or is closed.
+# While FreeForm runs, re-hide every ~2s: Explorer restarts and new monitors bring the taskbar back.
+try {
     Start-Sleep -Seconds 3
-    if (-not $p.HasExited) { Set-Taskbar $false }
-}
-# Stay alive (hidden) so the taskbar always comes back, also when FreeForm crashes or is closed.
-$p.WaitForExit()
-Set-Taskbar $true
+    while (-not $p.HasExited) {
+        if (-not $KeepTaskbar) { Set-Taskbar $false; Set-DesktopIcons $false }
+        [void]$p.WaitForExit(2000)
+    }
+} finally { Restore-Windows }

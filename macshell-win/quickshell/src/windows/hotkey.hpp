@@ -52,3 +52,33 @@ private:
 };
 
 } // namespace qs::windows
+
+namespace qs::windows {
+
+// WinStartKey — takes over the Start menu key: pressing and releasing Win on its own emits
+// pressed() instead of opening Start; Win+<key> shortcuts keep working. One low-level keyboard
+// hook for the process, removed when the last WinStartKey goes away or is disabled.
+//   WinStartKey { onPressed: launchpad.toggle() }
+class WinStartKey: public QObject {
+	Q_OBJECT;
+	Q_PROPERTY(bool enabled READ enabled WRITE setEnabled NOTIFY enabledChanged);
+	QML_ELEMENT;
+
+public:
+	explicit WinStartKey(QObject* parent = nullptr);
+	~WinStartKey() override;
+
+	[[nodiscard]] bool enabled() const { return this->mEnabled; }
+	void setEnabled(bool enabled);
+
+	void trigger() { emit this->pressed(); }
+
+signals:
+	void pressed();
+	void enabledChanged();
+
+private:
+	bool mEnabled = true;
+};
+
+} // namespace qs::windows

@@ -293,10 +293,10 @@ ShellRoot {
         source: "MusicApp.qml"
         onLoaded: { item.hub = sharedHub; item.open(); }
     }
-    // Windows: video / animated wallpaper layer (Linux plays videos with mpvpaper)
+    // Windows: FreeForm's own desktop (wallpaper / video, right-click menu) covering Explorer's
     Loader {
-        active: Qt.platform.os === "windows" && macBar.wallpaperVideo !== ""
-        source: "VideoWallpaper.qml"
+        active: Qt.platform.os === "windows"
+        source: "DesktopLayer.qml"
         onLoaded: item.hub = sharedHub
     }
     // Windows: system-wide shortcuts (WindowsHotkeys.qml); on Linux the compositor binds them
