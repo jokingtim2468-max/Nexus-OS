@@ -14,8 +14,10 @@
 #include <qtimer.h>
 #include <qtmetamacros.h>
 #include <qtypes.h>
+// clang-format off
+#include <windows.h> // must precede shellapi.h
 #include <shellapi.h>
-#include <windows.h>
+// clang-format on
 
 #include "../core/generation.hpp"
 #include "../core/qmlscreen.hpp"
