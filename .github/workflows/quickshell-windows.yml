@@ -189,6 +189,28 @@ jobs:
           if ("$out" -notmatch 'launcher window ok') { $bad++ }
           if ($bad) { exit 1 }
 
+      # What a customer does: install, press Launch (FreeForm.ps1 -Force), later Back to Windows (-Stop)
+      - name: Install and launch like a customer
+        shell: pwsh
+        timeout-minutes: 8
+        run: |
+          $pkg = "$((Get-Location).Path)\pkg\FreeForm"
+          Get-Process qs -ErrorAction SilentlyContinue | Stop-Process -Force
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$pkg\install.ps1"
+          $lnk = Join-Path ([Environment]::GetFolderPath('Desktop')) 'FreeForm.lnk'
+          "desktop shortcut: $(Test-Path $lnk)  icon: $((New-Object -ComObject WScript.Shell).CreateShortcut($lnk).IconLocation)"
+          $launcher = Start-Process powershell.exe -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$pkg\FreeForm.ps1`"", '-Force') -PassThru -WindowStyle Hidden
+          Start-Sleep -Seconds 45
+          $qs = Get-Process qs -ErrorAction SilentlyContinue
+          "qs running: $([bool]$qs)   launcher running: $(-not $launcher.HasExited)"
+          $logs = Join-Path $env:LOCALAPPDATA 'FreeForm\logs'
+          "── launcher.log"; Get-Content (Join-Path $logs 'launcher.log') -Tail 40 -ErrorAction SilentlyContinue
+          "── qs errors"; Get-ChildItem $logs -Filter 'run-*.err.log' | Select-Object -Last 1 | ForEach-Object { Select-String -Path $_.FullName -Pattern 'ERROR|is not a type|ReferenceError|TypeError|Cannot open' | Select-Object -First 30 | ForEach-Object { $_.Line } }
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$pkg\FreeForm.ps1" -Stop
+          Start-Sleep -Seconds 8
+          "after Stop: qs running: $([bool](Get-Process qs -ErrorAction SilentlyContinue))   launcher running: $(-not $launcher.HasExited)"
+          if (-not $qs) { Write-Error 'FreeForm did not start'; exit 1 }
+
       - name: fetch in cmd and PowerShell
         shell: pwsh
         continue-on-error: true

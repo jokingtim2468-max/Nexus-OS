@@ -15,7 +15,11 @@ if ($Uninstall) {
     Write-Host 'FreeForm removed (files in this folder are left as they are).'; exit 0
 }
 $ws = New-Object -ComObject WScript.Shell
-$ico = Join-Path $root 'shell\assets\freeform.ico'
+# Windows caches shortcut icons by file path: a new name per version makes it pick up a new icon
+$ver = 'dev'; $vf = Join-Path $root 'version.txt'; if (Test-Path $vf) { $ver = (Get-Content $vf -Raw).Trim() -replace '[^A-Za-z0-9.-]', '' }
+Get-ChildItem $root -Filter 'FreeForm-*.ico' -ErrorAction SilentlyContinue | Remove-Item -ErrorAction SilentlyContinue
+$ico = Join-Path $root "FreeForm-$ver.ico"
+Copy-Item (Join-Path $root 'shell\assets\freeform.ico') $ico -Force -ErrorAction SilentlyContinue
 foreach ($path in $startMenu, $desktop) {
     $lnk = $ws.CreateShortcut($path)
     $lnk.TargetPath = Join-Path $root 'FreeFormLauncher.cmd'            # the launcher window (Launch / Configure)
@@ -25,6 +29,7 @@ foreach ($path in $startMenu, $desktop) {
     if (Test-Path $ico) { $lnk.IconLocation = $ico }
     $lnk.Save()
 }
+& ie4uinit.exe -show 2>$null                                     # refresh Windows' icon cache
 # FreeForm's wallpapers go where Settings > Wallpaper looks by default (never overwriting yours)
 $walls = Join-Path $env:USERPROFILE 'Pictures\Wallpapers'
 New-Item -ItemType Directory -Force -Path $walls | Out-Null

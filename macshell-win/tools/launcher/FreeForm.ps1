@@ -17,6 +17,10 @@
 param([switch]$KeepTaskbar, [switch]$Stop, [switch]$Restore, [switch]$Force)
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
+# everything this script does goes to %LOCALAPPDATA%\FreeForm\logs\launcher.log (it runs hidden)
+$logDir = Join-Path $env:LOCALAPPDATA 'FreeForm\logs'
+New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+try { Start-Transcript -Path (Join-Path $logDir 'launcher.log') -Append | Out-Null } catch {}
 
 Add-Type -Namespace FF -Name Win -MemberDefinition @'
 [DllImport("user32.dll")] public static extern System.IntPtr FindWindow(string c, string n);
@@ -45,6 +49,14 @@ function Set-DesktopIcons([bool]$visible) {
     }
 }
 function Restore-Windows { Set-Taskbar $true; Set-DesktopIcons $true }
+# any error: Windows back to normal, and say what went wrong instead of failing silently
+trap {
+    Write-Output "FAILED: $_"
+    try { Restore-Windows } catch {}
+    Add-Type -AssemblyName PresentationFramework
+    [void][System.Windows.MessageBox]::Show("FreeForm couldn't start:`n`n$_`n`nDetails: $logDir\launcher.log", 'FreeForm', 'OK', 'Error')
+    exit 1
+}
 
 if ($Restore) { Restore-Windows; exit 0 }
 $stateDir = Join-Path $env:APPDATA 'FreeForm'
@@ -89,8 +101,6 @@ if ((Recent (Get-Crashes)).Count -ge 3) {
     [void][System.Windows.MessageBox]::Show("FreeForm crashed 3 times in the last 10 minutes, so it was not started.`n`nOpen the FreeForm launcher and press Launch FreeForm to try again, or Save diagnostics to see what went wrong.", 'FreeForm', 'OK', 'Warning')
     exit 1
 }
-$logDir = Join-Path $env:LOCALAPPDATA 'FreeForm\logs'
-New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 Get-ChildItem $logDir -Filter 'run-*' | Sort-Object LastWriteTime -Descending | Select-Object -Skip 20 | Remove-Item -ErrorAction SilentlyContinue
 Remove-Item $stopFlag -ErrorAction SilentlyContinue
 
