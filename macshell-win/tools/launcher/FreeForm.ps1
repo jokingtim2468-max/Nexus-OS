@@ -104,7 +104,10 @@ try {
         $null = $p.Handle                                          # (without this, ExitCode stays empty)
         Start-Sleep -Seconds 3
         while (-not $p.HasExited) {
-            if ($hideTaskbar) { Set-Taskbar $false }
+            # Win+Alt+T in FreeForm writes "peek-taskbar": the real taskbar (tray icons) shows for 15 s
+            $peek = Get-Item (Join-Path $stateDir 'peek-taskbar') -ErrorAction SilentlyContinue
+            if ($peek -and ((Get-Date) - $peek.LastWriteTime).TotalSeconds -lt 15) { Set-Taskbar $true }
+            elseif ($hideTaskbar) { Set-Taskbar $false }
             if ($hideIcons) { Set-DesktopIcons $false }
             [void]$p.WaitForExit(2000)
         }

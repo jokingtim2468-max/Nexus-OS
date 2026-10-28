@@ -3,9 +3,11 @@
 //   Win+Alt+N    Wi-Fi / network menu   Win+Alt+F   turn FreeForm off (Windows taskbar comes back)
 //   Win (alone)  Launchpad (all apps) instead of the Start menu; Win+<key> shortcuts stay Windows'.
 //   Win+Tab      Mission Control (instead of Task View)
+//   Win+Alt+T    show the real Windows taskbar for 15 s (its tray icons: Discord, Steam, ...)
 //   Alt+Tab      MacShell's app switcher (Alt+Shift+Tab backwards, Esc cancels)
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland        // our Windows module (WinHotkey lives there)
 
 Item {
@@ -24,6 +26,9 @@ Item {
         onCancel: if (hk.bar) hk.bar.swCancel()
     }
     WinHotkey { sequence: "Alt+Space"; onPressed: if (hk.bar) hk.bar.search() }
+    // FreeForm.ps1 shows the taskbar while this file is less than 15 s old
+    WinHotkey { sequence: "Win+Alt+T"; onPressed: peekFile.setText(String(Date.now())) }
+    FileView { id: peekFile; path: (Quickshell.env("APPDATA") || "").split(String.fromCharCode(92)).join("/") + "/FreeForm/peek-taskbar"; printErrors: false }
     WinHotkey { sequence: "Win+Alt+A"; onPressed: if (hk.bar) hk.bar.ccRequest(true) }
     WinHotkey { sequence: "Win+Alt+N"; onPressed: if (hk.bar) hk.bar.netRequest(2) }
     WinHotkey {
