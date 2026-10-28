@@ -98,6 +98,39 @@ the bar/dock area), then `Hyprland`/`ToplevelManager` on Win32 windows and virtu
   "Continue Tour" pill. Replaces the interim PyQt `tutorial.py`.
 - `compat/patches/apply_all.py` regenerates `MacBar.qml`/`MacDock.qml` = upstream + all patches
   (`--check` verifies).
+- **Finder** (`macshell/FinderApp.qml`): file browser over real folders (favourites, drives,
+  icon/list views, search, image previews; Recycle Bin, never permanent deletes). IPC `finder`.
+- **Mission Control** (`macshell/MissionControl.qml`): Win+Tab; live windows via ScreencopyView.
+- **Widget Studio** extras: weather (MET Norway + OpenStreetMap Nominatim: free, keyless,
+  commercial use OK with credit), calendar, sticky notes, `{cpu} {ram} {gpu}` (helper
+  `sysstat.ps1` / `sysstat.py`), `.ffwidget` export/import, per-widget screen.
+- **Music**: uses the installed Spotify app (no login), synced lyrics from LRCLIB (free,
+  keyless), Up Next. **Theme Studio**: `.fftheme` export/import. **App Store**: a page per app
+  (`store show` → `winget show`).
+
+### Windows shell layer (patch `compat/patches/freeform_windows_ui.py`, `quickshell/src/windows/`)
+- Menu bar tucks away while an app is focused (top-edge hover brings it back), no workspace
+  numbers, Windows power commands, **Quit FreeForm**, Windows' own lock screen.
+- Keys (`macshell/WindowsHotkeys.qml`): Win alone → Launchpad; Win+Tab → Mission Control;
+  Alt+Tab → MacShell switcher (`WinAltTab` hook); Alt+Space Spotlight; Win+Alt+A Control
+  Center; Win+Alt+N network; Win+Alt+T real taskbar for 15 s (tray icons — Windows 11 gives
+  other apps no way to read them); Win+Alt+F turn FreeForm off.
+- `DesktopLayer.qml` covers Explorer's desktop (wallpaper / video, right-click menu);
+  Background-layer panels are pushed under desktop widgets. ScreencopyView = PrintWindow.
+- Notifications from other apps mirrored via `notif.ps1` (UserNotificationListener) when
+  Windows grants access.
+- Windows-specific core fixes: IPC over named pipe `quickshell-ipc-<id>`; `file:` URLs get a
+  leading slash (`file:///D:/…`); icon paths `/D:/…` → `D:/…`; popover masks shrink after
+  the close animation (SetWindowRgn clips drawing).
+
+### Launcher & packaging (`tools/launcher/`)
+- `FreeFormLauncher.ps1`: the shortcut's window (Launch, Configure settings: start at sign-in,
+  hide taskbar / desktop icons, skip window; About; Back to Windows; Save diagnostics; Update).
+- `FreeForm.ps1`: runs qs, hides taskbar + desktop icons (re-hidden every 2 s), restarts after
+  a crash, gives up after 3 crashes in 10 min, logs to `%LOCALAPPDATA%\FreeForm\logs`,
+  always restores Windows. `-Stop`, `-Restore`, `-Force`.
+- `get.ps1` one-line install from the `freeform-latest` release (CI publishes it only after the
+  smoke test, script parse check and launcher check pass); `install.ps1` shortcuts + PATH.
 
 ### Still Linux-only underneath
 Pinning already exists in MacShell (right-click → **Keep in Dock** / **Remove from Dock**, drag
