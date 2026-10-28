@@ -9,7 +9,9 @@ from PyQt6.QtWidgets import (QHBoxLayout, QLabel, QSlider, QVBoxLayout,
 import theme as T
 from glass import GlassWindow
 
-QSS = f"""
+def qss():
+    # built per call so it picks up the current theme
+    return f"""
 QWidget#cc {{ background:{T.GLASS}; border:1px solid {T.BORDER}; border-radius:{T.RADIUS_MENU + 4}px; }}
 QWidget.card {{ background:{T.GLASS_HI}; border:1px solid {T.BORDER}; border-radius:{T.RADIUS_MENU}px; }}
 QLabel {{ color:{T.TEXT}; font:13px '{T.FONT}'; background:transparent; }}
@@ -18,10 +20,7 @@ QLabel.sub {{ color:{T.TEXT_DIM}; font-size:11px; }}
 QSlider::groove:horizontal {{ height:22px; border-radius:11px; background:rgba(0,0,0,0.30); }}
 QSlider::sub-page:horizontal {{ border-radius:11px; background:rgba(255,255,255,0.85); }}
 QSlider::handle:horizontal {{ width:20px; margin:1px; border-radius:10px; background:#fff; }}
-QCheckBox::indicator {{ width:38px; height:22px; border-radius:11px; background:rgba(120,120,128,0.5); }}
-QCheckBox::indicator:checked {{ background:{T.ACCENT}; }}
-QCheckBox::indicator:disabled {{ background:rgba(48,209,88,0.45); }}
-"""
+""" + T.switch_qss()
 
 
 def _card():
@@ -66,9 +65,9 @@ class ToggleRow(QWidget):
 
 
 class ControlCenter(GlassWindow):
-    def __init__(self, screen_geo):
+    def __init__(self, screen_geo, s):
         super().__init__()
-        self.setStyleSheet(QSS)
+        self.setStyleSheet(qss())
         root = QWidget(self); root.setObjectName("cc")
         root.setAttribute(Qt.WidgetAttribute.WA_StyledBackground)
         lay = QVBoxLayout(root); lay.setContentsMargins(12, 12, 12, 12); lay.setSpacing(8)
@@ -78,8 +77,12 @@ class ControlCenter(GlassWindow):
         # Kill switch keeps Mullvad locked on — the toggle is shown but disabled.
         self.mullvad = ToggleRow("MULLVAD VPN", "CONNECTED", T.ACCENT, checked=True, locked=True)
         self.tor = ToggleRow("TOR ROUTE", "ACTIVE", T.PURPLE, checked=True)
-        for w in (self.volume, self.brightness, self.mullvad, self.tor):
-            lay.addWidget(w)
+        if s.get("cc_volume", True):
+            lay.addWidget(self.volume)
+        if s.get("cc_brightness", True):
+            lay.addWidget(self.brightness)
+        lay.addWidget(self.mullvad)
+        lay.addWidget(self.tor)
 
         root.setFixedWidth(320); root.adjustSize(); self.resize(root.size())
         self.move(screen_geo.x() + screen_geo.width() - self.width() - 10,
