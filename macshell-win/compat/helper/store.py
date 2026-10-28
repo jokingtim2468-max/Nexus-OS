@@ -82,6 +82,27 @@ def parse_winget_table(text, extra_key):
     return apps
 
 
+def parse_winget_show(text):
+    """`winget show` -> {name, id, version, publisher, description, homepage, license, notes, ...}."""
+    info, key = {}, None
+    for line in _clean(text):
+        m = re.match(r"^Found (.+) \[(.+)\]$", line.strip())
+        if m:
+            info["name"], info["id"] = m.group(1), m.group(2)
+            continue
+        if line.startswith("Installer:"):
+            break
+        if line[:1] not in (" ", "\t") and ":" in line:
+            k, v = line.split(":", 1)
+            key = k.strip().lower().replace(" ", "_")
+            info[key] = v.strip()
+        elif key and line.strip():                                       # continuation (Description, Release Notes)
+            info[key] = (info[key] + "\n" + line.strip()).strip()
+    if "release_notes" in info:
+        info["notes"] = info.pop("release_notes")
+    return info
+
+
 class Winget:
     def _run(self, *args, check=True):
         flags = 0x08000000 if os.name == "nt" else 0          # CREATE_NO_WINDOW
@@ -100,6 +121,10 @@ class Winget:
 
     def updates(self):
         return parse_winget_table(self._run("upgrade", *WINGET_FLAGS, check=False), "available")
+
+    def show(self, id_, source):
+        return parse_winget_show(self._run("show", "--id", id_, "--exact", *(["--source", source] if source else []),
+                                           *WINGET_FLAGS, check=False))
 
     def install(self, id_, source):
         self._run("install", "--id", id_, "--exact", *(["--source", source] if source else []),
@@ -143,6 +168,18 @@ class Flatpak:
         for a in apps:
             a["available"] = a["version"]
         return apps
+
+    def show(self, id_, source):
+        r = subprocess.run(["flatpak", "remote-info", source or "flathub", id_], capture_output=True, text=True)
+        lines = r.stdout.splitlines()
+        info = {"id": id_}
+        if lines and " - " in lines[0]:
+            info["name"], info["description"] = [x.strip() for x in lines[0].split(" - ", 1)]
+        for l in lines[1:]:
+            if ":" in l:
+                k, v = l.split(":", 1)
+                info[k.strip().lower()] = v.strip()
+        return info
 
     def install(self, id_, source): self._act("install", *([source] if source else []), id_)
     def uninstall(self, id_):       self._act("uninstall", id_)
@@ -194,6 +231,14 @@ class Mock:
 
     def updates(self):  return [a for a in self.list() if a.get("available")]
 
+    def show(self, id_, source):
+        a = self._app(id_)
+        if not a:
+            return {}
+        a.update(publisher=a["name"].split(" ")[0], description="%s, the app." % a["name"],
+                 homepage="https://example.com", license="Proprietary")
+        return a
+
     def install(self, id_, source):
         a = self._app(id_)
         if not a:
@@ -229,6 +274,7 @@ def main(argv, name, mock_path):
         if a[0] == "search":      sys.stdout.write(fmt(be.search(" ".join(argv[1:]))))
         elif a[0] == "list":      sys.stdout.write(fmt(be.list()))
         elif a[0] == "updates":   sys.stdout.write(fmt(be.updates()))
+        elif a[0] == "show":      sys.stdout.write(json.dumps(be.show(a[1], a[2])) + "\n")
         elif a[0] == "install":   be.install(a[1], a[2])
         elif a[0] == "uninstall": be.uninstall(a[1])
         elif a[0] == "update":    be.update(a[1] or "--all")

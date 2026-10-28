@@ -36,6 +36,31 @@ Scope {
     property var busy: ({})                  // id -> "install" | "update" | "uninstall"
     property var queue: []
     property string errorText: ""
+    // an app's own page (click any app): details from `macshell-helper store show`
+    property var detailApp: null
+    property var detailInfo: ({})
+    property bool detailLoading: false
+    property string backPage: "discover"
+    function showApp(a) {
+        if (!a || !a.id) return;
+        if (!a.icon) { var f = fromFeatured(featuredById(a.id)); if (f) a = f; }      // its artwork, when it's a featured app
+        if (root.page !== "app") root.backPage = root.page;
+        root.detailApp = a; root.detailInfo = {}; root.detailLoading = true;
+        root.page = "app";
+        showProc.running = false;
+        showProc.command = ["macshell-helper", "store", "show", a.id, a.src || a.source || ""];
+        showProc.running = true;
+    }
+    function hideApp() { root.page = root.backPage; root.detailApp = null; }
+    Process {
+        id: showProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.detailLoading = false;
+                try { root.detailInfo = JSON.parse(text.trim() || "{}"); } catch (e) { root.detailInfo = {}; }
+            }
+        }
+    }
 
     readonly property var pages: [
         { id: "discover", t: "Discover", g: "appstore" },
@@ -297,6 +322,7 @@ Scope {
                 color: ar.p.text2; font.family: ar.st.fam; font.pixelSize: 12
             }
         }
+        MouseArea { width: parent.width - pill.width - 16; height: parent.height; cursorShape: Qt.PointingHandCursor; onClicked: ar.st.showApp(ar.app) }
         Pill { id: pill; st: ar.st; p: ar.p; app: ar.app; removeMode: ar.removeMode; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter }
         Rectangle { visible: !ar.lastRow; x: 72; anchors.bottom: parent.bottom; width: parent.width - 72; height: 1; color: ar.p.sep }
     }
@@ -445,7 +471,70 @@ Scope {
                     x: 36; y: 36; width: content.width - 72
                     spacing: 18
 
+                    // ═══ an app's page ═══
+                    Column {
+                        visible: root.page === "app" && root.detailApp !== null
+                        width: parent.width
+                        spacing: 22
+                        Text {
+                            text: "\u2039 " + I18n.tr("Back"); color: root.accent; font.family: root.fam; font.pixelSize: 14
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.hideApp() }
+                        }
+                        Row {
+                            spacing: 24
+                            AppIcon { app: root.detailApp || ({}); size: 128 }
+                            Column {
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 6
+                                width: body.width - 152
+                                Text { width: parent.width; wrapMode: Text.WordWrap; text: root.detailInfo.name || (root.detailApp ? root.detailApp.name : ""); color: pal.text; font.family: root.fam; font.pixelSize: 30; font.weight: Font.Bold }
+                                Text { text: root.detailInfo.publisher || (root.detailApp ? root.detailApp.sub || "" : ""); color: pal.text2; font.family: root.fam; font.pixelSize: 15 }
+                                Item { width: 1; height: 6 }
+                                Pill { st: root; p: pal; app: root.detailApp || ({}) }
+                            }
+                        }
+                        Rectangle { width: parent.width; height: 1; color: pal.sep }
+                        Text { visible: root.detailLoading; text: I18n.tr("Loading\u2026"); color: pal.text2; font.family: root.fam; font.pixelSize: 14 }
+                        Text {
+                            visible: !root.detailLoading && !!root.detailInfo.description
+                            width: parent.width; wrapMode: Text.WordWrap; lineHeight: 1.25
+                            text: root.detailInfo.description || ""; color: pal.text; font.family: root.fam; font.pixelSize: 14
+                        }
+                        Column {
+                            visible: !root.detailLoading && !!root.detailInfo.notes
+                            width: parent.width; spacing: 8
+                            Text { text: I18n.tr("What\u2019s New"); color: pal.text; font.family: root.fam; font.pixelSize: 20; font.weight: Font.Bold }
+                            Text { width: parent.width; wrapMode: Text.WordWrap; text: root.detailInfo.notes || ""; color: pal.text2; font.family: root.fam; font.pixelSize: 13; maximumLineCount: 12; elide: Text.ElideRight }
+                        }
+                        Text { visible: !root.detailLoading; text: I18n.tr("Information"); color: pal.text; font.family: root.fam; font.pixelSize: 20; font.weight: Font.Bold }
+                        Grid {
+                            visible: !root.detailLoading
+                            columns: 3; columnSpacing: 40; rowSpacing: 16
+                            Repeater {
+                                model: [
+                                    { k: "Version", v: root.detailInfo.version || (root.detailApp ? root.detailApp.version || "" : "") },
+                                    { k: "Publisher", v: root.detailInfo.publisher || "" },
+                                    { k: "License", v: root.detailInfo.license || "" },
+                                    { k: "Source", v: root.detailApp ? (root.detailApp.src || root.detailApp.source || "") : "" },
+                                    { k: "Identifier", v: root.detailApp ? root.detailApp.id : "" },
+                                    { k: "Website", v: root.detailInfo.homepage || "", url: true }
+                                ].filter(function (r) { return r.v !== ""; })
+                                delegate: Column {
+                                    required property var modelData
+                                    width: (body.width - 80) / 3; spacing: 3
+                                    Text { text: I18n.tr(parent.modelData.k); color: pal.text2; font.family: root.fam; font.pixelSize: 12 }
+                                    Text {
+                                        width: parent.width; elide: Text.ElideRight
+                                        text: parent.modelData.v; color: parent.modelData.url ? root.accent : pal.text; font.family: root.fam; font.pixelSize: 14
+                                        MouseArea { anchors.fill: parent; enabled: !!parent.parent.modelData.url; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: Qt.openUrlExternally(parent.parent.modelData.v) }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     Text {
+                        visible: root.page !== "app"
                         text: root.page === "search" ? I18n.tr("Results for \u201c") + root.query + "\u201d"
                               : I18n.tr((root.pages.filter(function (p) { return p.id === root.page; })[0] || { t: "" }).t)
                         color: pal.text; font.family: root.fam; font.pixelSize: 28; font.weight: Font.Bold

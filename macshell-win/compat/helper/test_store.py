@@ -75,3 +75,15 @@ class MockStore(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Show(unittest.TestCase):
+    def test_winget_show_fields(self):
+        t = ("Found Mozilla Firefox [Mozilla.Firefox]\nVersion: 131.0\nPublisher: Mozilla\n"
+             "Description: A browser,\n  made by a community.\nHomepage: https://www.mozilla.org/\n"
+             "License: MPL-2.0\nRelease Notes:\n  Fixes.\nInstaller:\n  Installer Type: exe\n")
+        i = S.parse_winget_show(t)
+        self.assertEqual((i["name"], i["id"], i["version"], i["license"]), ("Mozilla Firefox", "Mozilla.Firefox", "131.0", "MPL-2.0"))
+        self.assertEqual(i["description"], "A browser,\nmade by a community.")
+        self.assertEqual(i["notes"], "Fixes.")
+        self.assertNotIn("installer_type", i)

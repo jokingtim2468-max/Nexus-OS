@@ -345,6 +345,7 @@ ShellRoot {
         function close(): void { appStore.close(); }
         function toggle(): void { appStore.toggle(); }
         function page(id: string): void { appStore.open(id); }
+        function app(id: string): void { appStore.open(""); appStore.showApp({ id: id, name: id }); }
         function search(q: string): void { appStore.open("search"); appStore.search(q); }
     }
     // qs -c MacShell ipc call tour start | stop      (FreeForm's welcome tour)
