@@ -19,7 +19,7 @@ import freeform_apps   # noqa: E402
 
 UPSTREAM = os.path.join(HERE, "..", "..", "..", "vendor", "MacShell", "MacShell")
 OURS = net_bt_windows.ROOT
-FILES = ["MacBar.qml", "MacDock.qml"]
+FILES = ["MacBar.qml", "MacDock.qml", "AboutApp.qml"]
 PATCHES = [net_bt_windows.EDITS, freeform_apps.EDITS]
 
 
@@ -29,7 +29,7 @@ def build(dest):
     old = net_bt_windows.ROOT
     net_bt_windows.ROOT = dest
     try:
-        return all(net_bt_windows.apply(edits_by_file=e) for e in PATCHES)
+        return all([net_bt_windows.apply(edits_by_file=e) for e in PATCHES])
     finally:
         net_bt_windows.ROOT = old
 

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" viewBox="0 0 100 100">
+  <!-- FreeForm "FF" mark: two bold F's with rounded corners -->
+  <g fill="#ffffff">
+    <path d="M8 10h32a4 4 0 0 1 4 4v8a4 4 0 0 1-4 4H24v12h12a4 4 0 0 1 4 4v7a4 4 0 0 1-4 4H24v33a4 4 0 0 1-4 4h-8a4 4 0 0 1-4-4V14a4 4 0 0 1 4-4z"/>
+    <path d="M56 10h32a4 4 0 0 1 4 4v8a4 4 0 0 1-4 4H72v12h12a4 4 0 0 1 4 4v7a4 4 0 0 1-4 4H72v33a4 4 0 0 1-4 4h-8a4 4 0 0 1-4-4V14a4 4 0 0 1 4-4z"/>
+  </g>
+</svg>

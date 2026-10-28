@@ -4070,7 +4070,7 @@ Scope {
                         Image {
                             anchors.horizontalCenter: parent.horizontalCenter; y: 16
                             width: 36; height: 36
-                            source: Qt.resolvedUrl(pal.dark ? "apple-logo-white.svg" : "apple-logo-black.svg")
+                            source: Qt.resolvedUrl(pal.dark ? "ff-logo-white.svg" : "ff-logo-black.svg")
                             sourceSize: Qt.size(72, 72); fillMode: Image.PreserveAspectFit; smooth: true
                         }
                         Text {
@@ -4236,7 +4236,7 @@ Scope {
 
     // MacShell's own windows (About This Linux, Settings, Finder, Photos ...) all have the app id "org.quickshell":
     // they show the MacShell logo and name instead of a generic icon
-    readonly property string logoPath: decodeURIComponent(String(Qt.resolvedUrl("assets/macshell-logo.png")).replace(/^file:\/\//, ""))
+    readonly property string logoPath: decodeURIComponent(String(Qt.resolvedUrl("assets/freeform-logo.png")).replace(/^file:\/\//, ""))
     function isShellApp(appId) { return appId === "org.quickshell"; }
 
     function lookup(appId) {

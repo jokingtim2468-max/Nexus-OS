@@ -2834,7 +2834,7 @@ Scope {
     }
 
     // the MacShell logo: the icon of MacShell's own windows in the Alt+Tab switcher
-    readonly property string logoPath: decodeURIComponent(String(Qt.resolvedUrl("assets/macshell-logo.png")).replace(/^file:\/\//, ""))
+    readonly property string logoPath: decodeURIComponent(String(Qt.resolvedUrl("assets/freeform-logo.png")).replace(/^file:\/\//, ""))
     // ── applications for Spotlight ──
     function iconSrc(name) {
         var fb = Quickshell.iconPath("application-x-executable", true);
@@ -2996,7 +2996,7 @@ Scope {
     function menuModelFor(name) {
         var m = [], i;
         if (name === "apple") {
-            m.push(mi("About This Linux", "", function () {
+            m.push(mi("About This PC", "", function () {
                 if (hub && hub.about) hub.about.open();
                 else sh(terminal + " -e sh -c 'fastfetch || neofetch; echo; read -p \"Press Enter\" _'");
             }));
@@ -4976,7 +4976,7 @@ Scope {
                                     visible: mt.modelData.id === "apple" && root.barLogoMode === "apple"
                                     anchors.centerIn: parent
                                     width: 15; height: 15
-                                    source: root.darkMode ? Qt.resolvedUrl("apple-logo-white.svg") : Qt.resolvedUrl("apple-logo-black.svg")
+                                    source: root.darkMode ? Qt.resolvedUrl("ff-logo-white.svg") : Qt.resolvedUrl("ff-logo-black.svg")
                                     sourceSize: Qt.size(128, 160)
                                     fillMode: Image.PreserveAspectFit
                                     smooth: true

@@ -58,7 +58,7 @@ Scope {
     function refresh() { if (!infoProc.running) infoProc.running = true; }
     Process {
         id: infoProc
-        command: ["sh", root.scriptPath]
+        command: Qt.platform.os === "windows" ? ["macshell-helper", "about"] : ["sh", root.scriptPath]
         stdout: StdioCollector { onStreamFinished: root.parse(text) }
     }
 
@@ -88,7 +88,7 @@ Scope {
 
     Window {
         id: win
-        title: "About This Linux"
+        title: "About This PC"
         readonly property int wantH: Math.ceil(content.implicitHeight) + 40 + 26
         width: 300
         height: wantH
@@ -212,7 +212,7 @@ Scope {
                         anchors.centerIn: parent
                         width: 112; height: 112
                         visible: !userLogo.visible && status === Image.Ready
-                        source: userLogo.visible ? "" : root.distroLogo
+                        source: userLogo.visible ? "" : Qt.resolvedUrl("assets/freeform-logo.png")
                         sourceSize.width: 224; sourceSize.height: 224
                         fillMode: Image.PreserveAspectFit
                         smooth: true; mipmap: true
@@ -236,7 +236,7 @@ Scope {
                     wrapMode: Text.Wrap
                     maximumLineCount: 2
                     elide: Text.ElideRight
-                    text: "MacShell"
+                    text: "FreeForm"
                     color: pal.text
                     font.family: root.fontForWeight(font.weight, root.fam); font.pixelSize: 24; font.weight: Font.Bold
                 }
@@ -329,7 +329,7 @@ Scope {
                     width: parent.width
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.Wrap
-                    text: "Linux® is a registered trademark of Linus Torvalds.\nMacShell 0.2.9"
+                    text: "FreeForm, built on MacShell 0.2.9 (MIT) and Quickshell (LGPL).\n" + (root.info.osname || "")
                     color: pal.text3
                     font.family: root.fontForWeight(font.weight, root.fam); font.pixelSize: 10
                     lineHeight: 1.1

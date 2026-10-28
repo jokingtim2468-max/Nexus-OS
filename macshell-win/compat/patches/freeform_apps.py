@@ -7,6 +7,9 @@ Applied after net_bt_windows.py (same engine: exact find -> replace, each must m
    previews); clicking one plays it through Wallpaper Engine, and the Liquid Glass refracts its
    preview. Picking a normal wallpaper afterwards closes Wallpaper Engine's. Not installed ->
    a "View on Steam" row (it's a paid Steam app; we only link to the store page).
+4. FreeForm branding: the FF mark (ff-logo-*.svg) instead of the Apple logo in the menu bar and
+   Settings, the FF app icon (assets/freeform-logo.png) for MacShell's own windows, and
+   "About This PC" showing FreeForm (on Windows its specs come from `macshell-helper about`).
 3. Theme presets (Settings > Appearance > Theme): Black, White, Graphite, Default. Each sets
    MacShell's appearance, accent and glass, and runs `macshell-helper theme apply` for Windows
    app mode and Spotify (via Spicetify, when installed). Colours: compat/helper/theme.py.
@@ -77,8 +80,21 @@ EDITS = {
             Quickshell.execDetached(["macshell-helper", "wallpaper", "engine", "stop"]);
         }
         var pair = wpPairOf(path);'''),
+
+        # ── branding ──
+        ('''source: root.darkMode ? Qt.resolvedUrl("apple-logo-white.svg") : Qt.resolvedUrl("apple-logo-black.svg")''',
+         '''source: root.darkMode ? Qt.resolvedUrl("ff-logo-white.svg") : Qt.resolvedUrl("ff-logo-black.svg")'''),
+        ('''    readonly property string logoPath: decodeURIComponent(String(Qt.resolvedUrl("assets/macshell-logo.png")).replace(/^file:\\/\\//, ""))''',
+         '''    readonly property string logoPath: decodeURIComponent(String(Qt.resolvedUrl("assets/freeform-logo.png")).replace(/^file:\\/\\//, ""))'''),
+        ('''            m.push(mi("About This Linux", "", function () {''',
+         '''            m.push(mi("About This PC", "", function () {'''),
     ],
     "MacDock.qml": [
+        ('''                            source: Qt.resolvedUrl(pal.dark ? "apple-logo-white.svg" : "apple-logo-black.svg")''',
+         '''                            source: Qt.resolvedUrl(pal.dark ? "ff-logo-white.svg" : "ff-logo-black.svg")'''),
+        ('''    readonly property string logoPath: decodeURIComponent(String(Qt.resolvedUrl("assets/macshell-logo.png")).replace(/^file:\\/\\//, ""))''',
+         '''    readonly property string logoPath: decodeURIComponent(String(Qt.resolvedUrl("assets/freeform-logo.png")).replace(/^file:\\/\\//, ""))'''),
+
         # ── theme presets ──
         ('''    function setLook(k, v) { root[k] = v; if (bar) bar[k] = v; }''',
          '''    function setLook(k, v) { root[k] = v; if (bar) bar[k] = v; }
@@ -289,6 +305,19 @@ EDITS = {
                 Item {
                     width: parent.width; height: 30
                     SLabel { t: pal; header: true; width: 200; anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("Wallpapers"); topPadding: 0 }'''),
+    ],
+
+    "AboutApp.qml": [
+        ('''        command: ["sh", root.scriptPath]''',
+         '''        command: Qt.platform.os === "windows" ? ["macshell-helper", "about"] : ["sh", root.scriptPath]'''),
+        ('''        title: "About This Linux"''', '''        title: "About This PC"'''),
+        ('''                    text: "MacShell"
+''', '''                    text: "FreeForm"
+'''),
+        ('''                        source: userLogo.visible ? "" : root.distroLogo''',
+         '''                        source: userLogo.visible ? "" : Qt.resolvedUrl("assets/freeform-logo.png")'''),
+        ('''                    text: "Linux® is a registered trademark of Linus Torvalds.\\nMacShell 0.2.9"''',
+         '''                    text: "FreeForm, built on MacShell 0.2.9 (MIT) and Quickshell (LGPL).\\n" + (root.info.osname || "")'''),
     ],
 }
 

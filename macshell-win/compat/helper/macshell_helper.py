@@ -19,6 +19,7 @@ Commands (what the QML calls):
   airplane on|off
   store search|list|updates|install|uninstall|update ...   (the App Store app; see store.py)
   wallpaper engine status|list|apply FILE [MONITOR]|stop    (Wallpaper Engine; see wallpaper_engine.py)
+  about                                                   ("About This PC" facts; see about.py)
   theme list | theme apply black|white|graphite|default     (Windows/GTK app mode + Spotify; see theme.py)
 """
 import json
@@ -332,6 +333,9 @@ def backend_name():
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     name = backend_name()
+    if argv[:1] == ["about"]:
+        import about
+        return about.main(argv[1:])
     if argv[:1] == ["theme"]:
         import theme
         return theme.main(argv[1:])
