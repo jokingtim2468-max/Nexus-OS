@@ -2404,10 +2404,18 @@ Scope {
                             title: modelData.name
                             subtitle: (root.bar && root.bar.btBusy === modelData.mac ? (modelData.connected ? I18n.tr("Disconnecting\u2026") : I18n.tr("Connecting\u2026"))
                                        : (modelData.connected ? "Connected" : "Not Connected")) + (modelData.bat !== "" ? " \u00B7 " + modelData.bat + "%" : "")
-                            SButton {
-                                t: pal; text: modelData.connected ? I18n.tr("Disconnect") : I18n.tr("Connect")
-                                enabled: !(root.bar && root.bar.btBusy !== "")
-                                onClicked: { if (root.bar) root.bar.connectBt(modelData.mac, modelData.connected); }
+                            Row {
+                                spacing: 8
+                                SButton {
+                                    t: pal; text: modelData.connected ? I18n.tr("Disconnect") : I18n.tr("Connect")
+                                    enabled: !(root.bar && root.bar.btBusy !== "")
+                                    onClicked: { if (root.bar) root.bar.connectBt(modelData.mac, modelData.connected); }
+                                }
+                                SButton {
+                                    t: pal; text: I18n.tr("Forget")
+                                    enabled: !(root.bar && root.bar.btBusy !== "")
+                                    onClicked: { if (root.bar) root.bar.forgetBt(modelData.mac); }
+                                }
                             }
                         }
                     }

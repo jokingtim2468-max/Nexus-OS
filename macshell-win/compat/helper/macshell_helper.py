@@ -15,13 +15,14 @@ Commands (what the QML calls):
   net status | net devices | net ethernet
   wifi radio on|off | wifi list | wifi connect SSID [password PW] | wifi disconnect
   conn list | conn up|down NAME
-  bt status | bt power on|off | bt scan | bt connect MAC | bt disconnect MAC
+  bt status | bt power on|off | bt scan | bt connect MAC | bt disconnect MAC | bt forget MAC
   airplane on|off
 """
 import json
 import os
 import subprocess
 import sys
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -109,19 +110,44 @@ class WindowsBackend:
     def status(self):        return self._ps("status")
     def wifi_list(self):     return self._ps("wifilist")
     def conns(self):         return self._ps("conns")
-    def bt(self):            return self._ps("bt")
+    # `bt scan` and `bt status` are separate processes, so nearby (unpaired) devices found by a
+    # scan are kept in a small cache file and listed by `bt status` for a minute.
+    NEARBY = os.path.join(os.environ.get("TEMP", HERE), "macshell-bt-nearby.json")
+
+    def _nearby(self):
+        try:
+            with open(self.NEARBY, encoding="utf-8") as fh:
+                d = json.load(fh)
+            return d["devices"] if time.time() - d["at"] < 60 else []
+        except (OSError, ValueError, KeyError):
+            return []
+
+    def bt(self):
+        r = self._ps("bt")
+        known = {d["mac"] for d in r.get("devices", [])}
+        r["devices"] = r.get("devices", []) + [d for d in self._nearby() if d["mac"] not in known]
+        return r
     def wifi_radio(self, on): self._ps("radio", "wifi", "on" if on else "off", want_json=False)
     def bt_power(self, on):  self._ps("radio", "bluetooth", "on" if on else "off", want_json=False)
     def airplane(self, on):  self._ps("airplane", "on" if on else "off", want_json=False)
     def wifi_connect(self, ssid, pw): self._ps("wificonnect", ssid, *([pw] if pw else []), want_json=False)
     def wifi_disconnect(self): self._ps("wifidisconnect", want_json=False)
     def conn(self, up, name): self._ps("conn", "up" if up else "down", name, want_json=False)
-    def bt_scan(self):       pass   # Windows discovers on its own; new devices are paired in Windows Settings
+    def bt_scan(self):
+        found = self._ps("btscan").get("devices", [])
+        with open(self.NEARBY, "w", encoding="utf-8") as fh:
+            json.dump({"at": time.time(), "devices": found}, fh)
+
     def bt_connect(self, mac, connect):
+        if connect and any(d["mac"] == mac for d in self._nearby()):
+            self._ps("btpair", mac, want_json=False)     # a new device: pairing connects it
+            return
         # Windows has no public API to force a paired device to (dis)connect; it reconnects
         # paired devices automatically when they are switched on.
         raise Fail("Windows connects paired devices automatically. Switch the device on, or "
                    "use Bluetooth settings to pair a new one.", 2)
+
+    def bt_forget(self, mac): self._ps("btforget", mac, want_json=False)
 
 
 class MockBackend:
@@ -137,6 +163,9 @@ class MockBackend:
         "bt_on": True,
         "devices": [{"mac": "AA:BB:CC:00:11:22", "name": "AirPods Pro", "paired": True, "connected": True, "battery": "80"},
                     {"mac": "AA:BB:CC:33:44:55", "name": "MX Master 3", "paired": True, "connected": False, "battery": ""}],
+        # in range but never paired; shows up after `bt scan`
+        "nearby": [{"mac": "AA:BB:CC:66:77:88", "name": "JBL Flip 6", "paired": False, "connected": False, "battery": ""}],
+        "scanned": False,
     }
 
     def __init__(self, path):
@@ -163,7 +192,15 @@ class MockBackend:
         return {"networks": [{**n, "inUse": n["ssid"] == s["ssid"]} for n in s["networks"]], "saved": s["saved"]}
 
     def conns(self):  return {"eth": self.s["eth"], "vpn": self.s["vpn"]}
-    def bt(self):     return {"on": self.s["bt_on"], "devices": self.s["devices"] if self.s["bt_on"] else []}
+    def bt(self):
+        if not self.s["bt_on"]:
+            return {"on": False, "devices": []}
+        if self.s["scanned"]:   # scanned devices join the list as unpaired, like BlueZ
+            macs = {d["mac"] for d in self.s["devices"]}
+            self.s["devices"] += [dict(d) for d in self.s["nearby"] if d["mac"] not in macs]
+            self.s["scanned"] = False
+            self._save()
+        return {"on": True, "devices": self.s["devices"]}
 
     def wifi_radio(self, on):
         self.s["wifi_on"] = on
@@ -202,12 +239,18 @@ class MockBackend:
                 v["connected"] = up
         self._save()
 
-    def bt_scan(self): pass
+    def bt_scan(self): self.s["scanned"] = True; self._save()
 
     def bt_connect(self, mac, connect):
         for d in self.s["devices"]:
             if d["mac"] == mac:
                 d["connected"] = connect
+                if connect:
+                    d["paired"] = True
+        self._save()
+
+    def bt_forget(self, mac):
+        self.s["devices"] = [d for d in self.s["devices"] if d["mac"] != mac]
         self._save()
 
 
@@ -226,6 +269,7 @@ LINUX = {
     "airplane on": "rfkill block all",
     "airplane off": "rfkill unblock all; sleep 0.5; bluetoothctl power on",
     "bt disconnect": "bluetoothctl disconnect \"$1\" >/dev/null 2>&1 </dev/null; exit 0",
+    "bt forget": "bluetoothctl remove \"$1\" >/dev/null 2>&1 </dev/null; exit 0",
     "bt connect": "d=\"$1\"; fail() { m=$(printf '%s\\n' \"$1\" | grep -iE 'fail|error|not available|timeout|rejected|canceled' | tail -n1); [ -n \"$m\" ] || m=\"$2\"; echo \"$m\" >&2; exit 1; }; if ! bluetoothctl info \"$d\" 2>/dev/null </dev/null | grep -qE 'Paired: yes|Bonded: yes'; then o=$(timeout 45 bluetoothctl --agent NoInputNoOutput pair \"$d\" 2>&1 </dev/null); printf '%s\\n' \"$o\" | grep -qi 'Pairing successful' || fail \"$o\" 'Could not pair. Put the device in pairing mode and try again.'; fi; bluetoothctl trust \"$d\" >/dev/null 2>&1 </dev/null; o=$(timeout 25 bluetoothctl connect \"$d\" 2>&1 </dev/null); printf '%s\\n' \"$o\" | grep -qi 'Connection successful' || fail \"$o\" 'Could not connect to the device.'",
 }
 
@@ -239,7 +283,7 @@ def run_linux(argv):
         return subprocess.call(["nmcli", "--wait", "25", "dev", "wifi", "connect", *argv[2:]])
     if argv[:2] == ["conn", "up"] or argv[:2] == ["conn", "down"]:
         return subprocess.call(["nmcli", "connection", argv[1], "id", argv[2]])
-    if key in ("bt connect", "bt disconnect"):
+    if key in ("bt connect", "bt disconnect", "bt forget"):
         return subprocess.call(["sh", "-c", LINUX[key], "sh", argv[2]])
     if key not in LINUX:
         print(f"macshell-helper: unknown command: {' '.join(argv)}", file=sys.stderr)
@@ -266,6 +310,7 @@ def run(argv, be):
     elif cmd == ("bt", "power"):     be.bt_power(a[2] == "on")
     elif cmd == ("bt", "scan"):      be.bt_scan()
     elif cmd[0] == "bt" and cmd[1] in ("connect", "disconnect"): be.bt_connect(argv[2], cmd[1] == "connect")
+    elif cmd == ("bt", "forget"):    be.bt_forget(argv[2])
     elif cmd[0] == "airplane":       be.airplane(a[1] == "on")
     else:
         raise Fail(f"macshell-helper: unknown command: {' '.join(argv)}", 64)

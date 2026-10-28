@@ -68,12 +68,14 @@ EDITS = {
          '''        function close(): void { root.ccRequest(false); }
     }
     // qs -c MacShell ipc call network toggle | open | close   (the Wi-Fi / Ethernet / Bluetooth menu)
-    signal netRequest(int mode)                 // 0 close, 1 open, 2 toggle
+    //                               network bluetooth            (the Bluetooth menu: remembered devices)
+    signal netRequest(int mode)                 // 0 close, 1 open, 2 toggle, 3 Bluetooth menu
     IpcHandler {
         target: "network"
         function toggle(): void { root.netRequest(2); }
         function open(): void { root.netRequest(1); }
         function close(): void { root.netRequest(0); }
+        function bluetooth(): void { root.netRequest(3); }
     }'''),
         ('''                    function onCcRequest(open) {
                         if (!ui.toastScreen || !root.ccEnabled) return;
@@ -86,6 +88,7 @@ EDITS = {
                     }
                     function onNetRequest(mode) {
                         if (!ui.toastScreen) return;
+                        if (mode === 3) { root.refreshBt(); if (ui.pop !== "bt") ui.openPop("bt", wifiBtn.mapToItem(ui, 0, 0).x); return; }
                         if (mode === 0 || (mode === 2 && ui.pop === "wifi")) ui.pop = "";
                         else if (ui.pop !== "wifi") ui.openPop("wifi", wifiBtn.mapToItem(ui, 0, 0).x);
                     }
@@ -121,15 +124,25 @@ EDITS = {
                                 onToggled: { root.toggleWifi(); wifiAfter.restart(); }
                             }
                         }
-                        // Bluetooth on/off, so both radios can be switched from this menu
+                        // Bluetooth on/off, so both radios can be switched from this menu; clicking the row
+                        // (not the switch) opens the Bluetooth menu with the remembered devices
                         Item {
                             visible: !wifiCol.showBack      // the popover only; the Control Center has its own tile
                             width: parent.width; height: visible ? 30 : 0
-                            Glyph { x: 8; anchors.verticalCenter: parent.verticalCenter; width: 14; height: 14; kind: "bluetooth"; color: root.btOn ? pp.fg : pp.fg2 }
+                            Rectangle { anchors.fill: parent; anchors.rightMargin: 52; radius: 8; color: root.accent; visible: btRowMa.containsMouse }
+                            MouseArea {
+                                id: btRowMa
+                                anchors.fill: parent; anchors.rightMargin: 52
+                                hoverEnabled: true
+                                onClicked: { root.refreshBt(); ui.openPop("bt", ui.menuX); }
+                            }
+                            Glyph { x: parent.width - 52 - 16; anchors.verticalCenter: parent.verticalCenter; width: 9; height: 9; kind: "chevR"; color: btRowMa.containsMouse ? "white" : pp.fg2 }
+                            Glyph { x: 8; anchors.verticalCenter: parent.verticalCenter; width: 14; height: 14; kind: "bluetooth"; color: btRowMa.containsMouse ? "white" : (root.btOn ? pp.fg : pp.fg2) }
                             Text {
                                 x: 30; anchors.verticalCenter: parent.verticalCenter
+                                width: parent.width - 30 - 52 - 22; elide: Text.ElideRight
                                 text: I18n.tr("Bluetooth") + (root.btConnectedName !== "" ? " \\u00b7 " + root.btConnectedName : "")
-                                color: pp.fg
+                                color: btRowMa.containsMouse ? "white" : pp.fg
                                 font.family: root.fontForWeight(font.weight, pp.fam); font.pixelSize: 13
                             }
                             PSwitch {
@@ -141,8 +154,94 @@ EDITS = {
                             }
                         }
                         Rectangle { width: parent.width; height: 1; color: pp.sep }'''),
+        # ── Bluetooth menu (bar icon, Wi-Fi menu row, Control Center page): remembered devices only,
+        #    like macOS. Finding and pairing new devices lives in Settings > Bluetooth > Nearby Devices.
+        ('''                        id: btCol
+                        property var pp: pal                // palette: the panel palette in the popover, ccPal in the Control Center
+                        property bool showBack: false       // Control Center page: show the back arrow
+                        signal back()
+                        width: parent ? parent.width : 296
+                        spacing: 6
+''',
+         '''                        id: btCol
+                        property var pp: pal                // palette: the panel palette in the popover, ccPal in the Control Center
+                        property bool showBack: false       // Control Center page: show the back arrow
+                        signal back()
+                        readonly property var myDevs: root.btDevices.filter(function (d) { return d.paired || d.connected; })
+                        width: parent ? parent.width : 296
+                        spacing: 6
+'''),
+        ('''                            visible: root.btOn && root.btDevices.length === 0
+                            width: parent.width; height: 56
+                            horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
+                            text: root.btScanning ? I18n.tr("Searching for devices\\u2026") : I18n.tr("No devices found")''',
+         '''                            visible: root.btOn && btCol.myDevs.length === 0
+                            width: parent.width; height: 56
+                            horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
+                            wrapMode: Text.WordWrap
+                            text: I18n.tr("No remembered devices.\\nPair new ones in Bluetooth Settings.")'''),
+        (BLOCK, '''                        Item {
+                            visible: root.btOn && root.btDevices.length > 0
+                            width: parent.width; height: 22''',
+                '''                                    MouseArea { anchors.fill: parent; anchors.margins: -4; onClicked: root.scanBt() }
+                                }
+                            }
+                        }''',
+         '''                        Item {
+                            visible: root.btOn && btCol.myDevs.length > 0
+                            width: parent.width; height: 22
+                            Text {
+                                x: 6; anchors.verticalCenter: parent.verticalCenter
+                                text: I18n.tr("My Devices")
+                                color: pp.fg2
+                                font.family: root.fontForWeight(font.weight, pp.fam); font.pixelSize: 11; font.weight: Font.DemiBold
+                            }
+                        }'''),
+        ('''                            visible: root.btOn && root.btDevices.length > 0
+                            width: parent.width
+                            height: Math.min(btList.height, 300)''',
+         '''                            visible: root.btOn && btCol.myDevs.length > 0
+                            width: parent.width
+                            height: Math.min(btList.height, 300)'''),
+        ('''                                Repeater {
+                                    model: root.btDevices
+                                    delegate: Item {
+                                        id: devRow''',
+         '''                                Repeater {
+                                    model: btCol.myDevs
+                                    delegate: Item {
+                                        id: devRow'''),
+        # forget a remembered device (Settings > Bluetooth)
+        ('''    readonly property bool airplane: !wifiOn && !btOn''',
+         '''    function forgetBt(mac) {
+        if (btActionProc.running || !mac) return;
+        root.btError = "";
+        root.btBusy = mac;
+        btActionProc.command = ["macshell-helper", "bt", "forget", mac];
+        btActionProc.running = true;
+    }
+    readonly property bool airplane: !wifiOn && !btOn'''),
     ],
     "MacDock.qml": [
+        # Settings > Bluetooth > My Devices: Forget This Device
+        ('''                            SButton {
+                                t: pal; text: modelData.connected ? I18n.tr("Disconnect") : I18n.tr("Connect")
+                                enabled: !(root.bar && root.bar.btBusy !== "")
+                                onClicked: { if (root.bar) root.bar.connectBt(modelData.mac, modelData.connected); }
+                            }''',
+         '''                            Row {
+                                spacing: 8
+                                SButton {
+                                    t: pal; text: modelData.connected ? I18n.tr("Disconnect") : I18n.tr("Connect")
+                                    enabled: !(root.bar && root.bar.btBusy !== "")
+                                    onClicked: { if (root.bar) root.bar.connectBt(modelData.mac, modelData.connected); }
+                                }
+                                SButton {
+                                    t: pal; text: I18n.tr("Forget")
+                                    enabled: !(root.bar && root.bar.btBusy !== "")
+                                    onClicked: { if (root.bar) root.bar.forgetBt(modelData.mac); }
+                                }
+                            }'''),
         # Settings > Wi-Fi: Ethernet details
         ('''command: ["sh", "-c", "nmcli -t -f DEVICE,TYPE,STATE,CONNECTION dev 2>/dev/null | awk -F: '$2==\\"ethernet\\"' | head -1 | while IFS=: read -r d t st c; do ip=$(ip -4 -o addr show \\"$d\\" 2>/dev/null | awk '{print $4}' | head -1); sp=$(cat /sys/class/net/$d/speed 2>/dev/null); printf '%s\\t%s\\t%s\\t%s\\t%s' \\"$d\\" \\"$st\\" \\"$c\\" \\"$ip\\" \\"$sp\\"; done"]''',
          '''command: ["macshell-helper", "net", "ethernet"]'''),

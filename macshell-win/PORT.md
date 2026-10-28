@@ -43,6 +43,12 @@ What the run also confirmed for the port:
   use it too.
 - The Wi-Fi menu gets a **Bluetooth on/off row** (shows the connected device), using
   MacShell's own `PSwitch` and `toggleBt()`.
+- **Bluetooth menu = remembered devices only** (bar icon, the Bluetooth row in the Wi-Fi menu —
+  click the row, the switch still toggles — and the Control Center page). Finding and pairing new
+  devices lives in **Settings → Bluetooth → Nearby Devices** (scan, Connect = pair), which also
+  gets a **Forget** button per remembered device. Windows backend: WinRT discovery of classic + LE
+  devices (`btscan`, cached for `bt status`), `DeviceInformation.Pairing.PairAsync` (`btpair`),
+  `UnpairAsync` (`btforget`). IPC `network bluetooth` opens the Bluetooth menu.
 - New IPC `network toggle|open|close` (same pattern as `controlcenter`) — for a Win+A hotkey.
 - Verified in real Quickshell with the mock backend (wired → cable; join Wi-Fi → ✓ in list;
   Bluetooth off → row + bar icon update). `winnet.ps1` itself still needs a run on real Windows.

@@ -29,6 +29,8 @@ function AwaitAction($op) { $t = $script:asTaskAct.Invoke($null, @($op)); $t.Wai
 [void][Windows.Devices.Enumeration.DeviceInformation, Windows.Devices.Enumeration, ContentType = WindowsRuntime]
 [void][Windows.Devices.Bluetooth.BluetoothDevice, Windows.Devices.Bluetooth, ContentType = WindowsRuntime]
 [void][Windows.Security.Credentials.PasswordCredential, Windows.Security.Credentials, ContentType = WindowsRuntime]
+[void][Windows.Devices.Bluetooth.BluetoothLEDevice, Windows.Devices.Bluetooth, ContentType = WindowsRuntime]
+[void][Windows.Devices.Enumeration.DevicePairingResult, Windows.Devices.Enumeration, ContentType = WindowsRuntime]
 
 function Fail([string]$msg, [int]$code = 1) { [Console]::Error.WriteLine($msg); exit $code }
 function Out-Json($o) { $o | ConvertTo-Json -Depth 5 -Compress }
@@ -71,6 +73,27 @@ function Get-Ethernet {
                 speed = [int]([long]$_.ReceiveLinkSpeed / 1000000) }
         })
 }
+# ── bluetooth devices ──
+function Mac-Of([UInt64]$addr) { ('{0:X12}' -f $addr) -replace '(..)(?!$)', '$1:' }
+# Classic + Bluetooth LE devices, paired or not. Each: @{ info; mac; name }
+function Find-BtDevices([bool]$paired) {
+    $out = @()
+    $sels = @([Windows.Devices.Bluetooth.BluetoothDevice]::GetDeviceSelectorFromPairingState($paired),
+        [Windows.Devices.Bluetooth.BluetoothLEDevice]::GetDeviceSelectorFromPairingState($paired))
+    for ($k = 0; $k -lt 2; $k++) {
+        $infos = Await ([Windows.Devices.Enumeration.DeviceInformation]::FindAllAsync($sels[$k])) ([Windows.Devices.Enumeration.DeviceInformationCollection])
+        foreach ($i in $infos) {
+            try {
+                if ($k -eq 0) { $d = Await ([Windows.Devices.Bluetooth.BluetoothDevice]::FromIdAsync($i.Id)) ([Windows.Devices.Bluetooth.BluetoothDevice]) }
+                else { $d = Await ([Windows.Devices.Bluetooth.BluetoothLEDevice]::FromIdAsync($i.Id)) ([Windows.Devices.Bluetooth.BluetoothLEDevice]) }
+            } catch { continue }
+            if (-not $d) { continue }
+            $out += @{ info = $i; dev = $d; mac = (Mac-Of $d.BluetoothAddress); name = $i.Name }
+        }
+    }
+    $out
+}
+
 function Rssi-To-Percent([double]$dbm) { [int][Math]::Max(0, [Math]::Min(100, 2 * ($dbm + 100))) }
 
 switch ($Cmd) {
@@ -138,19 +161,29 @@ switch ($Cmd) {
             catch { Fail 'Error: Turning a network adapter on or off needs administrator rights.' 7 }
         }
     }
-    'bt' {
+    'bt' {   # remembered (paired) devices
         $r = Get-Radio 'Bluetooth'
-        $devs = @()
-        foreach ($sel in @([Windows.Devices.Bluetooth.BluetoothDevice]::GetDeviceSelectorFromPairingState($true))) {
-            $infos = Await ([Windows.Devices.Enumeration.DeviceInformation]::FindAllAsync($sel)) ([Windows.Devices.Enumeration.DeviceInformationCollection])
-            foreach ($i in $infos) {
-                try { $d = Await ([Windows.Devices.Bluetooth.BluetoothDevice]::FromIdAsync($i.Id)) ([Windows.Devices.Bluetooth.BluetoothDevice]) } catch { continue }
-                if (-not $d) { continue }
-                $mac = ('{0:X12}' -f $d.BluetoothAddress) -replace '(..)(?!$)', '$1:'
-                $devs += @{ mac = $mac; name = $i.Name; paired = $true; connected = ("$($d.ConnectionStatus)" -eq 'Connected'); battery = '' }
-            }
-        }
+        $devs = @(Find-BtDevices $true | ForEach-Object {
+                @{ mac = $_.mac; name = $_.name; paired = $true; connected = ("$($_.dev.ConnectionStatus)" -eq 'Connected'); battery = '' } })
         Out-Json @{ on = [bool]($r -and "$($r.State)" -eq 'On'); present = [bool]$r; devices = $devs }
+    }
+    'btscan' {   # devices in range that can be paired (Settings > Bluetooth > Nearby Devices)
+        $devs = @(Find-BtDevices $false | Where-Object { $_.name -and $_.info.Pairing.CanPair } | ForEach-Object {
+                @{ mac = $_.mac; name = $_.name; paired = $false; connected = $false; battery = '' } })
+        Out-Json @{ devices = $devs }
+    }
+    'btpair' {   # btpair <MAC>: pair a nearby device (Windows shows its own PIN/confirm prompt if the device needs one)
+        $t = Find-BtDevices $false | Where-Object { $_.mac -eq $Rest[0] } | Select-Object -First 1
+        if (-not $t) { Fail 'Device not found. Put it in pairing mode and try again.' 10 }
+        $res = Await ($t.info.Pairing.PairAsync()) ([Windows.Devices.Enumeration.DevicePairingResult])
+        $st = "$($res.Status)"
+        if ($st -ne 'Paired' -and $st -ne 'AlreadyPaired') { Fail "Could not pair ($st). Put the device in pairing mode and try again." 11 }
+    }
+    'btforget' {   # btforget <MAC>: unpair (macOS "Forget This Device")
+        $t = Find-BtDevices $true | Where-Object { $_.mac -eq $Rest[0] } | Select-Object -First 1
+        if (-not $t) { Fail 'Device not found.' 10 }
+        $res = Await ($t.info.Pairing.UnpairAsync()) ([Windows.Devices.Enumeration.DeviceUnpairingResult])
+        if ("$($res.Status)" -ne 'Unpaired' -and "$($res.Status)" -ne 'AlreadyUnpaired') { Fail "Could not forget the device ($($res.Status))." 12 }
     }
     default { Fail "winnet.ps1: unknown command '$Cmd'" 64 }
 }

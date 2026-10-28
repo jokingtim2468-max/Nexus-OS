@@ -85,6 +85,19 @@ class Mock(unittest.TestCase):
         _, out, _ = run(["net", "status"], self.path)
         self.assertTrue(out.split("\n")[1].startswith("yes:Home-5G:"))
 
+    def test_scan_then_pair_then_forget(self):
+        _, out, _ = run(["bt", "status"], self.path)
+        self.assertNotIn("JBL Flip 6", out)                                # remembered devices only
+        run(["bt", "scan"], self.path)
+        _, out, _ = run(["bt", "status"], self.path)
+        self.assertIn("D:AA:BB:CC:66:77:88\t0\t0\t\tJBL Flip 6", out)     # nearby = unpaired
+        run(["bt", "connect", "AA:BB:CC:66:77:88"], self.path)
+        _, out, _ = run(["bt", "status"], self.path)
+        self.assertIn("D:AA:BB:CC:66:77:88\t1\t1\t\tJBL Flip 6", out)     # paired + connected
+        run(["bt", "forget", "AA:BB:CC:66:77:88"], self.path)
+        _, out, _ = run(["bt", "status"], self.path)
+        self.assertNotIn("JBL Flip 6", out)
+
     def test_airplane(self):
         run(["airplane", "on"], self.path)
         with open(self.path) as fh:
@@ -112,6 +125,35 @@ class WindowsBackend(unittest.TestCase):
         with mock.patch("subprocess.run", return_value=fake):
             out = H.fmt_net_status(be.status())
         self.assertIn("eth", out.split("\n"))
+
+
+class WindowsBluetooth(unittest.TestCase):
+    def setUp(self):
+        self.be = H.WindowsBackend()
+        self.be.NEARBY = os.path.join(tempfile.mkdtemp(), "nearby.json")
+
+    def ps(self, payload, code=0):
+        return mock.patch("subprocess.run", return_value=mock.Mock(returncode=code, stderr="",
+                                                                   stdout=json.dumps(payload)))
+
+    def test_scan_results_are_listed_as_unpaired(self):
+        jbl = {"mac": "AA:BB", "name": "JBL", "paired": False, "connected": False, "battery": ""}
+        with self.ps({"devices": [jbl]}):
+            self.be.bt_scan()
+        with self.ps({"on": True, "devices": []}):
+            out = H.fmt_bt_status(self.be.bt())
+        self.assertIn("D:AA:BB\t0\t0\t\tJBL", out)
+
+    def test_connecting_a_nearby_device_pairs_it(self):
+        with open(self.be.NEARBY, "w") as fh:
+            json.dump({"at": __import__("time").time(), "devices": [{"mac": "AA:BB"}]}, fh)
+        with self.ps({}) as run_:
+            self.be.bt_connect("AA:BB", True)
+        self.assertIn("btpair", run_.call_args[0][0])
+
+    def test_paired_device_connect_explains_windows_behaviour(self):
+        with self.assertRaises(H.Fail):
+            self.be.bt_connect("CC:DD", True)
 
 
 class LinuxPassThrough(unittest.TestCase):
