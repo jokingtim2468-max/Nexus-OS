@@ -88,7 +88,12 @@ void IpcServerConnection::onReadyRead() {
 	this->stream.startTransaction();
 	IpcCommand command;
 	this->stream >> command;
-	if (!this->stream.commitTransaction()) return;
+	if (!this->stream.commitTransaction()) {
+		// Not all of the request is here yet (Windows pipes deliver it in pieces): end the outer
+		// transaction too, which rewinds the stream, and read it again on the next readyRead.
+		this->stream.commitTransaction();
+		return;
+	}
 
 	std::visit(
 	    [this]<typename Command>(Command& command) {

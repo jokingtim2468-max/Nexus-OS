@@ -203,13 +203,13 @@ public:
 		QElapsedTimer timer;
 		timer.start();
 		while (timer.elapsed() < 15000) {
-			if (this->socket.bytesAvailable() > 0 || this->socket.waitForReadyRead(100)) {
+			if (this->socket.bytesAvailable() > 0) {
 				this->stream.startTransaction();
 				this->stream >> slot;
-				if (this->stream.commitTransaction()) return true;
+				if (this->stream.commitTransaction()) return true; // else: incomplete, rewound
 			}
 			if (this->socket.state() == QLocalSocket::UnconnectedState) break;
-			QCoreApplication::processEvents();
+			this->socket.waitForReadyRead(100); // fetch more of the reply
 		}
 
 		qCCritical(logIpc) << "Error occurred while waiting for response.";
