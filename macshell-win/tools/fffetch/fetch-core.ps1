@@ -1,7 +1,8 @@
-# fffetch — FreeForm's fastfetch: the FF logo and this PC's specs.
-#   fffetch            (cmd or PowerShell, once install.ps1 has put it on PATH)
-#   fffetch -NoLogo    specs only
-param([switch]$NoLogo)
+# fetch — FreeForm's fastfetch: the FF logo and this PC's specs.
+#   fetch              (cmd or PowerShell, once FreeForm is installed; fffetch works too)
+#   fetch -NoLogo       specs only
+#   fetch -NoAnim       skip the falling-FF intro
+param([switch]$NoLogo, [switch]$NoAnim)
 $ErrorActionPreference = 'SilentlyContinue'
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 # colours: Windows PowerShell 5.1 in a cmd window needs virtual-terminal mode switched on
@@ -54,8 +55,21 @@ Add-Type -AssemblyName System.Windows.Forms
 $scr = ([System.Windows.Forms.Screen]::AllScreens | ForEach-Object { "$($_.Bounds.Width)x$($_.Bounds.Height)" }) -join ', '
 $dark = (Get-ItemProperty 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize').AppsUseLightTheme -eq 0
 $ff = if (Get-Process -Name qs, quickshell -ErrorAction SilentlyContinue) { 'FreeForm (MacShell, running)' } else { 'FreeForm (not running)' }
-$shellName = if ($env:PSModulePath -and $Host.Name -match 'ConsoleHost') { "PowerShell $($PSVersionTable.PSVersion)" } else { 'cmd' }
-if ($env:FFFETCH_SHELL) { $shellName = $env:FFFETCH_SHELL }
+# the shell the user typed `fetch` in: walk up past fetch.cmd's cmd.exe and this powershell.exe
+$shellName = 'cmd'
+$procId = $PID
+for ($k = 0; $k -lt 4; $k++) {
+    $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$procId"
+    if (-not $proc) { break }
+    $parent = Get-CimInstance Win32_Process -Filter "ProcessId=$($proc.ParentProcessId)"
+    if (-not $parent) { break }
+    if ($k -ge 1) {                       # 0 = cmd.exe running fetch.cmd
+        if ($parent.Name -eq 'pwsh.exe') { $shellName = 'PowerShell ' + (Get-Item $parent.ExecutablePath).VersionInfo.ProductVersion; break }
+        if ($parent.Name -eq 'powershell.exe') { $shellName = 'Windows PowerShell 5.1'; break }
+        if ($parent.Name -ne 'cmd.exe') { break }
+    }
+    $procId = $proc.ParentProcessId
+}
 function fmtUp($t) { $p = @(); if ($t.Days) { $p += "$($t.Days) days" }; if ($t.Hours) { $p += "$($t.Hours) hours" }; $p += "$($t.Minutes) mins"; $p -join ', ' }
 
 $user = "$env:USERNAME@$env:COMPUTERNAME"
@@ -82,11 +96,72 @@ $info += ""
 $info += ((0..7 | ForEach-Object { "$e[4${_}m   " }) -join '') + $R
 $info += ((0..7 | ForEach-Object { "$e[10${_}m   " }) -join '') + $R
 
-Write-Host ""
+# the finished lines (logo + specs side by side)
 $n = [Math]::Max($logo.Count, $info.Count)
+$lines = @()
 for ($i = 0; $i -lt $n; $i++) {
     $l = if ($NoLogo) { '' } elseif ($i -lt $logo.Count) { $logo[$i] } else { '  ' + ' ' * 22 }
     $r = if ($i -lt $info.Count) { $info[$i] } else { '' }
-    if ($NoLogo) { Write-Host $r } else { Write-Host ("{0}$R   {1}" -f $l.PadRight(24 + ($l.Length - ($l -replace "$e\[[0-9;]*m", '').Length)), $r) }
+    if ($NoLogo) { $lines += $r } else { $lines += ("{0}${R}   {1}" -f $l.PadRight(24 + ($l.Length - ($l -replace "$e\[[0-9;]*m", '').Length)), $r) }
+}
+function VisLen([string]$t) { ($t -replace "$e\[[0-9;]*m", '').Length }
+
+# ── intro: little FF logos fall with gravity, tumble and bounce, then pile up behind the text ──
+$animate = -not $NoAnim -and -not [Console]::IsOutputRedirected -and $Host.UI.RawUI.WindowSize.Width -ge 60
+$pile = @()
+if ($animate) {
+    $rows = $lines.Count + 2
+    $width = [Math]::Min($Host.UI.RawUI.WindowSize.Width - 3, 110)
+    Write-Host ("`n" * $rows) -NoNewline
+    $top = [Console]::CursorTop - $rows
+    [Console]::CursorVisible = $false
+    $rnd = New-Object Random
+    $palette = @(39, 45, 69, 75, 99, 135, 141)
+    $floor = @{}                                   # column -> lowest free row
+    $ps = @(for ($k = 0; $k -lt 22; $k++) {
+        [pscustomobject]@{ x = [double]$rnd.Next(1, $width - 2); y = -[double]$rnd.Next(0, 14); vx = ($rnd.NextDouble() - 0.5) * 0.9
+            vy = 0.0; spin = $rnd.Next(0, 4); c = $palette[$rnd.Next(0, $palette.Count)]; done = $false; ox = -1; oy = -1; bounces = 0 } })
+    $glyphs = @('FF', "$([char]0x2132)$([char]0x2132)", 'FF', "$([char]0x2132)F")   # F, turned F: it tumbles
+    for ($f = 0; $f -lt 70 -and ($ps | Where-Object { -not $_.done }); $f++) {
+        foreach ($p in $ps) {
+            if ($p.done) { continue }
+            $p.vy += 0.16; $p.y += $p.vy; $p.x += $p.vx
+            if ($p.x -lt 0) { $p.x = 0; $p.vx = -$p.vx }
+            if ($p.x -gt $width - 2) { $p.x = $width - 2; $p.vx = -$p.vx }
+            $col = [int][Math]::Round($p.x)
+            $ground = if ($floor.ContainsKey($col)) { $floor[$col] } else { $rows - 1 }
+            if ($p.y -ge $ground) {
+                $p.y = $ground
+                if ($p.bounces -lt 2 -and [Math]::Abs($p.vy) -gt 0.5) { $p.vy = -$p.vy * 0.45; $p.vx *= 0.6; $p.bounces++ }
+                else { $p.done = $true; foreach ($dc in -1..2) { $floor[$col + $dc] = $ground - 1 } }
+            }
+            $px = [int][Math]::Round($p.x); $py = [int][Math]::Floor($p.y)
+            if ($p.oy -ge 0 -and ($p.ox -ne $px -or $p.oy -ne $py)) { [Console]::SetCursorPosition($p.ox, $top + $p.oy); [Console]::Write('  ') }
+            if ($py -ge 0) {
+                $g = if ($p.done) { 'FF' } else { $glyphs[($p.spin + $f) % 4] }
+                [Console]::SetCursorPosition($px, $top + $py); [Console]::Write("$(c $p.c)$g$R")
+                $p.ox = $px; $p.oy = $py
+            }
+        }
+        Start-Sleep -Milliseconds 28
+    }
+    $pile = $ps | Where-Object { $_.oy -ge 0 }
+    [Console]::SetCursorPosition(0, $top)
+}
+
+Write-Host ""
+for ($i = 0; $i -lt $lines.Count; $i++) {
+    if ($animate) { [Console]::SetCursorPosition(0, $top + 1 + $i); [Console]::Write((' ' * (VisLen $lines[$i]))) ; [Console]::SetCursorPosition(0, $top + 1 + $i) }
+    Write-Host $lines[$i]
+}
+if ($animate) {
+    # the fallen logos stay where the text doesn't cover them: "behind" it
+    foreach ($p in $pile) {
+        $row = $p.oy - 1
+        $textLen = if ($row -ge 0 -and $row -lt $lines.Count) { VisLen $lines[$row] } else { 0 }
+        if ($p.ox -ge $textLen) { [Console]::SetCursorPosition($p.ox, $top + $p.oy); [Console]::Write("$(c $p.c)FF$R") }
+    }
+    [Console]::SetCursorPosition(0, $top + $rows)
+    [Console]::CursorVisible = $true
 }
 Write-Host ""

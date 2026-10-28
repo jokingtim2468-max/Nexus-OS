@@ -128,17 +128,17 @@ jobs:
           if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
           Get-Content smoke\qs-err.log -Tail 80
 
-      - name: fffetch in cmd and PowerShell
+      - name: fetch in cmd and PowerShell
         shell: pwsh
         continue-on-error: true
         run: |
           New-Item -ItemType Directory -Force -Path smoke | Out-Null
-          cmd /c "macshell-win\tools\fffetch\fffetch.cmd" *> smoke\fffetch-cmd.txt
+          cmd /c "macshell-win\tools\fffetch\fetch.cmd" *> smoke\fffetch-cmd.txt
           & pkg\FreeForm\compat\helper\macshell-helper.exe net status *> smoke\helper-net.txt
           & pkg\FreeForm\compat\helper\macshell-helper.exe bt status *> smoke\helper-bt.txt
           & pkg\FreeForm\compat\helper\macshell-helper.exe store search vlc *> smoke\helper-store.txt
           & pkg\FreeForm\compat\helper\macshell-helper.exe about *> smoke\helper-about.txt
-          powershell -NoProfile -ExecutionPolicy Bypass -File macshell-win\tools\fffetch\fffetch.ps1 *> smoke\fffetch-ps.txt
+          powershell -NoProfile -ExecutionPolicy Bypass -File macshell-win\tools\fffetch\fetch-core.ps1 *> smoke\fffetch-ps.txt
           Get-Content smoke\fffetch-ps.txt
 
       - uses: actions/upload-artifact@v4
