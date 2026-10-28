@@ -39,6 +39,8 @@ $env:PATH = (Join-Path $root 'python') + ';' + $env:FREEFORM_HELPER + ';' + (Joi
 $qs = Join-Path $root 'bin\qs.exe'
 $shell = Join-Path $root 'shell\shell.qml'
 
+# Start Menu apps -> MacShell's app list (Dock, Spotlight, Launchpad); refreshed in the background
+Start-Process -FilePath (Join-Path $env:FREEFORM_HELPER 'macshell-helper.exe') -ArgumentList 'apps', 'sync' -WindowStyle Hidden
 $p = Start-Process -FilePath $qs -ArgumentList @('-p', "`"$shell`"") -WindowStyle Hidden -PassThru
 if (-not $KeepTaskbar) {
     Start-Sleep -Seconds 3

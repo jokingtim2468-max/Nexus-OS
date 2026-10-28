@@ -7,6 +7,8 @@
 #include <qpainter.h>
 #include <qpixmap.h>
 #include <qsize.h>
+#include <qdir.h>
+#include <qfile.h>
 #include <qstring.h>
 
 QPixmap
@@ -30,7 +32,8 @@ IconImageProvider::requestPixmap(const QString& id, QSize* size, const QSize& re
 		}
 	}
 
-	auto icon = QIcon::fromTheme(iconName);
+	// An image file instead of a theme name (Windows apps: icons extracted from their .exe).
+	auto icon = QDir::isAbsolutePath(iconName) && QFile::exists(iconName) ? QIcon(iconName) : QIcon::fromTheme(iconName);
 	if (icon.isNull() && !fallbackName.isEmpty()) icon = QIcon::fromTheme(fallbackName);
 	if (icon.isNull() && !path.isEmpty()) icon = QPixmap(path);
 

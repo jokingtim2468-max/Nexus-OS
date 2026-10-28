@@ -110,6 +110,8 @@ jobs:
           $env:HOME = $env:USERPROFILE
           $env:PATH = "$env:FREEFORM_HELPER;$env:PATH"
           New-Item -ItemType Directory -Force -Path smoke | Out-Null
+          & pkg\FreeForm\compat\helper\macshell-helper.exe apps sync *> smoke\apps-sync.txt
+          Get-ChildItem "$env:USERPROFILE\.local\share\applications" | Select-Object -First 40 Name | Out-File smoke\apps-list.txt
           $p = Start-Process -FilePath "dist\qs.exe" -ArgumentList @("-p", "$root\macshell-win\macshell\shell.qml", "-vv") `
                  -RedirectStandardOutput smoke\qs-out.log -RedirectStandardError smoke\qs-err.log -PassThru
           Start-Sleep -Seconds 35

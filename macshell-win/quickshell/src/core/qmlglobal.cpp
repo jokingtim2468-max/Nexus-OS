@@ -5,6 +5,7 @@
 #include <qcontainerfwd.h>
 #include <qcoreapplication.h>
 #include <qdir.h>
+#include <qfile.h>
 #include <qguiapplication.h>
 #include <qicon.h>
 #include <qjsengine.h>
@@ -335,7 +336,7 @@ QString QuickshellGlobal::iconPath(const QString& icon) {
 }
 
 QString QuickshellGlobal::iconPath(const QString& icon, bool check) {
-	if (check && QIcon::fromTheme(icon).isNull()) return "";
+	if (check && !(QDir::isAbsolutePath(icon) && QFile::exists(icon)) && QIcon::fromTheme(icon).isNull()) return "";
 	return IconImageProvider::requestString(icon);
 }
 

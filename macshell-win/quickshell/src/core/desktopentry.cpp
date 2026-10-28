@@ -493,7 +493,8 @@ const QStringList& DesktopEntryManager::desktopPaths() {
 		auto dataDirs = qEnvironmentVariable("XDG_DATA_DIRS");
 		if (dataDirs.isEmpty()) dataDirs = "/usr/local/share:/usr/share";
 
-		for (const auto& dir: dataDirs.split(':', Qt::SkipEmptyParts)) {
+		// ':' on Linux, ';' on Windows (paths there contain "C:")
+		for (const auto& dir: dataDirs.split(QDir::listSeparator(), Qt::SkipEmptyParts)) {
 			dataPaths.append(dir + "/applications");
 		}
 
