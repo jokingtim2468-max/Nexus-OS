@@ -28,6 +28,9 @@ import json
 import os
 import subprocess
 import sys
+
+# FreeForm's embeddable Python (python312._pth) leaves the script's folder off sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))

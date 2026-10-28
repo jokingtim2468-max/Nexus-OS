@@ -35,7 +35,8 @@ function Save-Art($s, $p, $key) {
             [IO.File]::WriteAllBytes($path, $bytes)
         }
     } catch {}
-    $artCache[$key] = $path
+    # apps often publish the cover a moment after the title: only remember a cover once we have one
+    if ($path) { $artCache[$key] = $path }
     $path
 }
 

@@ -24,28 +24,52 @@ def entry(app):
     """One .desktop file's text for an app from apps.ps1."""
     target = app.get("target") or ""
     wm = os.path.splitext(os.path.basename(target.replace("\\", "/")))[0].lower() if target else ""
-    exec_ = 'explorer.exe "%s"' % app["launch"]                         # opens exactly like the Start Menu
+    exec_ = "explorer.exe %s" % exec_arg(app["launch"])                 # opens exactly like the Start Menu
     lines = ["[Desktop Entry]", "Type=Application", "Name=%s" % app["name"], "Exec=%s" % exec_]
     if app.get("icon"):
-        lines.append("Icon=%s" % app["icon"])
+        lines.append("Icon=%s" % app["icon"].replace("\\", "/"))     # Qt reads C:/... fine; backslashes get mangled
     if wm:
         lines.append("StartupWMClass=%s" % wm)
     lines.append("X-FreeForm=1")
     return "\n".join(lines) + "\n"
 
 
+def exec_arg(s):
+    """One quoted Exec= argument: inside quotes the desktop-entry parser needs \\\\ per backslash."""
+    return '"%s"' % s.replace("\\", "\\" * 4).replace('"', '\\\\"')
+
+
+# FreeForm's own apps, so Spotlight and Launchpad find them: (name, IPC target, icon in shell/assets)
+OWN = [("Widget Studio", "widgetstudio", "freeform-logo.png"), ("Music", "music", "music-app.svg"),
+       ("Theme Studio", "themestudio", "freeform-logo.png"), ("App Store", "appstore", "freeform-logo.png"),
+       ("FreeForm Settings", "settings", "freeform-logo.png"), ("Welcome Tour", "tour", "freeform-logo.png")]
+
+
+def own_entries(root):
+    """.desktop text for FreeForm's own apps; each opens through `qs ipc call <target> open`."""
+    qs = os.path.join(root, "bin", "qs.exe")
+    shell = os.path.join(root, "shell", "shell.qml")
+    out = []
+    for name, target, icon in OWN:
+        verb = "start" if target == "tour" else "open"
+        exec_ = "%s ipc -p %s call %s %s" % (exec_arg(qs), exec_arg(shell), target, verb)
+        out.append((name, "\n".join(["[Desktop Entry]", "Type=Application", "Name=%s" % name, "Exec=%s" % exec_,
+                                     "Icon=%s" % os.path.join(root, "shell", "assets", icon).replace("\\", "/"),
+                                     "Categories=FreeForm;", "X-FreeForm=1"]) + "\n"))
+    return out
+
+
 def filename(name):
     return "ff-" + re.sub(r"[^a-z0-9._-]", "_", name.lower()) + ".desktop"
 
 
-def write_all(apps, d):
+def write_all(apps, d, own=()):
     os.makedirs(d, exist_ok=True)
     keep = set()
-    for a in apps:
-        f = filename(a["name"])
+    items = [(filename(a["name"]), entry(a)) for a in apps] + [(filename("freeform " + n), t) for n, t in own]
+    for f, text in items:
         keep.add(f)
         path = os.path.join(d, f)
-        text = entry(a)
         try:
             with open(path, encoding="utf-8") as fh:
                 if fh.read() == text:
@@ -77,5 +101,6 @@ def main(argv):
         return 1
     if isinstance(apps, dict):
         apps = [apps]
-    print("%d apps" % write_all(apps, desktop_dir()))
+    root = os.environ.get("FREEFORM_ROOT", "")
+    print("%d apps" % write_all(apps, desktop_dir(), own_entries(root) if root else ()))
     return 0

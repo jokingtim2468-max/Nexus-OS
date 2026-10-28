@@ -3,9 +3,11 @@
 
 #include <qcolor.h>
 #include <qicon.h>
+#include <qurl.h>
 #include <qlogging.h>
 #include <qpainter.h>
 #include <qpixmap.h>
+#include <qrect.h>
 #include <qsize.h>
 #include <qdir.h>
 #include <qfile.h>
@@ -33,7 +35,9 @@ IconImageProvider::requestPixmap(const QString& id, QSize* size, const QSize& re
 	}
 
 	// An image file instead of a theme name (Windows apps: icons extracted from their .exe).
-	auto icon = QDir::isAbsolutePath(iconName) && QFile::exists(iconName) ? QIcon(iconName) : QIcon::fromTheme(iconName);
+	// The id arrives URL-encoded ("C:/Users/Jo%20Doe/..."), so decode it before looking for the file.
+	auto iconFile = QUrl::fromPercentEncoding(iconName.toUtf8());
+	auto icon = QDir::isAbsolutePath(iconFile) && QFile::exists(iconFile) ? QIcon(iconFile) : QIcon::fromTheme(iconName);
 	if (icon.isNull() && !fallbackName.isEmpty()) icon = QIcon::fromTheme(fallbackName);
 	if (icon.isNull() && !path.isEmpty()) icon = QPixmap(path);
 
@@ -57,6 +61,20 @@ QPixmap IconImageProvider::missingPixmap(const QSize& size) {
 	height = std::max(height, 2);
 
 	auto pixmap = QPixmap(width, height);
+#ifdef _WIN32
+	// FreeForm: a plain gray app tile instead of the debug checkerboard
+	pixmap.fill(Qt::transparent);
+	{
+		auto tile = QPainter(&pixmap);
+		tile.setRenderHint(QPainter::Antialiasing);
+		tile.setPen(Qt::NoPen);
+		tile.setBrush(QColor(0x8e8e93));
+		auto r = width * 0.1;
+		tile.drawRoundedRect(QRectF(r, r, width - 2 * r, height - 2 * r), width * 0.22, height * 0.22);
+		tile.setBrush(QColor(0xe5e5ea));
+		tile.drawRoundedRect(QRectF(width * 0.34, height * 0.34, width * 0.32, height * 0.32), width * 0.06, height * 0.06);
+	}
+#else
 	pixmap.fill(QColorConstants::Black);
 	auto painter = QPainter(&pixmap);
 
@@ -65,6 +83,7 @@ QPixmap IconImageProvider::missingPixmap(const QSize& size) {
 	auto purple = QColor(0xd900d8);
 	painter.fillRect(halfWidth, 0, halfWidth, halfHeight, purple);
 	painter.fillRect(0, halfHeight, halfWidth, halfHeight, purple);
+#endif
 	return pixmap;
 }
 

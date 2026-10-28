@@ -13,8 +13,8 @@ class Entries(unittest.TestCase):
         t = A.entry({"name": "Firefox", "launch": r"C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Firefox.lnk",
                      "target": r"C:\Program Files\Mozilla Firefox\firefox.exe", "icon": r"C:\icons\firefox.png"})
         self.assertIn("StartupWMClass=firefox\n", t)                         # == Toplevel.appId on Windows
-        self.assertIn('Exec=explorer.exe "C:\\ProgramData', t)
-        self.assertIn("Icon=C:\\icons\\firefox.png", t)
+        self.assertIn('Exec=explorer.exe "C:' + "\\" * 4 + 'ProgramData', t)   # quoted Exec: 4 backslashes = 1
+        self.assertIn("Icon=C:/icons/firefox.png", t)
 
     def test_store_app_has_no_wm_class(self):
         t = A.entry({"name": "Spotify", "launch": "shell:AppsFolder\\SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify", "target": "", "icon": ""})

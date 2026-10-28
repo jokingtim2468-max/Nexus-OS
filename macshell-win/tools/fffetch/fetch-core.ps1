@@ -27,16 +27,16 @@ $W = c 255; $S = c 244               # logo: white strokes, gray shading
 
 # The FF logo drawn with letters, the way distro logos are: white F strokes, gray right/bottom edge
 $logo = @(
-    "$W FFFFFFFFFF$S:$W  FFFFFFFFFF$S:",
-    "$W FFFFFFFFFF$S:$W  FFFFFFFFFF$S:",
-    "$W FFF$S:::::::$W   FFF$S:::::::",
-    "$W FFF$S:        $W FFF$S:",
-    "$W FFFFFFFF$S:   $W FFFFFFFF$S:",
-    "$W FFFFFFFF$S:   $W FFFFFFFF$S:",
-    "$W FFF$S:::::    $W FFF$S:::::",
-    "$W FFF$S:        $W FFF$S:",
-    "$W FFF$S:        $W FFF$S:",
-    "$W FFF$S:        $W FFF$S:",
+    "$W FFFFFFFFFF${S}:$W  FFFFFFFFFF${S}:",
+    "$W FFFFFFFFFF${S}:$W  FFFFFFFFFF${S}:",
+    "$W FFF${S}:::::::$W   FFF${S}:::::::",
+    "$W FFF${S}:        $W FFF${S}:",
+    "$W FFFFFFFF${S}:   $W FFFFFFFF${S}:",
+    "$W FFFFFFFF${S}:   $W FFFFFFFF${S}:",
+    "$W FFF${S}:::::    $W FFF${S}:::::",
+    "$W FFF${S}:        $W FFF${S}:",
+    "$W FFF${S}:        $W FFF${S}:",
+    "$W FFF${S}:        $W FFF${S}:",
     "$S  ::::        ::::",
     "",
     "$W    F R E E F O R M"
@@ -84,7 +84,7 @@ $shellName = switch ($user.Name) {
     default { 'cmd' }
 }
 function fmtUp($t) { $p = @(); if ($t.Days) { $p += "$($t.Days) day$(if ($t.Days -ne 1) {'s'})" }; if ($t.Hours) { $p += "$($t.Hours) hour$(if ($t.Hours -ne 1) {'s'})" }; $p += "$($t.Minutes) min$(if ($t.Minutes -ne 1) {'s'})"; $p -join ', ' }
-function kv($k, $v) { "$KEY$k$DIM: $VAL$v" }
+function kv($k, $v) { "$KEY$k${DIM}: $VAL$v" }
 
 # fastfetch's default module order
 $userLine = "$env:USERNAME@$env:COMPUTERNAME"

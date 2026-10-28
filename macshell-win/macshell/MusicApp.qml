@@ -35,15 +35,28 @@ Scope {
     property string search: ""
 
     // what's playing in another app (Spotify, Apple Music, a browser with SoundCloud…)
+    // the Spotify desktop app, when it's installed (Start Menu / Microsoft Store on Windows): used directly, no login here
+    readonly property var spotifyApp: {
+        var es = DesktopEntries.applications.values;
+        for (var i = 0; i < es.length; i++) if (/^spotify/i.test(es[i].name || "")) return es[i];
+        return null;
+    }
+    // Spotify first (playing, then paused), else any other playing app
     readonly property var other: {
-        var ps = Mpris.players.values, best = null;
+        var ps = Mpris.players.values, best = null, spot = null;
         for (var i = 0; i < ps.length; i++) {
             if (/freeform|quickshell/i.test(ps[i].identity || "")) continue;
-            if (ps[i].isPlaying) return ps[i];
-            if (!best) best = ps[i];
+            var isSpot = /spotify/i.test(ps[i].identity || "");
+            if (isSpot && ps[i].isPlaying) return ps[i];
+            if (isSpot) spot = ps[i];
+            else if (ps[i].isPlaying && !best) best = ps[i];
         }
-        return best;
+        if (best) return best;
+        if (spot) return spot;
+        for (var j = 0; j < ps.length; j++) if (!/freeform|quickshell/i.test(ps[j].identity || "")) return ps[j];
+        return null;
     }
+    function openSpotify() { if (spotifyApp) spotifyApp.execute(); else Qt.openUrlExternally("https://open.spotify.com"); }
     readonly property bool localActive: player.playbackState !== MediaPlayer.StoppedState && current !== null
     readonly property string npTitle: localActive ? current.title : (other ? other.trackTitle || "" : "")
     readonly property string npArtist: localActive ? current.artist + (current.album ? " — " + current.album : "") : (other ? (other.trackArtist || "") + (other.identity ? " · " + other.identity : "") : "")
@@ -407,14 +420,15 @@ Scope {
                                 Column {
                                     x: 92; width: parent.width - 92 - 140; anchors.verticalCenter: parent.verticalCenter; spacing: 4
                                     Text { text: svc.modelData.n + (root.other && new RegExp(svc.modelData.n.split(" ")[0], "i").test(root.other.identity || "") ? I18n.tr("  ·  playing now") : ""); color: pal.text; font.family: root.fam; font.pixelSize: 15; font.weight: Font.DemiBold }
-                                    Text { width: parent.width; wrapMode: Text.WordWrap; text: I18n.tr(svc.modelData.d); color: pal.text2; font.family: root.fam; font.pixelSize: 12 }
+                                    Text { width: parent.width; wrapMode: Text.WordWrap; color: pal.text2; font.family: root.fam; font.pixelSize: 12
+                                        text: svc.modelData.n === "Spotify" && root.spotifyApp ? I18n.tr("Spotify app found on this PC: it's used directly, no sign-in needed here. Whatever it plays shows at the top.") : I18n.tr(svc.modelData.d) }
                                 }
                                 Rectangle {
                                     anchors.right: parent.right; anchors.rightMargin: 16; anchors.verticalCenter: parent.verticalCenter
                                     width: ob.implicitWidth + 28; height: 28; radius: 14; color: root.accent
                                     Text { id: ob; anchors.centerIn: parent; text: I18n.tr("Open"); color: "white"; font.family: root.fam; font.pixelSize: 13; font.weight: Font.DemiBold }
                                     // spotify: opens the Spotify app when it's installed
-                                    MouseArea { anchors.fill: parent; onClicked: Qt.openUrlExternally(svc.modelData.app || svc.modelData.url) }
+                                    MouseArea { anchors.fill: parent; onClicked: svc.modelData.n === "Spotify" ? root.openSpotify() : Qt.openUrlExternally(svc.modelData.app || svc.modelData.url) }
                                 }
                             }
                         }

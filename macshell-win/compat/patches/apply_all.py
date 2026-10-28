@@ -16,11 +16,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import net_bt_windows  # noqa: E402
 import freeform_apps   # noqa: E402
+import freeform_windows_ui  # noqa: E402
 
 UPSTREAM = os.path.join(HERE, "..", "..", "..", "vendor", "MacShell", "MacShell")
 OURS = net_bt_windows.ROOT
 FILES = ["MacBar.qml", "MacDock.qml", "AboutApp.qml"]
-PATCHES = [net_bt_windows.EDITS, freeform_apps.EDITS]
+PATCHES = [net_bt_windows.EDITS, freeform_apps.EDITS, freeform_windows_ui.EDITS]
 
 
 def build(dest):

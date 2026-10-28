@@ -89,6 +89,11 @@ Scope {
 
     // ───────────── CONFIG (all persisted to settings.json) ─────────────
     property bool barEnabled: true           // the menu bar strip itself
+    // FreeForm (Windows): the bar tucks away while an app window is focused; touching the top edge brings it back
+    readonly property bool barAutoHide: Qt.platform.os === "windows"
+    property bool barPeek: false
+    readonly property bool barAppFocused: barAutoHide && ToplevelManager.activeToplevel !== null
+    Timer { id: barUnpeek; interval: 600; onTriggered: root.barPeek = false }
     // every part of the shell can be switched off on its own (the installer's feature picker writes these too)
     property bool spotlightEnabled: true     // Spotlight (the magnifier / its keybind)
     property bool ccEnabled: true            // Control Center
@@ -375,16 +380,25 @@ Scope {
     readonly property string dockConfigDir: Quickshell.env("HOME") + "/.config/macdock"
     readonly property int popRoom: 900
 
-    function sh(cmd) { Quickshell.execDetached(["sh", "-c", cmd]); }
+    function sh(cmd) {
+        if (Qt.platform.os === "windows") {                                  // FreeForm: Windows' own power commands
+            if (cmd === "systemctl reboot") Quickshell.execDetached(["shutdown.exe", "/r", "/t", "0"]);
+            else if (cmd === "systemctl poweroff") Quickshell.execDetached(["shutdown.exe", "/s", "/t", "0"]);
+            return;
+        }
+        Quickshell.execDetached(["sh", "-c", cmd]);
+    }
     // Log out of Hyprland. 0.55+ (Lua) takes a Lua expression; UWSM sessions are stopped through uwsm so the session ends cleanly.
     // Lock Screen: starts MacLock via IPC helper; does nothing if already locked
     function lockScreen() {
         sh('sh ~/.config/quickshell/MacLock/lock-via-ipc.sh');
     }
     function sleepMachine() {
+        if (Qt.platform.os === "windows") { Quickshell.execDetached(["rundll32.exe", "powrprof.dll,SetSuspendState", "0,1,0"]); return; }
         sh('sh ~/.config/quickshell/MacLock/lock-via-ipc.sh; sleep 0.5; systemctl suspend');
     }
     function logOut() {
+        if (Qt.platform.os === "windows") { Qt.quit(); return; }            // FreeForm: back to the Windows desktop
         sh('if command -v uwsm >/dev/null 2>&1 && uwsm check is-active >/dev/null 2>&1; then uwsm stop; '
            + 'else hyprctl dispatch "hl.dsp.exit()" || hyprctl dispatch exit; fi');
     }
@@ -3013,7 +3027,8 @@ Scope {
             m.push(mc("Restart\u2026", function () { sh("systemctl reboot"); }));
             m.push(mc("Shut Down\u2026", function () { sh("systemctl poweroff"); }));
             m.push(msep());
-            m.push(mc("Log Out\u2026", function () { root.logOut(); }));
+            m.push(Qt.platform.os === "windows" ? mi("Quit FreeForm", "", function () { Qt.quit(); })
+                                                : mc("Log Out\u2026", function () { root.logOut(); }));
         } else {
             var id = activeAppId.toLowerCase(), kind = appKind(id), has = activeAppId !== "";
             var aw = (has && activeWin && String(activeWin["class"]).toLowerCase() === id) ? activeWin : null;
@@ -4184,6 +4199,7 @@ Scope {
     }
     property int wsMin: 4                    // always show at least workspaces 1..wsMin (set 0 to show only existing ones)
     readonly property var wsIds: {
+        if (Qt.platform.os === "windows") return [];
         var ids = [], vals = Hyprland.workspaces.values;
         for (var i = 1; i <= root.wsMin; i++) ids.push(i);
         for (var j = 0; j < vals.length; j++) {
@@ -4333,7 +4349,7 @@ Scope {
         PanelWindow {
             id: barBgWin
             screen: perScreen.modelData
-            visible: root.barBgOpacity > 0.001
+            visible: root.barBgOpacity > 0.001 && ui.tuckShift < 1
             anchors { left: true; right: true; top: true }
             implicitHeight: root.barHeight
             color: "transparent"
@@ -4353,6 +4369,19 @@ Scope {
         }
 
         PanelWindow {
+            screen: perScreen.modelData
+            visible: root.barAppFocused
+            anchors { left: true; right: true; top: true }
+            implicitHeight: 2
+            color: "transparent"
+            exclusionMode: ExclusionMode.Ignore
+            WlrLayershell.namespace: "macbarpeek"
+            WlrLayershell.layer: WlrLayer.Overlay
+            WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+            HoverHandler { onHoveredChanged: if (hovered) { barUnpeek.stop(); root.barPeek = true; } }
+        }
+
+        PanelWindow {
             id: win
             property var modelData: perScreen.modelData
             screen: perScreen.modelData
@@ -4362,7 +4391,7 @@ Scope {
             color: "transparent"
 
             exclusionMode: ExclusionMode.Normal
-            exclusiveZone: root.barEnabled ? root.barHeight : 0
+            exclusiveZone: root.barEnabled && !root.barAutoHide ? root.barHeight : 0
 
             WlrLayershell.namespace: "macbar"
             WlrLayershell.layer: WlrLayer.Top
@@ -4373,6 +4402,15 @@ Scope {
             Item {
                 id: ui
                 anchors.fill: parent
+                // FreeForm: slid up out of sight while an app is focused (menus open keep it down)
+                readonly property bool tucked: root.barAppFocused && !root.barPeek && pop === ""
+                property real tuckShift: tucked ? root.barHeight + 6 : 0
+                Behavior on tuckShift { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+                transform: Translate { y: -ui.tuckShift }
+                HoverHandler {
+                    enabled: root.barAutoHide
+                    onHoveredChanged: if (hovered) { barUnpeek.stop(); root.barPeek = true; } else barUnpeek.restart()
+                }
 
                 property string pop: ""          // "", apple, app, file, edit, view, window, help, cc, cal
                 property real menuX: 0
@@ -5613,12 +5651,14 @@ Scope {
                 Item {
                     id: toastMask
                     x: toastArea.x; y: toastArea.y
+                    transform: Translate { y: ui.tuckShift }
                     width: ui.toastsShown ? toastArea.width : 0
                     height: ui.toastsShown ? toastArea.height : 0
                 }
                 Item {
                     id: toastArea
                     z: 12
+                    transform: Translate { y: ui.tuckShift }
                     width: 364
                     x: ui.width - width - 10
                     // a menu / popover open where the notifications are: they slide down below it, and back up after
