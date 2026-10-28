@@ -63,6 +63,16 @@ IpcServerConnection::IpcServerConnection(QLocalSocket* socket, IpcServer* server
 	QObject::connect(socket, &QLocalSocket::readyRead, this, &IpcServerConnection::onReadyRead);
 
 	qCInfo(logIpc) << "New IPC connection" << this;
+
+	// On Windows the pipe is read as soon as the connection is accepted, so the request can be
+	// buffered before readyRead was connected above: handle what's already there.
+	QMetaObject::invokeMethod(
+	    this,
+	    [this]() {
+		    if (this->socket->bytesAvailable() > 0) this->onReadyRead();
+	    },
+	    Qt::QueuedConnection
+	);
 }
 
 void IpcServerConnection::onDisconnected() {
