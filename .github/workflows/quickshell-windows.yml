@@ -59,8 +59,10 @@ jobs:
           if [ -n "$deploy" ]; then
             "$deploy" --qmldir macshell-win/macshell --no-translations dist/qs.exe || true
           fi
-          # any remaining MSYS2 DLLs (libstdc++, icu, zstd, ...)
-          ldd dist/qs.exe | awk '/ucrt64/ {print $3}' | xargs -r -I{} cp -n {} dist/
+          # Qt's QML modules (QtQuick.Effects, Controls, Shapes, ...) next to the exe, then every
+          # MSYS2 DLL the exe and those plugins need (libstdc++, icu, zstd, Qt6QuickEffects, ...)
+          cp -r "$MINGW_PREFIX/share/qt6/qml" dist/
+          for f in dist/qs.exe $(find dist -name '*.dll'); do ldd "$f"; done | awk '/ucrt64/ {print $3}' | sort -u | xargs -r -I{} cp -n {} dist/
           dist/qs.exe --version
 
       - uses: actions/upload-artifact@v4
@@ -75,7 +77,7 @@ jobs:
         continue-on-error: true
         run: |
           $root = (Get-Location).Path
-          $env:QML_IMPORT_PATH = "$root\macshell-win\compat\qml"
+          $env:QML_IMPORT_PATH = "$root\dist\qml;$root\macshell-win\compat\qml"
           $env:FREEFORM_HELPER = "$root\macshell-win\compat\helper"
           $env:HOME = $env:USERPROFILE
           $env:PATH = "$env:FREEFORM_HELPER;$env:PATH"
