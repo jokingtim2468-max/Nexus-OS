@@ -7,6 +7,7 @@
 #include <qquickwindow.h>
 #include <qscreen.h>
 #include <qtclasshelpermacros.h>
+#include <qtimer.h>
 #include <qtmetamacros.h>
 
 #include "../core/doc.hpp"
@@ -56,6 +57,8 @@ public:
 
 	[[nodiscard]] bool aboveWindows() const { return this->bAboveWindows; }
 	void setAboveWindows(bool aboveWindows) { this->bAboveWindows = aboveWindows; }
+	// The background layer (FreeForm's wallpaper): kept under every other bottom panel, e.g. desktop widgets.
+	void setLowest(bool lowest);
 
 	[[nodiscard]] Anchors anchors() const { return this->bAnchors; }
 	void setAnchors(Anchors anchors) { this->bAnchors = anchors; }
@@ -107,6 +110,9 @@ private:
 	QRect lastScreenVirtualGeometry;
 	WinPanelEventFilter eventFilter;
 	bool appBarRegistered = false;
+	bool mLowest = false;
+	QTimer lowestTimer;
+	void pushToBottom();
 	quintptr appBarHwnd = 0;
 
 	// clang-format off
@@ -158,6 +164,8 @@ public:
 	[[nodiscard]] bool focusable() const override;
 	void setFocusable(bool focusable) override;
 	// NOLINTEND
+
+	void setLowest(bool lowest) { this->panel->setLowest(lowest); }
 
 private:
 	WinPanelWindow* panel;

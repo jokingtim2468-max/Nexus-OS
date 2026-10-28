@@ -59,13 +59,24 @@ $shell = Join-Path $root 'shell\shell.qml'
 
 # Start Menu apps -> MacShell's app list (Dock, Spotlight, Launchpad); refreshed in the background
 Start-Process -FilePath (Join-Path $env:FREEFORM_HELPER 'macshell-helper.exe') -ArgumentList 'apps', 'sync' -WindowStyle Hidden
+# launcher settings (FreeFormLauncher.ps1 > Configure settings)
+$hideTaskbar = -not $KeepTaskbar; $hideIcons = -not $KeepTaskbar
+$cfgPath = Join-Path $env:APPDATA 'FreeForm\launcher.json'
+if (Test-Path $cfgPath) {
+    try {
+        $cfg = Get-Content $cfgPath -Raw | ConvertFrom-Json
+        if ($null -ne $cfg.hideTaskbar) { $hideTaskbar = $hideTaskbar -and [bool]$cfg.hideTaskbar }
+        if ($null -ne $cfg.hideIcons) { $hideIcons = $hideIcons -and [bool]$cfg.hideIcons }
+    } catch {}
+}
 $p = Start-Process -FilePath $qs -ArgumentList @('-p', "`"$shell`"") -WindowStyle Hidden -PassThru
 # Stay alive (hidden) so Windows always comes back, also when FreeForm crashes or is closed.
 # While FreeForm runs, re-hide every ~2s: Explorer restarts and new monitors bring the taskbar back.
 try {
     Start-Sleep -Seconds 3
     while (-not $p.HasExited) {
-        if (-not $KeepTaskbar) { Set-Taskbar $false; Set-DesktopIcons $false }
+        if ($hideTaskbar) { Set-Taskbar $false }
+        if ($hideIcons) { Set-DesktopIcons $false }
         [void]$p.WaitForExit(2000)
     }
 } finally { Restore-Windows }

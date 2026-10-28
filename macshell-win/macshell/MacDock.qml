@@ -225,7 +225,11 @@ Scope {
         { name: "Green",    c: "#30d158" }, { name: "Teal",   c: "#40c8e0" }, { name: "Graphite", c: "#8e8e93" },
         { name: "White",    c: "#ffffff" }, { name: "Black",  c: "#1c1c1e" }
     ]
-    readonly property var defaultPinned: [
+    readonly property var defaultPinned: Qt.platform.os === "windows" ? [
+        "ff-file_explorer", "ff-microsoft_edge", "ff-google_chrome", "ff-firefox", "ff-terminal",
+        "ff-visual_studio_code", "ff-discord", "ff-spotify", "ff-steam",
+        "ff-freeform_music", "ff-freeform_widget_studio", "ff-freeform_app_store", "ff-freeform_settings"
+    ] : [
         "org.gnome.Nautilus", "org.kde.dolphin", "thunar",
         "firefox", "zen", "chromium", "google-chrome",
         "kitty", "com.mitchellh.ghostty", "Alacritty", "foot",

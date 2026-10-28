@@ -10,6 +10,7 @@ void WlrLayershell::setLayer(WlrLayer::Enum layer) {
 	if (layer == this->mLayer) return;
 	this->mLayer = layer;
 	this->panel->setAboveWindows(layer >= WlrLayer::Top);
+	this->panel->setLowest(layer == WlrLayer::Background);
 	emit this->layerChanged();
 }
 

@@ -18,7 +18,7 @@ $ws = New-Object -ComObject WScript.Shell
 $ico = Join-Path $root 'shell\assets\freeform.ico'
 foreach ($path in $startMenu, $desktop) {
     $lnk = $ws.CreateShortcut($path)
-    $lnk.TargetPath = Join-Path $root 'FreeForm.cmd'
+    $lnk.TargetPath = Join-Path $root 'FreeFormLauncher.cmd'            # the launcher window (Launch / Configure)
     $lnk.WorkingDirectory = $root
     $lnk.WindowStyle = 7                                          # minimized: no console flash
     $lnk.Description = 'FreeForm'

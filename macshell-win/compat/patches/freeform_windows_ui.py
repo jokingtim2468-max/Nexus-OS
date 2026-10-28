@@ -6,12 +6,24 @@ Applied after freeform_apps.py (same engine: exact find -> replace, each must ma
    touches the top edge of the screen (or a menu is open). On Windows it no longer reserves
    space, so apps use the whole screen, like a macOS full-screen app.
 2. No workspace numbers: Windows has no Hyprland workspaces to switch.
+4. Dock: Windows apps pinned by default (ids are the ff-*.desktop files `apps sync` writes).
 3. Power: Restart / Shut Down use Windows' shutdown.exe, Sleep suspends, and "Log Out" becomes
    "Quit FreeForm" (the launcher then brings the taskbar back).
 
     python compat/patches/apply_all.py
 """
 EDITS = {
+    "MacDock.qml": [
+        # ── 4. Windows apps pinned by default ──
+        ('''    readonly property var defaultPinned: [
+        "org.gnome.Nautilus",''',
+         '''    readonly property var defaultPinned: Qt.platform.os === "windows" ? [
+        "ff-file_explorer", "ff-microsoft_edge", "ff-google_chrome", "ff-firefox", "ff-terminal",
+        "ff-visual_studio_code", "ff-discord", "ff-spotify", "ff-steam",
+        "ff-freeform_music", "ff-freeform_widget_studio", "ff-freeform_app_store", "ff-freeform_settings"
+    ] : [
+        "org.gnome.Nautilus",'''),
+    ],
     "MacBar.qml": [
         # ── 1. auto-hide state ──
         ('''    property bool barEnabled: true           // the menu bar strip itself''',

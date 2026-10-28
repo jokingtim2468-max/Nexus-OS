@@ -392,6 +392,27 @@ void WinPanelWindow::updateAboveWindows() {
 	this->window->setFlag(Qt::WindowStaysOnTopHint, above);
 }
 
+void WinPanelWindow::setLowest(bool lowest) {
+	if (lowest == this->mLowest) return;
+	this->mLowest = lowest;
+	if (lowest) {
+		// Windows reorders "stay on bottom" windows among themselves when one is clicked;
+		// pushing the background back down keeps desktop widgets visible above it.
+		this->lowestTimer.setInterval(500);
+		QObject::connect(&this->lowestTimer, &QTimer::timeout, this, &WinPanelWindow::pushToBottom, Qt::UniqueConnection);
+		this->lowestTimer.start();
+		this->pushToBottom();
+	} else {
+		this->lowestTimer.stop();
+	}
+}
+
+void WinPanelWindow::pushToBottom() {
+	if (this->window == nullptr || this->window->handle() == nullptr || !this->window->isVisible()) return;
+	auto* hwnd = reinterpret_cast<HWND>(this->window->winId()); // NOLINT
+	SetWindowPos(hwnd, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+}
+
 void WinPanelWindow::updateFocusable() {
 	if (this->window == nullptr) return;
 	this->window->setFlag(Qt::WindowDoesNotAcceptFocus, !this->bFocusable);

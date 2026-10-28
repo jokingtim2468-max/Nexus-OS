@@ -88,6 +88,7 @@ jobs:
           gcc -O2 -municode -o $P/compat/helper/macshell-helper.exe $P/compat/helper/helper-shim.c
           cp -r macshell-win/tools/fffetch $P/tools/
           cp macshell-win/tools/launcher/* $P/
+          echo "$(date -u +%Y.%m.%d)-${GITHUB_SHA::7}" > $P/version.txt
           cp macshell-win/macshell/LICENSE $P/LICENSE-MacShell.txt
           cp macshell-win/quickshell/LICENSE $P/LICENSE-Quickshell.txt
           # official embeddable Python from python.org (PSF licence), private to FreeForm
@@ -99,6 +100,78 @@ jobs:
         with:
           name: FreeForm-windows-x64
           path: pkg/
+
+      # Run MacShell on the Windows build and take a screenshot of the desktop (the runner has an
+      # interactive desktop session). Uploads the screenshot and Quickshell's log.
+      - name: Smoke run MacShell
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $root = (Get-Location).Path
+          $pkg = "$root\pkg\FreeForm"
+          $env:FREEFORM_ROOT = $pkg
+          $env:QML_IMPORT_PATH = "$pkg\bin\qml;$pkg\compat\qml"
+          $env:FREEFORM_HELPER = "$pkg\compat\helper"
+          $env:HOME = $env:USERPROFILE
+          $env:PATH = "$pkg\python;$env:FREEFORM_HELPER;$env:PATH"
+          New-Item -ItemType Directory -Force -Path smoke | Out-Null
+          & "$env:FREEFORM_HELPER\macshell-helper.exe" apps sync *> smoke\apps-sync.txt
+          "apps sync: $(Get-Content smoke\apps-sync.txt -Raw)"
+          Get-ChildItem "$env:USERPROFILE\.local\share\applications" -ErrorAction SilentlyContinue | Select-Object -First 60 Name | Out-File smoke\apps-list.txt
+          Get-Content smoke\apps-list.txt
+          Get-Content "$env:USERPROFILE\.local\share\applications\ff-freeform_widget_studio.desktop" -ErrorAction SilentlyContinue
+          $shell = "$pkg\shell\shell.qml"
+          $p = Start-Process -FilePath "$pkg\bin\qs.exe" -ArgumentList @("-p", "`"$shell`"", "-vv") `
+                 -RedirectStandardOutput smoke\qs-out.log -RedirectStandardError smoke\qs-err.log -PassThru
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          function Shot($name) {
+            $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+            $g = [System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+            $bmp.Save("smoke\$name.png", [System.Drawing.Imaging.ImageFormat]::Png)
+          }
+          function Ipc { & "$pkg\bin\qs.exe" ipc -p $shell call @args *>> smoke\ipc.txt }
+          Start-Sleep -Seconds 35
+          Ipc tour stop; Start-Sleep -Seconds 3; Shot desktop
+          Ipc widgetstudio open; Start-Sleep -Seconds 6; Shot widgetstudio; Ipc widgetstudio close
+          Ipc music open; Start-Sleep -Seconds 6; Shot music; Ipc music close
+          Ipc themestudio open; Start-Sleep -Seconds 5; Shot themestudio; Ipc themestudio close
+          Ipc about open; Start-Sleep -Seconds 5; Shot about
+          "exited: $($p.HasExited)  code: $(if ($p.HasExited) { $p.ExitCode })" | Tee-Object smoke\status.txt
+          if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
+          Get-Content smoke\ipc.txt
+          Select-String -Path smoke\qs-err.log, smoke\qs-out.log -Pattern 'ERROR|WARN.*(qml|QML)|is not a type|not installed|ReferenceError|TypeError' | Select-Object -First 80 | ForEach-Object { $_.Line }
+
+      - name: Check PowerShell scripts and the launcher window
+        shell: pwsh
+        run: |
+          $bad = 0
+          foreach ($f in Get-ChildItem macshell-win -Recurse -Filter *.ps1) {
+            $errs = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$errs)
+            foreach ($e in $errs) { "$($f.Name):$($e.Extent.StartLineNumber): $($e.Message)"; $bad++ }
+          }
+          $env:FREEFORM_LAUNCHER_TEST = '1'
+          $out = powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File pkg\FreeForm\FreeFormLauncher.ps1 2>&1
+          "launcher: $out"
+          if ("$out" -notmatch 'launcher window ok') { $bad++ }
+          if ($bad) { exit 1 }
+
+      - name: fetch in cmd and PowerShell
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          New-Item -ItemType Directory -Force -Path smoke | Out-Null
+          cmd /c "macshell-win\tools\fffetch\fetch.cmd" *> smoke\fffetch-cmd.txt
+          & pkg\FreeForm\compat\helper\macshell-helper.exe net status *> smoke\helper-net.txt
+          & pkg\FreeForm\compat\helper\macshell-helper.exe bt status *> smoke\helper-bt.txt
+          & pkg\FreeForm\compat\helper\macshell-helper.exe store search vlc *> smoke\helper-store.txt
+          & pkg\FreeForm\compat\helper\macshell-helper.exe about *> smoke\helper-about.txt
+          powershell -NoProfile -ExecutionPolicy Bypass -File macshell-win\tools\fffetch\fetch-core.ps1 *> smoke\fffetch-ps.txt
+          Get-Content smoke\fffetch-ps.txt
+          foreach ($f in 'fffetch-cmd', 'helper-net', 'helper-bt', 'helper-store', 'helper-about') { "── $f"; Get-Content "smoke\$f.txt" -TotalCount 25 }
 
       # The one-line installer (tools/launcher/get.ps1) downloads this zip from the
       # "freeform-latest" pre-release, refreshed on every push to the FreeForm branch.
@@ -115,50 +188,6 @@ jobs:
               --title "FreeForm (latest build)" --notes "Built automatically from the FreeForm branch."
           }
           gh release upload freeform-latest FreeForm-windows-x64.zip -R $env:GITHUB_REPOSITORY --clobber
-
-      # Run MacShell on the Windows build and take a screenshot of the desktop (the runner has an
-      # interactive desktop session). Uploads the screenshot and Quickshell's log.
-      - name: Smoke run MacShell
-        shell: pwsh
-        continue-on-error: true
-        run: |
-          $root = (Get-Location).Path
-          $env:QML_IMPORT_PATH = "$root\dist\qml;$root\macshell-win\compat\qml"
-          $env:FREEFORM_HELPER = "$root\pkg\FreeForm\compat\helper"
-          $env:PATH = "$root\pkg\FreeForm\python;$env:PATH"
-          $env:HOME = $env:USERPROFILE
-          $env:PATH = "$env:FREEFORM_HELPER;$env:PATH"
-          New-Item -ItemType Directory -Force -Path smoke | Out-Null
-          & pkg\FreeForm\compat\helper\macshell-helper.exe apps sync *> smoke\apps-sync.txt
-          Get-ChildItem "$env:USERPROFILE\.local\share\applications" | Select-Object -First 40 Name | Out-File smoke\apps-list.txt
-          $p = Start-Process -FilePath "dist\qs.exe" -ArgumentList @("-p", "$root\macshell-win\macshell\shell.qml", "-vv") `
-                 -RedirectStandardOutput smoke\qs-out.log -RedirectStandardError smoke\qs-err.log -PassThru
-          Start-Sleep -Seconds 35
-          & dist\qs.exe ipc -p "$root\macshell-win\macshell\shell.qml" call tour stop *> smoke\ipc.txt
-          & dist\qs.exe ipc -p "$root\macshell-win\macshell\shell.qml" call about open *>> smoke\ipc.txt
-          Start-Sleep -Seconds 6
-          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
-          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
-          $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
-          $g = [System.Drawing.Graphics]::FromImage($bmp)
-          $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
-          $bmp.Save("smoke\desktop.png", [System.Drawing.Imaging.ImageFormat]::Png)
-          "exited: $($p.HasExited)  code: $(if ($p.HasExited) { $p.ExitCode })" | Tee-Object smoke\status.txt
-          if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
-          Get-Content smoke\qs-err.log -Tail 80
-
-      - name: fetch in cmd and PowerShell
-        shell: pwsh
-        continue-on-error: true
-        run: |
-          New-Item -ItemType Directory -Force -Path smoke | Out-Null
-          cmd /c "macshell-win\tools\fffetch\fetch.cmd" *> smoke\fffetch-cmd.txt
-          & pkg\FreeForm\compat\helper\macshell-helper.exe net status *> smoke\helper-net.txt
-          & pkg\FreeForm\compat\helper\macshell-helper.exe bt status *> smoke\helper-bt.txt
-          & pkg\FreeForm\compat\helper\macshell-helper.exe store search vlc *> smoke\helper-store.txt
-          & pkg\FreeForm\compat\helper\macshell-helper.exe about *> smoke\helper-about.txt
-          powershell -NoProfile -ExecutionPolicy Bypass -File macshell-win\tools\fffetch\fetch-core.ps1 *> smoke\fffetch-ps.txt
-          Get-Content smoke\fffetch-ps.txt
 
       - uses: actions/upload-artifact@v4
         if: always()
