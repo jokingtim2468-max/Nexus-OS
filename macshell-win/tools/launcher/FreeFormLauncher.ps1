@@ -4,7 +4,7 @@
 # Settings: %APPDATA%\FreeForm\launcher.json (FreeForm.ps1 reads hideTaskbar / hideIcons from it).
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
-Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase
+Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, System.Windows.Forms
 
 $cfgDir = Join-Path $env:APPDATA 'FreeForm'
 $cfgPath = Join-Path $cfgDir 'launcher.json'
@@ -14,7 +14,11 @@ if (Test-Path $cfgPath) {
     try { (Get-Content $cfgPath -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $cfg[$_.Name] = $_.Value } } catch {}
 }
 function Save-Config { New-Item -ItemType Directory -Force -Path $cfgDir | Out-Null; $cfg | ConvertTo-Json | Set-Content $cfgPath -Encoding UTF8 }
-function Start-FreeForm { Start-Process -FilePath (Join-Path $root 'FreeForm.cmd') -WindowStyle Hidden }
+function Start-FreeForm([switch]$Force) {
+    $a = @{ FilePath = (Join-Path $root 'FreeForm.cmd'); WindowStyle = 'Hidden' }
+    if ($Force) { $a.ArgumentList = '-Force' }
+    Start-Process @a
+}
 
 # "Skip this window" (or -Launch): go straight to FreeForm. Hold Shift while opening to get the window anyway.
 $shift = [System.Windows.Input.Keyboard]::IsKeyDown([System.Windows.Input.Key]::LeftShift) -or
@@ -29,7 +33,7 @@ $logo = (Join-Path $root 'shell\assets\freeform-logo.png') -replace '\\', '/'
 [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="FreeForm" Width="600" Height="300" ResizeMode="NoResize" WindowStartupLocation="CenterScreen"
+        Title="FreeForm" Width="600" Height="340" ResizeMode="NoResize" WindowStartupLocation="CenterScreen"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent" FontFamily="Segoe UI Variable Text, Segoe UI">
   <Window.Resources>
     <Style x:Key="Card" TargetType="Button">
@@ -114,9 +118,21 @@ $logo = (Join-Path $root 'shell\assets\freeform-logo.png') -replace '\\', '/'
               <TextBlock Text="Back to Windows"/>
             </StackPanel>
           </Button>
+          <Button x:Name="DiagBtn" Style="{StaticResource Link}" HorizontalAlignment="Center" Margin="0,6,0,0">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="&#xE9D9;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" VerticalAlignment="Center" Margin="0,0,10,0"/>
+              <TextBlock Text="Save diagnostics"/>
+            </StackPanel>
+          </Button>
         </StackPanel>
         <!-- right: main buttons -->
         <StackPanel x:Name="MainPage" Grid.Column="1" VerticalAlignment="Center" Margin="20,0,0,0">
+          <Button x:Name="UpdateBtn" Style="{StaticResource Card}" Margin="0,0,0,12" Visibility="Collapsed">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="&#xE896;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center" Margin="0,0,16,0"/>
+              <TextBlock x:Name="UpdateText" Text="Update available" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Button>
           <Button x:Name="LaunchBtn" Style="{StaticResource Card}" Margin="0,0,0,12">
             <StackPanel Orientation="Horizontal">
               <TextBlock Text="&#xE72A;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center" Margin="0,0,16,0"/>
@@ -158,7 +174,7 @@ $ui.RestoreBtn.Add_Click({
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root 'FreeForm.ps1') -Stop
     $ui.Status.Text = 'FreeForm is closed and the Windows taskbar and desktop are back.'
 })
-$ui.LaunchBtn.Add_Click({ Start-FreeForm; $win.Close() })
+$ui.LaunchBtn.Add_Click({ Start-FreeForm -Force; $win.Close() })
 $ui.SettingsBtn.Add_Click({ $ui.MainPage.Visibility = 'Collapsed'; $ui.SettingsPage.Visibility = 'Visible' })
 $ui.BackBtn.Add_Click({ $ui.SettingsPage.Visibility = 'Collapsed'; $ui.MainPage.Visibility = 'Visible' })
 
@@ -181,5 +197,81 @@ $ui.UninstallBtn.Add_Click({
     }
 })
 
-if ($env:FREEFORM_LAUNCHER_TEST) { 'launcher window ok'; exit 0 }   # CI: the XAML loads and the buttons are wired
+# ── system check: things that make FreeForm fail or look wrong, shown under the buttons ──
+function Get-SystemNotes {
+    $notes = @()
+    try {
+        $build = [int](Get-CimInstance Win32_OperatingSystem).BuildNumber
+        if ($build -lt 19041) { $notes += 'Windows 10 version 2004 or newer is recommended.' }
+        $gpus = @(Get-CimInstance Win32_VideoController | ForEach-Object { $_.Name })
+        if (-not ($gpus | Where-Object { $_ -notmatch 'Basic Display|Basic Render|Remote Display' })) {
+            $notes += 'No graphics driver found: install your GPU driver for smooth animations.'
+        }
+    } catch {}
+    try {
+        $c = @((Get-Content (Join-Path $cfgDir 'crashes.json') -Raw | ConvertFrom-Json).crashes) | Where-Object { $_ -and ([datetime]$_) -gt (Get-Date).AddHours(-1) }
+        if ($c.Count) { $notes += "FreeForm crashed $($c.Count) time(s) in the last hour. Save diagnostics to see why." }
+    } catch {}
+    $notes -join "`n"
+}
+
+# ── updates: the freeform-latest release carries version.txt next to the zip ──
+$versionUrl = 'https://github.com/jokingtim2468-max/Nexus-OS/releases/download/freeform-latest/version.txt'
+$script:updateTask = $null
+function Start-UpdateCheck {
+    if ($version -eq 'dev') { return }
+    try { $wc = New-Object System.Net.WebClient; $script:updateTask = $wc.DownloadStringTaskAsync($versionUrl) } catch {}
+}
+$updateTimer = New-Object System.Windows.Threading.DispatcherTimer
+$updateTimer.Interval = [TimeSpan]::FromMilliseconds(400)
+$updateTimer.Add_Tick({
+    if (-not $script:updateTask -or -not $script:updateTask.IsCompleted) { return }
+    $updateTimer.Stop()
+    if ($script:updateTask.Status -ne 'RanToCompletion') { return }
+    $latest = $script:updateTask.Result.Trim()
+    if ($latest -and $latest -ne $version) {
+        $ui.UpdateText.Text = "Update to $latest"
+        $ui.UpdateBtn.Visibility = 'Visible'
+    }
+})
+$ui.UpdateBtn.Add_Click({
+    # get.ps1 stops FreeForm, installs the new build over this one and opens the launcher again
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root 'FreeForm.ps1') -Stop
+    Start-Process powershell.exe -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$(Join-Path $root 'get.ps1')`"")
+    $win.Close()
+})
+
+# ── diagnostics: a zip on the Desktop with logs and setup info (no network details, no personal files) ──
+$ui.DiagBtn.Add_Click({
+    try {
+        $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+        $tmp = Join-Path $env:TEMP "FreeForm-diagnostics-$stamp"
+        New-Item -ItemType Directory -Force -Path $tmp | Out-Null
+        $logs = Join-Path $env:LOCALAPPDATA 'FreeForm\logs'
+        if (Test-Path $logs) { Get-ChildItem $logs -File | Sort-Object LastWriteTime -Descending | Select-Object -First 8 | Copy-Item -Destination $tmp }
+        foreach ($f in 'launcher.json', 'crashes.json') { $src = Join-Path $cfgDir $f; if (Test-Path $src) { Copy-Item $src $tmp } }
+        $os = Get-CimInstance Win32_OperatingSystem
+        @(
+            "FreeForm $version"
+            "Windows: $($os.Caption) build $($os.BuildNumber)"
+            "GPU: $((Get-CimInstance Win32_VideoController | ForEach-Object { "$($_.Name) ($($_.DriverVersion))" }) -join '; ')"
+            "Screens: $(([System.Windows.Forms.Screen]::AllScreens | ForEach-Object { "$($_.Bounds.Width)x$($_.Bounds.Height)" }) -join ', ')"
+            "PowerShell: $($PSVersionTable.PSVersion)"
+            "Notes: $(Get-SystemNotes)"
+        ) | Set-Content (Join-Path $tmp 'system.txt')
+        $zip = Join-Path ([Environment]::GetFolderPath('Desktop')) "FreeForm-diagnostics-$stamp.zip"
+        Compress-Archive -Path (Join-Path $tmp '*') -DestinationPath $zip -Force
+        Remove-Item $tmp -Recurse -Force
+        Start-Process explorer.exe -ArgumentList "/select,`"$zip`""
+        $ui.Status.Text = "Saved $([IO.Path]::GetFileName($zip)) to your Desktop."
+    } catch { $ui.Status.Text = "Couldn't save diagnostics: $($_.Exception.Message)" }
+})
+
+$win.Add_ContentRendered({
+    $ui.Status.Text = Get-SystemNotes
+    Start-UpdateCheck
+    $updateTimer.Start()
+})
+
+if ($env:FREEFORM_LAUNCHER_TEST) { "notes: $(Get-SystemNotes)"; 'launcher window ok'; exit 0 }   # CI: the XAML loads and the buttons are wired
 [void]$win.ShowDialog()
