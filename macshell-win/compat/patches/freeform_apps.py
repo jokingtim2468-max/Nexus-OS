@@ -7,6 +7,9 @@ Applied after net_bt_windows.py (same engine: exact find -> replace, each must m
    previews); clicking one plays it through Wallpaper Engine, and the Liquid Glass refracts its
    preview. Picking a normal wallpaper afterwards closes Wallpaper Engine's. Not installed ->
    a "View on Steam" row (it's a paid Steam app; we only link to the store page).
+3. Theme presets (Settings > Appearance > Theme): Black, White, Graphite, Default. Each sets
+   MacShell's appearance, accent and glass, and runs `macshell-helper theme apply` for Windows
+   app mode and Spotify (via Spicetify, when installed). Colours: compat/helper/theme.py.
 
     python compat/patches/freeform_apps.py          # apply (idempotent)
     python compat/patches/freeform_apps.py --check  # verify it is applied
@@ -76,6 +79,72 @@ EDITS = {
         var pair = wpPairOf(path);'''),
     ],
     "MacDock.qml": [
+        # ── theme presets ──
+        ('''    function setLook(k, v) { root[k] = v; if (bar) bar[k] = v; }''',
+         '''    function setLook(k, v) { root[k] = v; if (bar) bar[k] = v; }
+    // FreeForm theme presets: MacShell's look + Windows apps + Spotify (compat/helper/theme.py has the colours)
+    property string themePreset: "default"
+    readonly property var themePresets: [
+        { id: "black", name: "Black", mode: "dark", accent: "#D1D1D6", glass: 0.75, bg: "#000000", fg: "#FFFFFF", card: "#1A1A1A" },
+        { id: "white", name: "White", mode: "light", accent: "#636366", glass: 0.7, bg: "#FFFFFF", fg: "#000000", card: "#E5E5EA" },
+        { id: "graphite", name: "Graphite", mode: "dark", accent: "#8E8E93", glass: 0.55, bg: "#2C2C2E", fg: "#F2F2F7", card: "#48484A" },
+        { id: "default", name: "Default", mode: "dark", accent: "#0A84FF", glass: 0.42, bg: "#1E1E1E", fg: "#F5F5F7", card: "#2A2A2C" }
+    ]
+    function applyThemePreset(id) {
+        var t = null;
+        for (var i = 0; i < themePresets.length; i++) if (themePresets[i].id === id) t = themePresets[i];
+        if (!t) return;
+        themePreset = id;
+        setAppearance(t.mode);
+        setLook("accent", t.accent);
+        setLook("glassOpacity", t.glass);
+        Quickshell.execDetached(["macshell-helper", "theme", "apply", id]);
+    }'''),
+        ('''            id: paneAppearance
+            Column {
+                spacing: 10
+''',
+         '''            id: paneAppearance
+            Column {
+                spacing: 10
+
+                // FreeForm theme presets
+                SCard {
+                    t: pal
+                    SRow {
+                        t: pal
+                        title: I18n.tr("Theme")
+                        subtitle: I18n.tr("One click for the whole desktop: the menu bar, Dock, apps, Windows apps and Spotify (with Spicetify).")
+                        Row {
+                            spacing: 12
+                            Repeater {
+                                model: root.themePresets
+                                delegate: Column {
+                                    id: tp
+                                    required property var modelData
+                                    spacing: 4
+                                    Rectangle {
+                                        width: 64; height: 42; radius: 8
+                                        color: tp.modelData.bg
+                                        border.width: root.themePreset === tp.modelData.id ? 2.5 : 1
+                                        border.color: root.themePreset === tp.modelData.id ? pal.accent : pal.cardBorder
+                                        Rectangle { x: 6; y: 6; width: parent.width - 12; height: 6; radius: 3; color: tp.modelData.card }
+                                        Rectangle { x: 6; y: 16; width: 30; height: 4; radius: 2; color: tp.modelData.fg; opacity: 0.8 }
+                                        Rectangle { x: 6; y: 24; width: 22; height: 4; radius: 2; color: tp.modelData.fg; opacity: 0.45 }
+                                        Rectangle { anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 6; width: 12; height: 12; radius: 6; color: tp.modelData.accent }
+                                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.applyThemePreset(tp.modelData.id) }
+                                    }
+                                    Text {
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        text: I18n.tr(tp.modelData.name)
+                                        color: pal.text; font.family: root.fontForWeight(font.weight, pal.fam); font.pixelSize: 11
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+'''),
         # ── Settings > Wallpaper: Wallpaper Engine section ──
         ('''                Item {
                     width: parent.width; height: 30

@@ -152,8 +152,11 @@ Scope {
         QtObject {
             id: pal
             readonly property bool dark: root.darkMode
-            readonly property color bg: dark ? "#1E1E1E" : "#FFFFFF"
-            readonly property color side: dark ? "#2A2A2C" : "#F0F0F2"
+            // a FreeForm theme preset (Settings > Appearance > Theme) recolours the window
+            readonly property var preset: root.dock && root.dock.themePreset && root.dock.themePreset !== "default"
+                                          ? root.dock.themePresets.filter(function (t) { return t.id === root.dock.themePreset; })[0] : null
+            readonly property color bg: preset ? preset.bg : (dark ? "#1E1E1E" : "#FFFFFF")
+            readonly property color side: preset ? preset.card : (dark ? "#2A2A2C" : "#F0F0F2")
             readonly property color canvas: dark ? "#141416" : "#E5E5EA"
             readonly property color field: dark ? Qt.rgba(1, 1, 1, 0.09) : Qt.rgba(0, 0, 0, 0.06)
             readonly property color sel: dark ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(0, 0, 0, 0.08)
