@@ -82,6 +82,11 @@ EDITS = {
         var pair = wpPairOf(path);'''),
 
         # ── branding ──
+        ('''    property string barLogoMode: "arch"       // "arch", "apple", or "custom"''',
+         '''    property string barLogoMode: "apple"      // "arch", "apple" (FreeForm: the FF mark, default), or "custom"'''),
+        ('''                                                     : (activeTl.title === "macshell Settings" ? I18n.tr("System Settings") : "MacShell");''',
+         '''                                                     : (activeTl.title === "macshell Settings" ? I18n.tr("System Settings") : "FreeForm");'''),
+        ('''(id === "org.quickshell" ? "MacShell" : (e ? e.name : id))''', '''(id === "org.quickshell" ? "FreeForm" : (e ? e.name : id))'''),
         ('''source: root.darkMode ? Qt.resolvedUrl("apple-logo-white.svg") : Qt.resolvedUrl("apple-logo-black.svg")''',
          '''source: root.darkMode ? Qt.resolvedUrl("ff-logo-white.svg") : Qt.resolvedUrl("ff-logo-black.svg")'''),
         ('''    readonly property string logoPath: decodeURIComponent(String(Qt.resolvedUrl("assets/macshell-logo.png")).replace(/^file:\\/\\//, ""))''',

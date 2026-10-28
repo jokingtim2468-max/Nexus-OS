@@ -106,7 +106,7 @@ Scope {
     function fontForWeight(weight, regularFamily) { return Number(weight) >= Font.DemiBold ? boldFontFamily : regularFamily; }
     onFontFamilyChanged: if (fontFamily.indexOf("Inter") === 0) fontFamily = "Open Runde"
     property int barHeight: 28
-    property string barLogoMode: "arch"       // "arch", "apple", or "custom"
+    property string barLogoMode: "apple"      // "arch", "apple" (FreeForm: the FF mark, default), or "custom"
     property string barCustomLogoPath: ""     // absolute path, ~/path, or file URL for the custom menu-bar logo
     // The bar-size slider scales its widget groups while the left/right groups stay pinned to their corners.
     readonly property real barWidgetScale: Math.max(0.8, Math.min(1.55, barHeight / 28))
@@ -1664,7 +1664,7 @@ Scope {
         if (activeAppId === "") return I18n.tr("Desktop");
         // MacShell's own windows (all "org.quickshell")
         if (activeAppId === "org.quickshell") return (activeTl.title === "Clock" || activeTl.title === "App Store") ? I18n.tr(activeTl.title)
-                                                     : (activeTl.title === "macshell Settings" ? I18n.tr("System Settings") : "MacShell");
+                                                     : (activeTl.title === "macshell Settings" ? I18n.tr("System Settings") : "FreeForm");
         var e = lookup(activeAppId);
         return e ? e.name : activeAppId;
     }
@@ -4231,7 +4231,7 @@ Scope {
             if (seen[id] !== undefined) { apps[seen[id]].count++; continue; }
             var e = root.lookup(id);
             seen[id] = apps.length;
-            apps.push({ appId: id, cls: t.appId, name: id === "systemsettings" ? "System Settings" : (id === "org.quickshell" ? "MacShell" : (e ? e.name : id)),
+            apps.push({ appId: id, cls: t.appId, name: id === "systemsettings" ? "System Settings" : (id === "org.quickshell" ? "FreeForm" : (e ? e.name : id)),
                         icon: id === "systemsettings" ? "preferences-system" : (id === "org.quickshell" ? root.logoPath : (e ? e.icon : "")), win: t, count: 1 });
         }
         return apps;
