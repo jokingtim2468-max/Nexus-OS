@@ -1,0 +1,5 @@
+module Quickshell.Services.Pipewire
+singleton Pipewire 1.0 Pipewire.qml
+PwNodeType 1.0 PwNodeType.qml
+PwLinkState 1.0 PwLinkState.qml
+PwObjectTracker 1.0 PwObjectTracker.qml
