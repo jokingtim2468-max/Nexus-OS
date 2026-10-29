@@ -3993,6 +3993,14 @@ Scope {
                     SRow { t: pal; title: I18n.tr("Hide Windows desktop icons"); SSwitch { t: pal; checked: ffPane.cfg.hideIcons !== false; onToggled: v => ffPane.set("hideIcons", v) } }
                 }
                 SLabel { t: pal; text: I18n.tr("Taskbar and desktop icon changes apply the next time FreeForm starts. Switch to Windows keeps FreeForm loaded in the background, so opening it again is instant.") }
+                SLabel { t: pal; header: true; text: I18n.tr("Theme Spotify and Discord") }
+                SCard {
+                    t: pal
+                    SRow { t: pal; title: I18n.tr("Spotify (installs Spicetify)"); subtitle: I18n.tr("Kept working after Spotify updates, each time FreeForm starts. Needs Spotify from spotify.com, not the Microsoft Store.")
+                           SSwitch { t: pal; checked: ffPane.cfg.modSpotify !== false; onToggled: v => ffPane.set("modSpotify", v) } }
+                    SRow { t: pal; title: I18n.tr("Discord (installs Vencord)"); subtitle: I18n.tr("Re-installed after Discord updates. Client mods are against Discord's Terms of Service; turn this off if that worries you.")
+                           SSwitch { t: pal; checked: ffPane.cfg.modDiscord !== false; onToggled: v => ffPane.set("modDiscord", v) } }
+                }
                 SLabel { t: pal; header: true; text: I18n.tr("Updates") }
                 SCard {
                     t: pal

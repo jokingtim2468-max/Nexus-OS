@@ -13,7 +13,7 @@ notify-send.exe; each passes its own name first, so `brightnessctl -m` arrives h
   pw-play [--volume=V] FILE          play a sound (wav, mp3, ...) through Windows' media player
   pickaudio                          choose a sound file, prints its path (Settings > Notifications)
   ffconfig get                       FreeForm's own options as JSON (Settings > FreeForm)
-  ffconfig set KEY 0|1               hideTaskbar hideIcons skipLauncher autoUpdate (launcher.json), autoStart (Run key)
+  ffconfig set KEY 0|1               hideTaskbar hideIcons skipLauncher autoUpdate modSpotify modDiscord (launcher.json), autoStart (Run key)
 """
 import json
 import os
@@ -48,7 +48,7 @@ def plan_for(guid_text):
     return "balanced"
 
 
-CONFIG_KEYS = ("hideTaskbar", "hideIcons", "skipLauncher", "autoUpdate")
+CONFIG_KEYS = ("hideTaskbar", "hideIcons", "skipLauncher", "autoUpdate", "modSpotify", "modDiscord")
 
 
 def config_path():
@@ -60,7 +60,7 @@ def package_root():
 
 
 def ffconfig(a):
-    cfg = {"hideTaskbar": True, "hideIcons": True, "skipLauncher": False, "autoUpdate": True}
+    cfg = {"hideTaskbar": True, "hideIcons": True, "skipLauncher": False, "autoUpdate": True, "modSpotify": True, "modDiscord": True}
     try:
         with open(config_path(), encoding="utf-8-sig") as f:
             cfg.update(json.load(f))

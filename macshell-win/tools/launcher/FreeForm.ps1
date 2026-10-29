@@ -91,6 +91,8 @@ $env:PATH = (Join-Path $root 'python') + ';' + $env:FREEFORM_HELPER + ';' + (Joi
 $qs = Join-Path $root 'bin\qs.exe'
 $shell = Join-Path $root 'shell\shell.qml'
 
+# Spotify / Discord theming mods (Spicetify, Vencord): installed and kept working in the background (mods.ps1)
+Start-Process powershell.exe -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', "`"$(Join-Path $root 'mods.ps1')`"") -WindowStyle Hidden
 # Start Menu apps -> MacShell's app list (Dock, Spotlight, Launchpad); refreshed in the background
 Start-Process -FilePath (Join-Path $env:FREEFORM_HELPER 'macshell-helper.exe') -ArgumentList 'apps', 'sync' -WindowStyle Hidden
 # launcher settings (FreeFormLauncher.ps1 > Configure settings)
