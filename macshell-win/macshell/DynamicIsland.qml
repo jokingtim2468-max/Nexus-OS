@@ -48,15 +48,17 @@ PanelWindow {
     WinCapsLock { id: caps }
     Timer { id: noteTimer; interval: 5200; onTriggered: island.note = null }
 
-    anchors { top: true; left: true; right: true }
-    implicitHeight: 150
+    // the window is just the pill's size (centred at the top), so it never covers anything else and needs no
+    // click mask (a mask that lagged behind the growing pill made the toolbar's buttons unclickable)
+    anchors { top: true }
+    implicitWidth: Math.max(30, island.targetW) + 8
+    implicitHeight: island.barH + 5 + island.targetH + 6
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "freeform-island"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
     visible: pill.y > -pill.height + 1 || island.mode !== ""
-    mask: Region { item: pill }
 
     readonly property real targetW: mode === "edit" ? editRow.implicitWidth + 24 : mode === "notif" ? 380 : mode === "caps" ? 168 : 30
     readonly property real targetH: mode === "edit" ? 40 : mode === "notif" ? 70 : 30

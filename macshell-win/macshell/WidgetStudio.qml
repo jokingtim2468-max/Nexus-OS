@@ -562,8 +562,15 @@ Scope {
                 target: null
                 enabled: dw.moving                      // only in Move mode, so a click on a widget never moves it
                 acceptedButtons: Qt.LeftButton
-                onTranslationChanged: { dw.dragX = translation.x; dw.dragY = translation.y; }
-                onActiveChanged: if (!active) { root.moveDesktop(dw.modelData.i, (dw.w.x || 0) + dw.dragX, (dw.w.y || 0) + dw.dragY); dw.dragX = 0; dw.dragY = 0; }
+                // measured in screen coordinates: the widget's window moves with the drag, so a position inside the
+                // window would shift under the pointer and make the widget jump back and forth
+                property point g0: Qt.point(0, 0)
+                function screenPos() { return parent.mapToGlobal(centroid.position.x, centroid.position.y); }
+                onCentroidChanged: if (active) { var g = screenPos(); dw.dragX = g.x - g0.x; dw.dragY = g.y - g0.y; }
+                onActiveChanged: {
+                    if (active) { g0 = screenPos(); return; }
+                    root.moveDesktop(dw.modelData.i, (dw.w.x || 0) + dw.dragX, (dw.w.y || 0) + dw.dragY); dw.dragX = 0; dw.dragY = 0;
+                }
             }
         }
     }
