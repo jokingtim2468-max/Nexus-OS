@@ -31,6 +31,12 @@ def scan(d, make, favs):
                 dirs[:] = []
             files += [os.path.join(cur, n) for n in names if EXT.search(n)]
         out += ["A:" + f.replace("\\", "/") for f in sorted(files, key=natural)]
+    # FreeForm's own wallpapers (Yosemite, Big Sur, Sierra...) are always offered, first
+    root = os.environ.get("FREEFORM_ROOT", "")
+    own = os.path.join(root, "shell", "assets", "wallpapers") if root else ""
+    if own and os.path.isdir(own) and os.path.normcase(os.path.abspath(own)) != os.path.normcase(os.path.abspath(d)):
+        mine = [os.path.join(own, n) for n in sorted(os.listdir(own), key=natural) if EXT.search(n)]
+        out = ["A:" + f.replace("\\", "/") for f in mine] + out
     out += ["F:" + f for f in favs if os.path.isfile(f)]
     return "\n".join(out) + ("\n" if out else "")
 
