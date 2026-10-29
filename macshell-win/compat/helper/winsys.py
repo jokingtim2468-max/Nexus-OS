@@ -10,6 +10,8 @@ notify-send.exe; each passes its own name first, so `brightnessctl -m` arrives h
   powerprofilesctl get|set power-saver|balanced|performance   (Windows power plans)
   notify-send [-a APP] TITLE [BODY]  a Windows notification
   pickface                           choose a picture -> ~/.face (512x512), prints "ok"
+  pw-play [--volume=V] FILE          play a sound (wav, mp3, ...) through Windows' media player
+  pickaudio                          choose a sound file, prints its path (Settings > Notifications)
   ffconfig get                       FreeForm's own options as JSON (Settings > FreeForm)
   ffconfig set KEY 0|1               hideTaskbar hideIcons skipLauncher autoUpdate (launcher.json), autoStart (Run key)
 """
@@ -153,6 +155,28 @@ def main(argv):
            f"[void]$t.Item(1).AppendChild($x.CreateTextNode('{esc(body)}'));"
            "$id='{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe';"
            "[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($id).Show([Windows.UI.Notifications.ToastNotification]::new($x))")
+        return 0
+    if tool == "pw-play":
+        vol, files = 0.8, []
+        for x in a:
+            if x.startswith("--volume="):
+                try: vol = max(0.0, min(1.0, float(x.split("=", 1)[1])))
+                except ValueError: pass
+            elif x: files.append(x)
+        if not files or not os.path.exists(files[-1]):
+            return 1
+        uri = files[-1].replace("'", "''")
+        ps("Add-Type -AssemblyName PresentationCore; $p = New-Object System.Windows.Media.MediaPlayer; "
+           f"$p.Open([Uri]'{uri}'); $p.Volume = {vol}; $p.Play(); "
+           "$t = 0; while (-not $p.NaturalDuration.HasTimeSpan -and $t -lt 40) { Start-Sleep -Milliseconds 50; $t++ }; "
+           "$d = if ($p.NaturalDuration.HasTimeSpan) { [Math]::Min(15000, $p.NaturalDuration.TimeSpan.TotalMilliseconds) } else { 3000 }; "
+           "Start-Sleep -Milliseconds ([int]$d + 150); $p.Close()", timeout=30)
+        return 0
+    if tool == "pickaudio":
+        out = ps("Add-Type -AssemblyName System.Windows.Forms; $d = New-Object System.Windows.Forms.OpenFileDialog; "
+                 "$d.Title = 'Choose a notification sound'; $d.Filter = 'Sounds|*.wav;*.mp3;*.ogg;*.m4a;*.wma|All files|*.*'; "
+                 "$d.InitialDirectory = [Environment]::GetFolderPath('MyMusic'); if ($d.ShowDialog() -eq 'OK') { $d.FileName }", timeout=600)
+        print(out.strip())
         return 0
     if tool == "ffconfig":
         return ffconfig(a)

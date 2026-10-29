@@ -105,7 +105,7 @@ jobs:
           rm -f $P/compat/helper/macshell-helper
           gcc -O2 -municode -o $P/compat/helper/macshell-helper.exe $P/compat/helper/helper-shim.c
           # the same shim under the Linux tool names MacShell's Settings call (see winsys.py)
-          for t in xdg-open brightnessctl powerprofilesctl notify-send; do cp $P/compat/helper/macshell-helper.exe $P/compat/helper/$t.exe; done
+          for t in xdg-open brightnessctl powerprofilesctl notify-send pw-play; do cp $P/compat/helper/macshell-helper.exe $P/compat/helper/$t.exe; done
           cp -r macshell-win/tools/fffetch $P/tools/
           # landscape wallpapers (the places macOS wallpapers show), freely licensed photos from Wikimedia Commons;
           # each one's license is printed here and listed in THIRD-PARTY.md

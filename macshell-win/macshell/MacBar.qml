@@ -3764,7 +3764,8 @@ Scope {
             delete root.notifRefs[old];
         }
         if ((!root.notifDnd || urg === 2) && !root.notifOpen && root.hub && root.hub.island) {
-            if (root.isSystemNotif(n)) root.playSound("glass", 0.7);
+            // a custom sound (Settings > Notifications) replaces the usual chime
+            if (root.hub.island.soundFor(rec.app) === "" && root.isSystemNotif(n)) root.playSound("glass", 0.7);
             root.hub.island.notify(rec);
         } else if ((!root.notifDnd || urg === 2) && !root.notifOpen) {
             // the screenshot has its own shutter sound

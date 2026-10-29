@@ -150,6 +150,66 @@ EDITS = {
         prefsWindow.visible = true;
         prefsWindow.requestActivate();
     }"""),
+        # Settings > Notifications: custom sounds, for all apps or per app (Windows; kept by the Dynamic Island)
+        ("""                Row {
+                    spacing: 8
+                    SButton { t: pal; text: I18n.tr("Send Test Notification");""",
+         """                SLabel { visible: !!(root.hub && root.hub.island); t: pal; header: true; text: I18n.tr("Notification Sounds") }
+                SCard {
+                    id: sndCard
+                    visible: !!(root.hub && root.hub.island)
+                    t: pal
+                    readonly property var isl: root.hub ? root.hub.island : null
+                    // apps that have sent notifications, plus any that already have a sound
+                    readonly property var apps: {
+                        var seen = {}, out = [], m = isl ? isl.sounds : {};
+                        for (var k in m) if (k !== "*" && !seen[k]) { seen[k] = 1; out.push(k); }
+                        var h = root.bar ? root.bar.notifHist : null;
+                        for (var i = 0; h && i < h.count; i++) { var a = h.get(i).app; if (a && !seen[a]) { seen[a] = 1; out.push(a); } }
+                        return out.sort();
+                    }
+                    property string picking: ""
+                    function fileName(p) { return p ? String(p).split(/[\\\\/]/).pop() : I18n.tr("Default"); }
+                    Process {
+                        id: pickProc
+                        command: ["macshell-helper", "pickaudio"]
+                        stdout: StdioCollector { onStreamFinished: { var p = text.trim(); if (p !== "" && sndCard.isl) sndCard.isl.setSound(sndCard.picking, p.split(String.fromCharCode(92)).join("/")); } }
+                    }
+                    function pick(app) { picking = app; pickProc.running = true; }
+                    Repeater {
+                        model: ["*"].concat(sndCard.apps)
+                        delegate: SRow {
+                            id: sndRow
+                            required property string modelData
+                            t: pal
+                            title: modelData === "*" ? I18n.tr("All apps") : modelData
+                            subtitle: (modelData === "*" ? I18n.tr("Any notification without its own sound: ") : "")
+                                      + sndCard.fileName(sndCard.isl ? sndCard.isl.sounds[modelData] : "")
+                            Row {
+                                spacing: 6
+                                SButton { t: pal; text: I18n.tr("Choose\\u2026"); onClicked: sndCard.pick(sndRow.modelData) }
+                                SButton { t: pal; text: I18n.tr("Test"); onClicked: if (sndCard.isl) sndCard.isl.testSound(sndRow.modelData) }
+                                SButton { t: pal; text: I18n.tr("Reset"); visible: !!(sndCard.isl && sndCard.isl.sounds[sndRow.modelData]); onClicked: sndCard.isl.setSound(sndRow.modelData, "") }
+                            }
+                        }
+                    }
+                    // an app that hasn't sent anything yet: type its name
+                    SRow {
+                        t: pal; title: I18n.tr("Add an app"); subtitle: I18n.tr("Type its name as it appears in notifications, e.g. Discord")
+                        Rectangle {
+                            width: 180; height: 26; radius: 6; color: pal.field
+                            TextInput {
+                                id: addApp
+                                anchors.fill: parent; anchors.leftMargin: 8; verticalAlignment: TextInput.AlignVCenter
+                                color: pal.text; font.family: pal.fam; font.pixelSize: 13; clip: true
+                                onAccepted: { if (text.trim() !== "") { sndCard.pick(text.trim()); text = ""; } }
+                            }
+                        }
+                    }
+                }
+                Row {
+                    spacing: 8
+                    SButton { t: pal; text: I18n.tr("Send Test Notification");"""),
         # ── Trash = the Windows Recycle Bin ──
         ('''        if (item.special === "trash") {
             // the file manager first''',
@@ -401,7 +461,8 @@ EDITS = {
         # ── Dynamic Island (Windows): notifications show in the island at the top instead of a corner toast ──
         ("""        if ((!root.notifDnd || urg === 2) && !root.notifOpen) {""",
          """        if ((!root.notifDnd || urg === 2) && !root.notifOpen && root.hub && root.hub.island) {
-            if (root.isSystemNotif(n)) root.playSound("glass", 0.7);
+            // a custom sound (Settings > Notifications) replaces the usual chime
+            if (root.hub.island.soundFor(rec.app) === "" && root.isSystemNotif(n)) root.playSound("glass", 0.7);
             root.hub.island.notify(rec);
         } else if ((!root.notifDnd || urg === 2) && !root.notifOpen) {"""),
         # ── 2. no workspace numbers on Windows ──

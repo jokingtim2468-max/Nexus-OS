@@ -1,11 +1,14 @@
-// Dynamic Island (Windows): a black pill at the top centre that only exists while it has
-// something to say. It drops from the top edge as a small pill (5 px down, 30 px tall), then
-// widens to fit what it shows:
+// Dynamic Island (Windows): a black pill at the top centre, just under the menu bar (so the bar
+// stays visible and clickable), that only exists while it has something to say. It drops in as a
+// small pill (5 px under the bar, 30 px tall), then widens to fit what it shows:
 //   Caps Lock on   [caps glyph]  Caps Lock  [caps glyph]   (stays while Caps Lock is on)
 //   a notification [app icon]  App · Sender / message      (5 s, then it tucks away)
 // Loaded by shell.qml on Windows; MacBar hands it notifications (hub.island.notify).
+// Notification sounds: Settings > Notifications picks a sound for every app ("*") or per app;
+// kept in ~/.config/macshell/notification-sounds.json as { "*": "C:/...wav", "Discord": "..." }.
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland        // PanelWindow layers + our Windows types (WinCapsLock)
 
 PanelWindow {
@@ -16,13 +19,34 @@ PanelWindow {
     // what it shows: "" (nothing), "caps" or "notif"
     property var note: null                         // { app, summary, body, icon }
     readonly property string mode: note ? "notif" : (caps.on ? "caps" : "")
-    function notify(rec) { note = rec; noteTimer.restart(); }
+    function notify(rec) {
+        note = rec; noteTimer.restart();
+        var snd = soundFor(rec.app);
+        if (snd !== "" && hub && hub.bar && hub.bar.uiSounds) Quickshell.execDetached(["pw-play", "--volume=0.9", snd]);
+    }
+    readonly property real barH: hub && hub.bar ? hub.bar.barHeight : 28
+
+    // ── custom notification sounds ──
+    property var sounds: ({})
+    function soundFor(app) { return sounds[app] || sounds["*"] || ""; }
+    function setSound(app, path) {
+        var m = JSON.parse(JSON.stringify(sounds));
+        if (path) m[app] = path; else delete m[app];
+        sounds = m; soundsFile.setText(JSON.stringify(m, null, 1));
+    }
+    function testSound(app) { var s = soundFor(app); if (s) Quickshell.execDetached(["pw-play", "--volume=0.9", s]); }
+    FileView {
+        id: soundsFile
+        path: (Quickshell.env("HOME") || Quickshell.env("USERPROFILE")) + "/.config/macshell/notification-sounds.json"
+        printErrors: false
+        onLoaded: { try { island.sounds = JSON.parse(text()) || {}; } catch (e) {} }
+    }
 
     WinCapsLock { id: caps }
     Timer { id: noteTimer; interval: 5200; onTriggered: island.note = null }
 
     anchors { top: true; left: true; right: true }
-    implicitHeight: 110
+    implicitHeight: 150
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
@@ -39,7 +63,7 @@ PanelWindow {
         anchors.horizontalCenter: parent.horizontalCenter
         // step 1: drop in as a small pill; step 2 (after it lands): widen to the content
         property bool landed: false
-        y: island.mode !== "" ? 5 : -height - 4
+        y: island.mode !== "" ? island.barH + 5 : -height - 4
         width: landed ? island.targetW : 30
         height: landed ? island.targetH : 30
         radius: Math.min(height / 2, 22)

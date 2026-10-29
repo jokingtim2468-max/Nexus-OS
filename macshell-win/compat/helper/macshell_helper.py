@@ -349,7 +349,7 @@ def main(argv=None):
     if argv[:1] == ["about"]:
         import about
         return about.main(argv[1:])
-    if argv[:1] and argv[0] in ("xdg-open", "brightnessctl", "powerprofilesctl", "notify-send", "pickface", "ffconfig"):
+    if argv[:1] and argv[0] in ("xdg-open", "brightnessctl", "powerprofilesctl", "notify-send", "pickface", "ffconfig", "pw-play", "pickaudio"):
         import winsys
         return winsys.main(argv)
     if argv[:1] == ["theme"]:
