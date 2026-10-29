@@ -150,12 +150,7 @@ jobs:
           $p = Start-Process -FilePath "$pkg\bin\qs.exe" -ArgumentList @("-p", "`"$shell`"", "-vv") `
                  -RedirectStandardOutput smoke\qs-out.log -RedirectStandardError smoke\qs-err.log -PassThru
           Add-Type -AssemblyName System.Windows.Forms, System.Drawing
-          . macshell-win\tools\ci\ScreenGrab.ps1
-          function Shot($name) {
-            $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
-            $bmp = [ScreenGrab]::Grab($b.Width, $b.Height)
-            $bmp.Save("smoke\$name.png", [System.Drawing.Imaging.ImageFormat]::Png)
-          }
+          function Shot($name) { powershell.exe -NoProfile -ExecutionPolicy Bypass -File macshell-win\tools\ci\ScreenGrab.ps1 "$((Get-Location).Path)\smoke\$name.png" }
           function Ipc { Run-Limited "$pkg\bin\qs.exe" (@('ipc', '-vv', '-p', "`"$shell`"", 'call') + $args) smoke\ipc.txt 30 }
           Start-Sleep -Seconds 35
           Run-Limited "$pkg\bin\qs.exe" @('list', '--all', '-vv') smoke\qs-list.txt 20
@@ -209,10 +204,10 @@ jobs:
           # look at the screen: wallpaper present (not black), widget present (yellow)
           Add-Type -AssemblyName System.Windows.Forms, System.Drawing
           $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
-          . macshell-win\tools\ci\ScreenGrab.ps1
-          $bmp = [ScreenGrab]::Grab($b.Width, $b.Height)
           New-Item -ItemType Directory -Force -Path smoke | Out-Null
-          $bmp.Save("smoke\customer-desktop.png", [System.Drawing.Imaging.ImageFormat]::Png)
+          $shot = "$((Get-Location).Path)\smoke\customer-desktop.png"
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File macshell-win\tools\ci\ScreenGrab.ps1 $shot
+          $bmp = [System.Drawing.Bitmap]::FromFile($shot)
           $w = $bmp.GetPixel(410, 400); $wp = $bmp.GetPixel([int]($b.Width * 0.8), [int]($b.Height * 0.5))
           "samples: " + ((0.1, 0.3, 0.5, 0.7, 0.9) | ForEach-Object { $bmp.GetPixel([int]($b.Width * $_), [int]($b.Height * 0.6)) } | ForEach-Object { "($($_.R),$($_.G),$($_.B))" }) -join ' '
           "── qs warnings"; Get-ChildItem (Join-Path $env:LOCALAPPDATA 'FreeForm\logs') -Filter 'run-*.err.log' | Select-Object -Last 1 | ForEach-Object { Select-String -Path $_.FullName -Pattern 'WARN|ERROR' | Where-Object { $_.Line -notmatch 'Binding loop' } | Select-Object -First 25 | ForEach-Object { $_.Line } }

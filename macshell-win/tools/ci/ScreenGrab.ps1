@@ -1,7 +1,9 @@
-# CI helper: a screenshot that includes layered (translucent) windows, like FreeForm's panels.
-# .NET's CopyFromScreen leaves those out, and rejects the CAPTUREBLT flag. Dot-source, then:
-#   $bmp = [ScreenGrab]::Grab($width, $height)
-Add-Type -ReferencedAssemblies System.Drawing.Common, System.Drawing.Primitives -TypeDefinition @"
+# CI helper (run with Windows PowerShell 5.1): save a screenshot that includes layered
+# (translucent) windows, like FreeForm's panels. .NET's CopyFromScreen leaves those out.
+#   powershell -NoProfile -File ScreenGrab.ps1 out.png
+param([string]$Out)
+Add-Type -AssemblyName System.Drawing, System.Windows.Forms
+Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @"
 using System; using System.Drawing; using System.Runtime.InteropServices;
 public static class ScreenGrab {
     [DllImport("user32.dll")] static extern IntPtr GetDC(IntPtr h);
@@ -18,3 +20,6 @@ public static class ScreenGrab {
     }
 }
 "@
+$b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+$bmp = [ScreenGrab]::Grab($b.Width, $b.Height)
+$bmp.Save($Out, [System.Drawing.Imaging.ImageFormat]::Png)

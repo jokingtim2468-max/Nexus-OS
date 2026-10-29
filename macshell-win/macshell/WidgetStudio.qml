@@ -37,18 +37,18 @@ Scope {
 
     // ── templates ──
     readonly property var templates: [
-        { name: "Mini Player", w: 340, h: 112, bg: { color: "#1C1C1E", opacity: 0.86, radius: 24, border: true }, items: [
-            { type: "art", x: 14, y: 14, w: 84, h: 84, radius: 14 },
-            { type: "text", x: 112, y: 16, w: 214, h: 22, text: "{title}", size: 15, bold: true, color: "#FFFFFF" },
-            { type: "text", x: 112, y: 38, w: 214, h: 18, text: "{artist}", size: 13, color: "#B0B0B5" },
-            { type: "progress", x: 112, y: 60, w: 210, h: 8, source: "media", color: "#FFFFFF" },
-            { type: "button", x: 136, y: 72, w: 34, h: 34, action: "media.previous", icon: "auto", color: "#FFFFFF" },
-            { type: "button", x: 196, y: 70, w: 38, h: 38, action: "media.toggle", icon: "auto", color: "#FFFFFF" },
-            { type: "button", x: 260, y: 72, w: 34, h: 34, action: "media.next", icon: "auto", color: "#FFFFFF" } ] },
-        { name: "Clock", w: 220, h: 110, bg: { color: "#1C1C1E", opacity: 0.8, radius: 24, border: true }, items: [
-            { type: "text", x: 18, y: 14, w: 184, h: 20, text: "{day}", size: 14, bold: true, color: "#FF453A" },
-            { type: "text", x: 18, y: 36, w: 184, h: 44, text: "{time}", size: 36, bold: true, color: "#FFFFFF" },
-            { type: "text", x: 18, y: 80, w: 184, h: 18, text: "{date}", size: 13, color: "#B0B0B5" } ] },
+        { name: "Mini Player", w: 344, h: 164, bg: { color: "#1C1C1E", opacity: 0.86, radius: 26, border: true }, items: [
+            { type: "art", x: 18, y: 18, w: 128, h: 128, radius: 16 },
+            { type: "text", x: 162, y: 22, w: 166, h: 22, text: "{title}", size: 16, bold: true, color: "#FFFFFF" },
+            { type: "text", x: 162, y: 46, w: 166, h: 18, text: "{artist}", size: 13, color: "#B0B0B5" },
+            { type: "progress", x: 172, y: 82, w: 152, h: 6, source: "media", color: "#FFFFFF", seek: true },
+            { type: "button", x: 172, y: 104, w: 36, h: 36, action: "media.previous", icon: "auto", color: "#FFFFFF" },
+            { type: "button", x: 228, y: 102, w: 40, h: 40, action: "media.toggle", icon: "auto", color: "#FFFFFF" },
+            { type: "button", x: 288, y: 104, w: 36, h: 36, action: "media.next", icon: "auto", color: "#FFFFFF" } ] },
+        { name: "Clock", w: 344, h: 164, bg: { color: "#1C1C1E", opacity: 0.8, radius: 26, border: true }, items: [
+            { type: "text", x: 22, y: 18, w: 300, h: 24, text: "{day}", size: 18, bold: true, color: "#FF453A" },
+            { type: "text", x: 22, y: 44, w: 300, h: 66, text: "{time}", size: 56, bold: true, color: "#FFFFFF" },
+            { type: "text", x: 22, y: 118, w: 300, h: 24, text: "{date}", size: 16, color: "#B0B0B5" } ] },
         { name: "Battery & Volume", w: 260, h: 100, bg: { color: "#1C1C1E", opacity: 0.8, radius: 22, border: true }, items: [
             { type: "text", x: 18, y: 12, w: 140, h: 20, text: "Battery {battery}", size: 13, bold: true, color: "#FFFFFF" },
             { type: "progress", x: 18, y: 34, w: 224, h: 8, source: "battery", color: "#30D158" },
@@ -75,8 +75,8 @@ Scope {
             { type: "app", x: 224, y: 12, w: 64, h: 86, name: "Steam", command: "steam", icon: "steam", color: "#FFFFFF" } ] },
         { name: "Weather", w: 170, h: 170, bg: { color: "#2D6CDF", opacity: 0.92, radius: 30, border: true }, items: [
             { type: "weather", x: 16, y: 14, w: 140, h: 142, city: "London", unit: "C", color: "#FFFFFF" } ] },
-        { name: "Calendar", w: 170, h: 170, bg: { color: "#1C1C1E", opacity: 0.85, radius: 30, border: true }, items: [
-            { type: "calendar", x: 12, y: 12, w: 146, h: 146, color: "#FFFFFF", accent: "#FF453A" } ] },
+        { name: "Calendar", w: 344, h: 344, bg: { color: "#1C1C1E", opacity: 0.85, radius: 30, border: true }, items: [
+            { type: "calendar", x: 20, y: 20, w: 304, h: 304, color: "#FFFFFF", accent: "#FF453A" } ] },
         { name: "System Monitor", w: 260, h: 150, bg: { color: "#1C1C1E", opacity: 0.85, radius: 24, border: true }, items: [
             { type: "text", x: 18, y: 12, w: 224, h: 18, text: "CPU {cpu}", size: 13, bold: true, color: "#FFFFFF" },
             { type: "progress", x: 18, y: 32, w: 224, h: 8, source: "cpu", color: "#0A84FF" },
@@ -90,11 +90,68 @@ Scope {
     ]
 
     function clone(o) { return JSON.parse(JSON.stringify(o)); }
-    function commit(list) { widgets = list; saveTimer.restart(); }
+    // every change goes through commit(): it is saved, and can be undone / redone
+    property var undoStack: []
+    property var redoStack: []
+    function commit(list) {
+        undoStack = undoStack.concat([JSON.stringify(widgets)]).slice(-100);
+        redoStack = [];
+        widgets = list; saveTimer.restart();
+    }
+    function undo() {
+        if (!undoStack.length) return;
+        redoStack = redoStack.concat([JSON.stringify(widgets)]);
+        widgets = JSON.parse(undoStack[undoStack.length - 1]); undoStack = undoStack.slice(0, -1);
+        sel = -1; current = Math.min(current, widgets.length - 1); saveTimer.restart();
+    }
+    function redo() {
+        if (!redoStack.length) return;
+        undoStack = undoStack.concat([JSON.stringify(widgets)]);
+        widgets = JSON.parse(redoStack[redoStack.length - 1]); redoStack = redoStack.slice(0, -1);
+        sel = -1; current = Math.min(current, widgets.length - 1); saveTimer.restart();
+    }
+
+    // ── the desktop grid: 1 square = 164 px, 16 px apart; a widget is 1x1, 2x1, 2x2 or 4x2 squares ──
+    readonly property int gridUnit: 164
+    readonly property int gridGap: 16
+    readonly property int gridLeft: 40
+    readonly property int gridTop: 60
+    function gridX(col) { return gridLeft + col * (gridUnit + gridGap); }
+    function gridY(row) { return gridTop + row * (gridUnit + gridGap); }
+    function gridSpan(n) { return n * gridUnit + (n - 1) * gridGap; }
+    function snapX(x) { return gridX(Math.max(0, Math.round((x - gridLeft) / (gridUnit + gridGap)))); }
+    function snapY(y) { return gridY(Math.max(0, Math.round((y - gridTop) / (gridUnit + gridGap)))); }
+    // resize the current widget to cols x rows squares, scaling what's inside with it
+    function setGridSize(cols, rows) {
+        if (!cw) return;
+        var w = clone(cw), nw = gridSpan(cols), nh = gridSpan(rows), fx = nw / (w.w || nw), fy = nh / (w.h || nh), f = Math.min(fx, fy);
+        for (var i = 0; i < w.items.length; i++) {
+            var it = w.items[i];
+            it.x = Math.round((it.x || 0) * fx); it.y = Math.round((it.y || 0) * fy);
+            it.w = Math.round((it.w || 40) * fx); it.h = Math.round((it.h || 20) * fy);
+            if (it.size) it.size = Math.max(6, Math.round(it.size * f));
+        }
+        w.w = nw; w.h = nh;
+        var l = widgets.slice(); l[current] = w; commit(l);
+    }
+    // styling single words ("w") or letters ("c") of a text block
+    property string spanMode: "w"
+    property int spanPick: -1
+    onSelChanged: spanPick = -1
+    function setSpan(style) {
+        if (!ci || spanPick < 0) return;
+        var sp = clone(ci.spans || {}), key = spanMode + spanPick;
+        // one kind at a time: styling letters clears word styles and the other way round
+        for (var k in sp) if (k.charAt(0) !== spanMode) delete sp[k];
+        if (style === null) delete sp[key];
+        else { var cur = sp[key] || {}; for (var f in style) cur[f] = f === "color" ? style[f] : !cur[f]; sp[key] = cur; }
+        updateItem({ spans: sp });
+    }
+    property int movingIndex: -1            // the desktop widget in Move mode (snaps to the grid)
     // first start (no saved widgets yet): a clock, a calendar and a music player on the desktop
     function addDefaults() {
         var pick = function (name) { for (var i = 0; i < templates.length; i++) if (templates[i].name === name) return clone(templates[i]); return null; };
-        var spots = [["Clock", 40, 60], ["Calendar", 40, 190], ["Mini Player", 40, 380]], l = [];
+        var spots = [["Clock", gridX(0), gridY(0)], ["Mini Player", gridX(0), gridY(1)], ["Calendar", gridX(2), gridY(0)]], l = [];
         for (var k = 0; k < spots.length; k++) {
             var w = pick(spots[k][0]);
             if (!w) continue;
@@ -201,7 +258,7 @@ Scope {
     }
 
     function moveDesktop(index, x, y) {
-        var l = widgets.slice(), w = clone(l[index]); w.x = Math.round(x); w.y = Math.round(y); l[index] = w; commit(l);
+        var l = widgets.slice(), w = clone(l[index]); w.x = snapX(x); w.y = snapY(y); l[index] = w; commit(l);
     }
 
     // ── saving ──
@@ -210,11 +267,36 @@ Scope {
         path: root.home + "/.config/macshell/custom-widgets.json"
         printErrors: false
         onLoaded: { try { root.widgets = JSON.parse(text()).widgets || []; } catch (e) {} root.loaded = true; }
-        onLoadFailed: { root.addDefaults(); root.loaded = true; }
+        onLoadFailed: { root.addDefaults(); root.undoStack = []; root.loaded = true; }
     }
     Timer { id: saveTimer; interval: 400; onTriggered: store.setText(JSON.stringify({ widgets: root.widgets }, null, 1)) }
 
     // ═════════════ ON THE DESKTOP ═════════════
+    // the grid, shown on the desktop while a widget is being moved
+    Variants {
+        model: root.movingIndex >= 0 ? Quickshell.screens : []
+        PanelWindow {
+            required property var modelData
+            screen: modelData
+            anchors { top: true; bottom: true; left: true; right: true }
+            exclusionMode: ExclusionMode.Ignore
+            color: "transparent"
+            mask: Region { }
+            WlrLayershell.layer: WlrLayer.Bottom
+            WlrLayershell.namespace: "freeform-widget-grid"
+            Repeater {
+                model: Math.floor((parent.width - root.gridLeft) / (root.gridUnit + root.gridGap)) * Math.floor((parent.height - root.gridTop) / (root.gridUnit + root.gridGap))
+                delegate: Rectangle {
+                    required property int index
+                    readonly property int cols: Math.max(1, Math.floor((parent.width - root.gridLeft) / (root.gridUnit + root.gridGap)))
+                    x: root.gridX(index % cols); y: root.gridY(Math.floor(index / cols))
+                    width: root.gridUnit; height: root.gridUnit; radius: 22
+                    color: Qt.rgba(1, 1, 1, 0.06); border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.28)
+                }
+            }
+        }
+    }
+
     Variants {
         model: root.widgets.map(function (w, i) { return { w: w, i: i }; }).filter(function (e) { return e.w.onDesktop; })
         PanelWindow {
@@ -242,7 +324,19 @@ Scope {
             WlrLayershell.keyboardFocus: (dw.w.items || []).some(function (x) { return x.type === "note"; }) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
             WidgetView { widget: dw.w; ctx: wctx; fam: root.fam; onItemEdited: (index, key, value) => root.setItemField(dw.modelData.i, index, key, value) }
             // drag anywhere that isn't a control to move it; saved when let go
-            // right-click: a menu with Edit / Remove from Desktop / Delete
+            readonly property bool moving: root.movingIndex === dw.modelData.i
+            // Move mode: highlighted outline and a Done button; dragging snaps to the grid
+            Rectangle {
+                visible: dw.moving
+                width: dw.w.w; height: dw.w.h; radius: dw.w.bg && dw.w.bg.radius !== undefined ? dw.w.bg.radius : 22
+                color: "transparent"; border.width: 3; border.color: root.accent
+                Rectangle {
+                    anchors.centerIn: parent; width: doneT.implicitWidth + 28; height: 30; radius: 15; color: root.accent
+                    Text { id: doneT; anchors.centerIn: parent; text: I18n.tr("Done"); color: "white"; font.family: root.fam; font.pixelSize: 13; font.weight: Font.DemiBold }
+                    MouseArea { anchors.fill: parent; onClicked: root.movingIndex = -1 }
+                }
+            }
+            // right-click: a menu with Move / Edit / Remove from Desktop / Delete
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: { dw.menuOpen = !dw.menuOpen; menuClose.restart(); } }
             TapHandler { acceptedButtons: Qt.LeftButton; onTapped: dw.menuOpen = false }
             Timer { id: menuClose; interval: 6000; onTriggered: dw.menuOpen = false }
@@ -256,7 +350,7 @@ Scope {
                     id: menuCol
                     x: 5; y: 5; width: parent.width - 10
                     Repeater {
-                        model: [{ t: "Edit Widget\u2026", a: "edit" }, { t: "Remove from Desktop", a: "hide" }, { t: "Delete Widget", a: "delete", warn: true }]
+                        model: [{ t: "Move", a: "move" }, { t: "Edit Widget\u2026", a: "edit" }, { t: "Remove from Desktop", a: "hide" }, { t: "Delete Widget", a: "delete", warn: true }]
                         delegate: Rectangle {
                             required property var modelData
                             width: menuCol.width; height: 28; radius: 6
@@ -271,7 +365,8 @@ Scope {
                                 onClicked: {
                                     var i = dw.modelData.i, a = parent.modelData.a;
                                     dw.menuOpen = false;
-                                    if (a === "edit") { root.current = i; root.sel = -1; root.open(); }
+                                    if (a === "move") root.movingIndex = i;
+                                    else if (a === "edit") { root.current = i; root.sel = -1; root.open(); }
                                     else if (a === "hide") root.removeFromDesktop(i);
                                     else root.deleteAt(i);
                                 }
@@ -282,6 +377,7 @@ Scope {
             }
             DragHandler {
                 target: null
+                enabled: dw.moving                      // only in Move mode, so a click on a widget never moves it
                 acceptedButtons: Qt.LeftButton
                 onTranslationChanged: { dw.dragX = translation.x; dw.dragY = translation.y; }
                 onActiveChanged: if (!active) { root.moveDesktop(dw.modelData.i, (dw.w.x || 0) + dw.dragX, (dw.w.y || 0) + dw.dragY); dw.dragX = 0; dw.dragY = 0; }
@@ -466,6 +562,20 @@ Scope {
                     DragHandler { target: null; onActiveChanged: if (active) win.startSystemMove() }
                     Row {
                         x: 16; anchors.verticalCenter: parent.verticalCenter; spacing: 6
+                        // back / forward one change (greyed out when there's nothing to undo / redo)
+                        Repeater {
+                            model: [{ g: "\u21B6", tip: "Undo", can: function () { return root.undoStack.length > 0; }, f: function () { root.undo(); } },
+                                    { g: "\u21B7", tip: "Redo", can: function () { return root.redoStack.length > 0; }, f: function () { root.redo(); } }]
+                            delegate: Rectangle {
+                                required property var modelData
+                                readonly property bool can: (root.undoStack, root.redoStack, modelData.can())
+                                width: 30; height: 26; radius: 13; color: pal.field
+                                opacity: can ? 1 : 0.35
+                                Text { anchors.centerIn: parent; text: parent.modelData.g; color: pal.text; font.pixelSize: 16 }
+                                MouseArea { anchors.fill: parent; enabled: parent.can; cursorShape: Qt.PointingHandCursor; onClicked: parent.modelData.f() }
+                            }
+                        }
+                        Item { width: 6; height: 1 }
                         Repeater {
                             model: [{ t: "text", l: "Text" }, { t: "button", l: "Button" }, { t: "art", l: "Album Art" }, { t: "progress", l: "Progress" }, { t: "image", l: "Image" }, { t: "shape", l: "Shape" }, { t: "clock", l: "Clock" }, { t: "app", l: "App Shortcut" }, { t: "weather", l: "Weather" }, { t: "calendar", l: "Calendar" }, { t: "note", l: "Note" }]
                             delegate: Chip { required property var modelData; label: "+ " + I18n.tr(modelData.l); onClicked: root.addItem(modelData.t) }
@@ -499,6 +609,8 @@ Scope {
                     // Delete / Backspace removes the selected block (click a block, then press it)
                     focus: true
                     Keys.onDeletePressed: root.deleteItem()
+                    Shortcut { sequences: [StandardKey.Undo]; onActivated: root.undo() }
+                    Shortcut { sequences: [StandardKey.Redo]; onActivated: root.redo() }
                     Keys.onPressed: event => { if (event.key === Qt.Key_Backspace && root.sel >= 0) { root.deleteItem(); event.accepted = true; } }
                     // dotted grid
                     Canvas {
@@ -600,6 +712,8 @@ Scope {
                                 spacing: 6
                                 Stepper { label: I18n.tr("Size"); value: root.ci ? root.ci.size || 14 : 14; onChanged: v => root.updateItem({ size: Math.max(6, v) }) }
                                 Chip { visible: root.ci && root.ci.type === "text"; label: "B"; on: !!(root.ci && root.ci.bold); onClicked: root.updateItem({ bold: !root.ci.bold }) }
+                                Chip { visible: root.ci && root.ci.type === "text"; label: "I"; on: !!(root.ci && root.ci.italic); onClicked: root.updateItem({ italic: !root.ci.italic }) }
+                                Chip { visible: root.ci && root.ci.type === "text"; label: "U"; on: !!(root.ci && root.ci.underline); onClicked: root.updateItem({ underline: !root.ci.underline }) }
                             }
                             Row {
                                 visible: root.ci && root.ci.type === "text"
@@ -608,6 +722,56 @@ Scope {
                                     model: ["left", "center", "right"]
                                     delegate: Chip { required property string modelData; label: I18n.tr(modelData); on: root.ci && (root.ci.align || "left") === modelData; onClicked: root.updateItem({ align: modelData }) }
                                 }
+                            }
+                            // ── text: outline, spacing, font ──
+                            Label { visible: root.ci && root.ci.type === "text"; text: I18n.tr("OUTLINE") }
+                            Swatches { visible: root.ci && root.ci.type === "text"; value: root.ci ? root.ci.outline || "" : ""; onChanged: c => root.updateItem({ outline: root.ci.outline === c ? "" : c }) }
+                            Stepper { visible: root.ci && root.ci.type === "text"; label: I18n.tr("Gap"); value: root.ci ? root.ci.spacing || 0 : 0; onChanged: v => root.updateItem({ spacing: v }) }
+                            Flow {
+                                visible: root.ci && root.ci.type === "text"
+                                width: parent.width; spacing: 4
+                                Repeater {
+                                    model: ["", "Segoe UI", "Arial", "Georgia", "Consolas", "Impact", "Comic Sans MS"]
+                                    delegate: Chip { required property string modelData; label: modelData || "Open Runde"; on: root.ci && (root.ci.font || "") === modelData; onClicked: root.updateItem({ font: modelData }) }
+                                }
+                            }
+                            // ── text: style single words or letters ──
+                            Label { visible: root.ci && root.ci.type === "text"; text: I18n.tr("CLICK A WORD OR LETTER TO STYLE IT") }
+                            Row {
+                                visible: root.ci && root.ci.type === "text"
+                                spacing: 4
+                                Chip { label: I18n.tr("Words"); on: root.spanMode === "w"; onClicked: { root.spanMode = "w"; root.spanPick = -1; } }
+                                Chip { label: I18n.tr("Letters"); on: root.spanMode === "c"; onClicked: { root.spanMode = "c"; root.spanPick = -1; } }
+                                Chip { label: I18n.tr("Clear styles"); onClicked: { root.updateItem({ spans: {} }); root.spanPick = -1; } }
+                            }
+                            Flow {
+                                visible: root.ci && root.ci.type === "text"
+                                width: parent.width; spacing: 3
+                                Repeater {
+                                    model: root.ci && root.ci.type === "text" ? (root.spanMode === "w" ? String(root.ci.text || "").split(" ") : String(root.ci.text || "").split("")) : []
+                                    delegate: Rectangle {
+                                        required property string modelData
+                                        required property int index
+                                        readonly property var st: root.ci && root.ci.spans ? root.ci.spans[root.spanMode + index] : null
+                                        width: Math.max(16, pt.implicitWidth + 10); height: 24; radius: 6
+                                        color: root.spanPick === index ? root.accent : pal.field
+                                        Text { id: pt; anchors.centerIn: parent; text: parent.modelData === " " ? "\u2423" : parent.modelData; color: parent.st && parent.st.color ? parent.st.color : pal.text; font.bold: !!(parent.st && parent.st.bold); font.family: root.fam; font.pixelSize: 12 }
+                                        MouseArea { anchors.fill: parent; onClicked: root.spanPick = parent.index }
+                                    }
+                                }
+                            }
+                            Swatches {
+                                visible: root.ci && root.ci.type === "text" && root.spanPick >= 0
+                                value: ""
+                                onChanged: c => root.setSpan({ color: c })
+                            }
+                            Row {
+                                visible: root.ci && root.ci.type === "text" && root.spanPick >= 0
+                                spacing: 4
+                                Chip { label: "B"; onClicked: root.setSpan({ bold: true }) }
+                                Chip { label: "I"; onClicked: root.setSpan({ italic: true }) }
+                                Chip { label: "U"; onClicked: root.setSpan({ underline: true }) }
+                                Chip { label: I18n.tr("Reset"); onClicked: root.setSpan(null) }
                             }
                             // button action
                             Label { visible: root.ci && root.ci.type === "button"; text: I18n.tr("WHEN CLICKED") }
@@ -651,6 +815,9 @@ Scope {
                                     delegate: Chip { required property var modelData; label: I18n.tr(modelData.l); on: root.ci && (root.ci.source || "media") === modelData.v; onClicked: root.updateItem({ source: modelData.v }) }
                                 }
                             }
+                            Label { visible: root.ci && root.ci.type === "progress"; text: I18n.tr("TRACK (behind the bar)") }
+                            Swatches { visible: root.ci && root.ci.type === "progress"; value: root.ci ? root.ci.track || "" : ""; onChanged: c => root.updateItem({ track: c }) }
+                            Stepper { visible: root.ci && root.ci.type === "progress"; label: I18n.tr("Thick"); value: root.ci ? root.ci.thick || 6 : 6; onChanged: v => root.updateItem({ thick: Math.max(1, v), h: Math.max(root.ci.h || 6, v) }) }
                             // app shortcut
                             Label { visible: root.ci && root.ci.type === "app"; text: I18n.tr("NAME") }
                             Field { visible: root.ci && root.ci.type === "app"; text: root.ci ? root.ci.name || "" : ""; onEdited: t => root.updateItem({ name: t }) }
@@ -693,6 +860,17 @@ Scope {
                             // colour
                             Label { visible: root.ci && root.ci.type !== "art" && root.ci.type !== "image"; text: I18n.tr("COLOUR") }
                             Swatches { visible: root.ci && root.ci.type !== "art" && root.ci.type !== "image"; value: root.ci ? root.ci.color || "#FFFFFF" : ""; onChanged: c => root.updateItem({ color: c }) }
+                            // ── any block: turn, see-through, animation ──
+                            Stepper { label: I18n.tr("Turn"); step: 15; value: root.ci ? root.ci.rotation || 0 : 0; onChanged: v => root.updateItem({ rotation: ((v % 360) + 360) % 360 }) }
+                            Stepper { label: I18n.tr("Show"); step: 10; value: root.ci ? Math.round((root.ci.opacity !== undefined ? root.ci.opacity : 1) * 100) : 100; onChanged: v => root.updateItem({ opacity: Math.max(0.1, Math.min(1, v / 100)) }) }
+                            Label { text: I18n.tr("ANIMATION") }
+                            Flow {
+                                width: parent.width; spacing: 4
+                                Repeater {
+                                    model: [{ v: "none", l: "None" }, { v: "pulse", l: "Pulse" }, { v: "float", l: "Float" }, { v: "spin", l: "Spin" }, { v: "glow", l: "Glow" }]
+                                    delegate: Chip { required property var modelData; label: I18n.tr(modelData.l); on: root.ci && (root.ci.anim || "none") === modelData.v; onClicked: root.updateItem({ anim: modelData.v }) }
+                                }
+                            }
                             Row {
                                 spacing: 6
                                 Chip { label: I18n.tr("Bring Forward"); onClicked: { var w = root.clone(root.cw), it = w.items.splice(root.sel, 1)[0]; w.items.push(it); var l = root.widgets.slice(); l[root.current] = w; root.commit(l); root.sel = w.items.length - 1; } }
@@ -722,6 +900,25 @@ Scope {
                         }
                         Stepper { label: I18n.tr("Round"); step: 2; value: root.cw && root.cw.bg ? root.cw.bg.radius : 0
                             onChanged: v => { var b = root.clone(root.cw.bg || {}); b.radius = Math.max(0, v); root.updateWidget({ bg: b }); } }
+                        Label { text: I18n.tr("SIZE ON THE DESKTOP GRID") }
+                        Flow {
+                            width: parent.width; spacing: 4
+                            Repeater {
+                                model: [[1, 1], [2, 1], [2, 2], [4, 2]]
+                                delegate: Chip {
+                                    required property var modelData
+                                    label: modelData[0] + "\u00D7" + modelData[1]
+                                    on: root.cw && root.cw.w === root.gridSpan(modelData[0]) && root.cw.h === root.gridSpan(modelData[1])
+                                    onClicked: root.setGridSize(modelData[0], modelData[1])
+                                }
+                            }
+                        }
+                        Label { text: I18n.tr("DYNAMIC (album cover colours)") }
+                        Flow {
+                            width: parent.width; spacing: 4
+                            Chip { label: I18n.tr("This widget"); on: !!(root.cw && root.cw.dynamic); onClicked: root.updateWidget({ dynamic: !root.cw.dynamic }) }
+                            Chip { label: I18n.tr("Whole theme"); on: !!(root.cw && root.cw.dynamicTheme); onClicked: root.updateWidget({ dynamicTheme: !root.cw.dynamicTheme, dynamic: true }) }
+                        }
                         Item { width: 1; height: 6 }
                         Row {
                             spacing: 6
