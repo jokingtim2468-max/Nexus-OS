@@ -79,6 +79,39 @@ EDITS = {
                                 }"""),
         ("""            sig.push(it.kind + ":" + (it.key || "") + ":" + it.running + ":" + (it.icon || "") + (it.leaving ? ":L" : ""));""",
          """            sig.push(it.kind + ":" + (it.key || "") + ":" + it.running + ":" + (it.wins || 0) + ":" + (it.icon || "") + (it.leaving ? ":L" : ""));"""),
+        # ── Windows has no compositor blur: the Dock's glass blurs the wallpaper behind it (blur + transparency) ──
+        ("""                    Rectangle {
+                        visible: !root.liquidActive
+                        anchors.fill: parent
+                        radius: root.cornerRadius""",
+         """                    Item {
+                        id: ffBlurSrc
+                        anchors.fill: parent
+                        visible: false
+                        clip: true
+                        Image {
+                            x: -dock.x
+                            y: -(dock.y + win.modelData.height - ui.height)
+                            width: win.modelData.width; height: win.modelData.height
+                            source: root.wallpaperPath ? "file:///" + String(root.wallpaperPath).replace(/^\\/+/, "") : ""
+                            fillMode: Image.PreserveAspectCrop
+                            sourceSize.width: 960          // it is blurred anyway: a small copy is plenty
+                            asynchronous: true; cache: true
+                        }
+                    }
+                    Rectangle { id: ffBlurMask; anchors.fill: parent; radius: root.cornerRadius; visible: false; layer.enabled: true }
+                    MultiEffect {
+                        anchors.fill: parent
+                        visible: Qt.platform.os === "windows" && !root.liquidActive && root.wallpaperPath !== ""
+                        source: ffBlurSrc
+                        blurEnabled: true; blurMax: 48; blur: 1.0
+                        saturation: 0.25
+                        maskEnabled: true; maskSource: ffBlurMask
+                    }
+                    Rectangle {
+                        visible: !root.liquidActive
+                        anchors.fill: parent
+                        radius: root.cornerRadius"""),
         # ── Trash = the Windows Recycle Bin ──
         ('''        if (item.special === "trash") {
             // the file manager first''',
