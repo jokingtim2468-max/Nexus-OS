@@ -180,7 +180,8 @@ jobs:
           Get-Content smoke\qs-list.txt
           Ipc tour stop; Start-Sleep -Seconds 3; Shot desktop
           Ipc widgetstudio open; Start-Sleep -Seconds 6; Shot widgetstudio; Ipc widgetstudio close
-          Ipc music open; Start-Sleep -Seconds 6; Shot music; Ipc music close
+          Ipc finder show "$env:USERPROFILE"; Start-Sleep -Seconds 6; Shot files; Ipc finder close
+          Ipc settings open; Start-Sleep -Seconds 6; Shot settings; Ipc settings toggle
           Ipc themestudio open; Start-Sleep -Seconds 5; Shot themestudio; Ipc themestudio close
           Ipc about open; Start-Sleep -Seconds 5; Shot about
           "exited: $($p.HasExited)  code: $(if ($p.HasExited) { $p.ExitCode })" | Tee-Object smoke\status.txt

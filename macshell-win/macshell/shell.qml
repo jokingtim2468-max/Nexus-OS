@@ -55,6 +55,8 @@ ShellRoot {
             switch (String(id).replace(/\.desktop$/, "")) {
             case "ff-freeform_widget_studio": widgetStudio.open(); return true;
             case "ff-freeform_settings": macDock.openPrefs("general"); return true;
+            case "ff-freeform_theme_studio": themeStudio.open(); return true;
+            case "ff-freeform_files": finder.open(""); return true;
             }
             return false;
         }

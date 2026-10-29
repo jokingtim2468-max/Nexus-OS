@@ -15,6 +15,9 @@ namespace {
 
 // FreeForm's app windows (Widget Studio, Settings...) are frameless Qt windows; Windows 11 only
 // rounds the corners of frameless windows when asked. Panels (bar, Dock, widgets) are left alone.
+// A window with a QML property `ffBackdrop` also gets Windows 11's own blur behind it (the glass look):
+// 2 = Mica, 3 = Acrylic (DWMWA_SYSTEMBACKDROP_TYPE, Windows 11 22H2+; ignored on older Windows).
+// `ffDarkGlass: true` asks for the dark variant.
 class RoundCorners: public QObject {
 public:
 	bool eventFilter(QObject* watched, QEvent* event) override {
@@ -26,6 +29,15 @@ public:
 				auto* hwnd = reinterpret_cast<HWND>(window->winId()); // NOLINT
 				DWORD round = 2; // DWMWCP_ROUND (DWMWA_WINDOW_CORNER_PREFERENCE = 33; Windows 11+)
 				DwmSetWindowAttribute(hwnd, 33, &round, sizeof(round));
+				auto backdrop = window->property("ffBackdrop");
+				if (backdrop.isValid() && backdrop.toInt() > 0) {
+					BOOL dark = window->property("ffDarkGlass").toBool() ? TRUE : FALSE;
+					DwmSetWindowAttribute(hwnd, 20, &dark, sizeof(dark)); // DWMWA_USE_IMMERSIVE_DARK_MODE
+					MARGINS all = {-1, -1, -1, -1};                         // the backdrop shows through the whole window
+					DwmExtendFrameIntoClientArea(hwnd, &all);
+					DWORD type = backdrop.toInt();
+					DwmSetWindowAttribute(hwnd, 38, &type, sizeof(type)); // DWMWA_SYSTEMBACKDROP_TYPE
+				}
 			}
 		}
 		return false;

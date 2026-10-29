@@ -168,10 +168,13 @@ Scope {
         visible: false
         color: "transparent"
         flags: Qt.Window | Qt.FramelessWindowHint
+        // Windows 11's acrylic blur behind the window (see quickshell/src/windows/init.cpp): the glass look
+        property int ffBackdrop: 3
+        property bool ffDarkGlass: dark
 
         readonly property bool dark: root.dock ? root.dock.darkMode : true
-        readonly property color ui: dark ? "#1E1E1E" : "#FFFFFF"
-        readonly property color uiSide: dark ? "#2A2A2C" : "#F0F0F2"
+        readonly property color ui: dark ? Qt.rgba(0.12, 0.12, 0.13, 0.55) : Qt.rgba(1, 1, 1, 0.6)
+        readonly property color uiSide: dark ? Qt.rgba(0.17, 0.17, 0.18, 0.45) : Qt.rgba(0.95, 0.95, 0.96, 0.5)
         readonly property color uiText: dark ? "#F5F5F7" : "#1D1D1F"
         readonly property color uiText2: dark ? Qt.rgba(1, 1, 1, 0.55) : Qt.rgba(0, 0, 0, 0.5)
         readonly property color uiField: dark ? Qt.rgba(1, 1, 1, 0.09) : Qt.rgba(0, 0, 0, 0.06)
@@ -230,6 +233,8 @@ Scope {
             anchors.fill: parent; radius: 12; color: win.ui
             border.width: 1; border.color: win.uiSep
             clip: true
+            // Windows caption buttons, top right
+            WinCaption { z: 10; window: win; dark: win.dark; anchors.top: parent.top; anchors.right: parent.right; anchors.rightMargin: 1 }
 
             // ── left: the controls ──
             Rectangle {
@@ -237,14 +242,6 @@ Scope {
                 width: 360; height: parent.height; color: win.uiSide
                 Rectangle { anchors.right: parent.right; width: 1; height: parent.height; color: win.uiSep }
                 DragHandler { target: null; onActiveChanged: if (active) win.startSystemMove() }
-                Row {
-                    x: 18; y: 18; spacing: 8
-                    Repeater {
-                        model: ["#FF5F57", "#FEBC2E", "#28C840"]
-                        delegate: Rectangle { required property string modelData; required property int index; width: 14; height: 14; radius: 7; color: index !== 1 && win.active ? modelData : Qt.rgba(0.5, 0.5, 0.5, 0.35) }
-                    }
-                }
-                MouseArea { x: 16; y: 16; width: 20; height: 18; onClicked: win.visible = false }
                 Flickable {
                     x: 20; y: 50; width: parent.width - 40; height: parent.height - 50 - 64 - exportFlow.height - 12
                     contentHeight: ctl.height; clip: true
@@ -396,7 +393,7 @@ Scope {
                 x: panel.width; width: parent.width - panel.width; height: parent.height
                 Text { x: 28; y: 22; text: I18n.tr("Preview"); color: win.uiText2; font.family: root.fam; font.pixelSize: 12; font.weight: Font.DemiBold }
                 Row {
-                    anchors.right: parent.right; anchors.rightMargin: 28; y: 14; spacing: 6
+                    anchors.right: parent.right; anchors.rightMargin: 168; y: 12; spacing: 6
                     Btn { label: I18n.tr("Desktop"); primary: root.previewTab === "desktop"; onClicked: root.previewTab = "desktop" }
                     Btn { label: I18n.tr("Spotify"); primary: root.previewTab === "spotify"; onClicked: root.previewTab = "spotify" }
                 }

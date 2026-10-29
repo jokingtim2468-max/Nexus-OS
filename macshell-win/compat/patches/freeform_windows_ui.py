@@ -112,6 +112,29 @@ EDITS = {
                         visible: !root.liquidActive
                         anchors.fill: parent
                         radius: root.cornerRadius"""),
+        # ── Settings on Windows: Windows caption buttons (top right) instead of the Mac dots; acrylic glass ──
+        ("""        flags: Qt.Window | Qt.FramelessWindowHint
+
+        // where this window sits on its monitor, for the glass sidebar's backdrop""",
+         """        flags: Qt.Window | Qt.FramelessWindowHint
+        property int ffBackdrop: Qt.platform.os === "windows" ? 3 : 0     // Windows 11 acrylic blur behind (see init.cpp)
+        property bool ffDarkGlass: root.dockDark
+
+        // where this window sits on its monitor, for the glass sidebar's backdrop"""),
+        ("""                // traffic lights
+                Item {
+                    id: lights
+                    x: 17; y: 16""",
+         """                WinCaption {
+                    visible: Qt.platform.os === "windows"; z: 50
+                    window: prefsWindow; dark: root.dockDark
+                    anchors.top: parent.top; anchors.right: parent.right; anchors.rightMargin: 1
+                }
+                // traffic lights
+                Item {
+                    id: lights
+                    visible: Qt.platform.os !== "windows"
+                    x: 17; y: 16"""),
         # ── Trash = the Windows Recycle Bin ──
         ('''        if (item.special === "trash") {
             // the file manager first''',

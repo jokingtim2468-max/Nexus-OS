@@ -424,9 +424,11 @@ Scope {
         width: 1120; height: 700
         minimumWidth: 900; minimumHeight: 560
         visible: false
-        // Windows: a solid window (its corners are rounded by Windows 11); elsewhere the rounded frame below
-        color: Qt.platform.os === "windows" ? pal.bg : "transparent"
+        // Windows: glass (Windows 11 acrylic blur behind, corners rounded by Windows); elsewhere the rounded frame below
+        color: "transparent"
         flags: Qt.Window | Qt.FramelessWindowHint
+        property int ffBackdrop: 3
+        property bool ffDarkGlass: pal.dark
 
         QtObject {
             id: pal
@@ -510,33 +512,20 @@ Scope {
 
         Rectangle {
             anchors.fill: parent
-            radius: 12; color: pal.bg
+            radius: 12; color: Qt.rgba(Qt.color(pal.bg).r, Qt.color(pal.bg).g, Qt.color(pal.bg).b, 0.55)
             border.width: 1; border.color: pal.border
             clip: true
+            // Windows caption buttons, top right
+            WinCaption { z: 100; window: win; dark: pal.dark; anchors.top: parent.top; anchors.right: parent.right; anchors.rightMargin: 1 }
 
             MouseArea { x: parent.width - 8; y: parent.height - 8; width: 8; height: 8; z: 100; cursorShape: Qt.SizeFDiagCursor; onPressed: win.startSystemResize(Qt.BottomEdge | Qt.RightEdge) }
 
             // ── left: my widgets + templates ──
             Rectangle {
                 id: side
-                width: 220; height: parent.height; color: pal.side
+                width: 220; height: parent.height; color: Qt.rgba(Qt.color(pal.side).r, Qt.color(pal.side).g, Qt.color(pal.side).b, 0.45)
                 Rectangle { anchors.right: parent.right; width: 1; height: parent.height; color: pal.sep }
                 DragHandler { target: null; onActiveChanged: if (active) win.startSystemMove() }
-                Row {
-                    x: 18; y: 18; spacing: 8
-                    Repeater {
-                        model: ["#FF5F57", "#FEBC2E", "#28C840"]
-                        delegate: Rectangle {
-                            required property string modelData; required property int index
-                            width: 14; height: 14; radius: 7; color: win.active ? modelData : pal.lightOff; border.width: 1; border.color: Qt.rgba(0, 0, 0, 0.14)
-                            MouseArea {
-                                anchors.fill: parent; anchors.margins: -3
-                                onClicked: parent.index === 0 ? win.visible = false : parent.index === 1 ? win.showMinimized()
-                                         : (win.visibility === Window.Maximized ? win.showNormal() : win.showMaximized())
-                            }
-                        }
-                    }
-                }
                 Column {
                     x: 10; y: 52; width: parent.width - 20; spacing: 2
                     Label { leftPadding: 8; text: I18n.tr("MY WIDGETS") }
@@ -597,7 +586,7 @@ Scope {
                 x: side.width; width: parent.width - side.width - inspector.width; height: parent.height
                 Rectangle {
                     id: toolbar
-                    width: parent.width; height: Math.max(52, addFlow.height + 18); color: pal.bg
+                    width: parent.width; height: Math.max(52, addFlow.height + 18); color: "transparent"
                     Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: pal.sep }
                     DragHandler { target: null; onActiveChanged: if (active) win.startSystemMove() }
                     Flow {
@@ -648,7 +637,7 @@ Scope {
                 Rectangle {
                     id: canvas
                     y: toolbar.height; width: parent.width; height: parent.height - toolbar.height
-                    color: pal.canvas
+                    color: Qt.rgba(Qt.color(pal.canvas).r, Qt.color(pal.canvas).g, Qt.color(pal.canvas).b, 0.35)
                     // Delete / Backspace removes the selected block (click a block, then press it)
                     focus: true
                     Keys.onDeletePressed: root.deleteItem()
@@ -723,10 +712,10 @@ Scope {
             Rectangle {
                 id: inspector
                 anchors.right: parent.right
-                width: 280; height: parent.height; color: pal.side
+                width: 280; height: parent.height; color: Qt.rgba(Qt.color(pal.side).r, Qt.color(pal.side).g, Qt.color(pal.side).b, 0.45)
                 Rectangle { width: 1; height: parent.height; color: pal.sep }
                 Flickable {
-                    anchors.fill: parent; anchors.margins: 16
+                    anchors.fill: parent; anchors.margins: 16; anchors.topMargin: 40      // room for the caption buttons
                     contentHeight: insp.height; clip: true
                     Column {
                         id: insp
