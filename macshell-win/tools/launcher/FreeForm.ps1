@@ -86,6 +86,7 @@ $env:HOME = $env:USERPROFILE                                   # MacShell keeps 
 $env:FREEFORM_HELPER = Join-Path $root 'compat\helper'
 $env:QML_IMPORT_PATH = (Join-Path $root 'bin\qml') + ';' + (Join-Path $root 'compat\qml')
 $env:QS_ICON_THEME_PATH = Join-Path $root 'icons'
+$env:QS_ICON_THEME = 'FreeForm-Mac'                              # macOS-style icons (icons\FreeForm-Mac, from MacTahoe)
 $env:PATH = (Join-Path $root 'python') + ';' + $env:FREEFORM_HELPER + ';' + (Join-Path $root 'tools\fffetch') + ';' + $env:PATH
 $qs = Join-Path $root 'bin\qs.exe'
 $shell = Join-Path $root 'shell\shell.qml'

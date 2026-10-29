@@ -24,14 +24,43 @@ def desktop_dir():
 RENAME = {"Settings": "Windows Settings"}
 
 
-def entry(app):
+# The Mac-style icon theme FreeForm ships (icons/FreeForm-Mac, built from MacTahoe in CI): apps it
+# has a tile for use that tile instead of their own Windows icon. Names it uses for Windows apps:
+ALIASES = {"chrome": "google-chrome", "msedge": "microsoft-edge", "explorer": "system-file-manager",
+           "file_explorer": "system-file-manager", "windowsterminal": "utilities-terminal", "terminal": "utilities-terminal",
+           "wt": "utilities-terminal", "cmd": "utilities-terminal", "powershell": "utilities-terminal",
+           "spotify": "spotify", "discord": "discord", "steam": "steam", "code": "visual-studio-code",
+           "notepad": "notepad", "obs64": "obs", "telegram": "telegram"}
+
+
+def themed_icons(root):
+    d = os.path.join(root, "icons", "FreeForm-Mac", "apps", "scalable") if root else ""
+    try:
+        return {f[:-4] for f in os.listdir(d) if f.endswith(".svg")}
+    except OSError:
+        return set()
+
+
+def theme_icon(name, wm, themed):
+    """The theme's icon name for this app, or "" when the theme has none."""
+    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    for c in (ALIASES.get(wm), ALIASES.get(slug.replace("-", "_")), slug, wm):
+        if c and c in themed:
+            return c
+    return ""
+
+
+def entry(app, themed=frozenset()):
     """One .desktop file's text for an app from apps.ps1."""
     target = app.get("target") or ""
     wm = os.path.splitext(os.path.basename(target.replace("\\", "/")))[0].lower() if target else ""
     exec_ = "explorer.exe %s" % exec_arg(app["launch"])                 # opens exactly like the Start Menu
     name = RENAME.get(app["name"], app["name"])
     lines = ["[Desktop Entry]", "Type=Application", "Name=%s" % name, "Exec=%s" % exec_]
-    if app.get("icon"):
+    themed_name = theme_icon(app["name"], wm, themed)
+    if themed_name:
+        lines.append("Icon=%s" % themed_name)
+    elif app.get("icon"):
         lines.append("Icon=%s" % app["icon"].replace("\\", "/"))     # Qt reads C:/... fine; backslashes get mangled
     if wm:
         lines.append("StartupWMClass=%s" % wm)
@@ -44,8 +73,8 @@ def exec_arg(s):
     return '"%s"' % s.replace("\\", "\\" * 4).replace('"', '\\\\"')
 
 
-# FreeForm's own apps, so Spotlight and Launchpad find them: (name, IPC target, icon in shell/assets)
-OWN = [("Widget Studio", "widgetstudio", "freeform-logo.png"), ("Settings", "settings", "freeform-logo.png")]
+# FreeForm's own apps, so Spotlight and Launchpad find them: (name, IPC target, icon: theme name or file in shell/assets)
+OWN = [("Widget Studio", "widgetstudio", "preferences-desktop-theme"), ("Settings", "settings", "preferences-system")]
 
 
 def own_entries(root):
@@ -57,7 +86,7 @@ def own_entries(root):
         verb = "start" if target == "tour" else "open"
         exec_ = "%s ipc -p %s call %s %s" % (exec_arg(qs), exec_arg(shell), target, verb)
         out.append((name, "\n".join(["[Desktop Entry]", "Type=Application", "Name=%s" % name, "Exec=%s" % exec_,
-                                     "Icon=%s" % os.path.join(root, "shell", "assets", icon).replace("\\", "/"),
+                                     "Icon=%s" % (icon if "." not in icon else os.path.join(root, "shell", "assets", icon).replace("\\", "/")),
                                      "Categories=FreeForm;", "X-FreeForm=1"]) + "\n"))
     return out
 
@@ -66,10 +95,10 @@ def filename(name):
     return "ff-" + re.sub(r"[^a-z0-9._-]", "_", name.lower()) + ".desktop"
 
 
-def write_all(apps, d, own=()):
+def write_all(apps, d, own=(), themed=frozenset()):
     os.makedirs(d, exist_ok=True)
     keep = set()
-    items = [(filename(a["name"]), entry(a)) for a in apps] + [(filename("freeform " + n), t) for n, t in own]
+    items = [(filename(a["name"]), entry(a, themed)) for a in apps] + [(filename("freeform " + n), t) for n, t in own]
     for f, text in items:
         keep.add(f)
         path = os.path.join(d, f)
@@ -103,7 +132,7 @@ def main(argv):
         apps = list_apps(icons, extra, limit)
         if apps is None:
             continue
-        count = write_all(apps, desktop_dir(), own)
+        count = write_all(apps, desktop_dir(), own, themed_icons(root))
     if not count:
         print("apps: could not list Start Menu apps", file=sys.stderr)
         return 1

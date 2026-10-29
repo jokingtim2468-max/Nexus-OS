@@ -28,6 +28,13 @@ class Entries(unittest.TestCase):
         A.write_all([{"name": "A", "launch": "a.lnk"}], d)
         self.assertEqual(sorted(os.listdir(d)), ["ff-a.desktop", "org.gnome.Mine.desktop"])
 
+    def test_mac_theme_icon_wins_when_the_theme_has_one(self):
+        themed = {"google-chrome", "system-file-manager"}
+        t = A.entry({"name": "Google Chrome", "launch": "x", "target": "C:\\x\\chrome.exe", "icon": "C:\\i\\c.png"}, themed)
+        self.assertIn("Icon=google-chrome\n", t)
+        self.assertEqual(A.theme_icon("File Explorer", "explorer", themed), "system-file-manager")
+        self.assertEqual(A.theme_icon("Some Tool", "tool", themed), "")
+
 
 if __name__ == "__main__":
     unittest.main()

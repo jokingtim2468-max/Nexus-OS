@@ -176,8 +176,8 @@ Scope {
     property real magnification: 1.7     // peak icon scale
     property int spacing: 6
     property int hPad: 10
-    property int topPad: 8
-    property int bottomPad: 9            // room under icons (running dots live here)
+    property int topPad: Qt.platform.os === "windows" ? 5 : 8           // FreeForm: a slimmer Dock on Windows
+    property int bottomPad: Qt.platform.os === "windows" ? 7 : 9        // room under icons (running dots live here)
     property int cornerRadius: 18
     property int margin: 6
     property bool darkMode: true
@@ -227,9 +227,7 @@ Scope {
         { name: "White",    c: "#ffffff" }, { name: "Black",  c: "#1c1c1e" }
     ]
     readonly property var defaultPinned: Qt.platform.os === "windows" ? [
-        "ff-file_explorer", "ff-microsoft_edge", "ff-google_chrome", "ff-firefox", "ff-terminal",
-        "ff-visual_studio_code", "ff-discord", "ff-spotify", "ff-steam",
-        "ff-freeform_widget_studio", "ff-freeform_settings"
+        "ff-steam", "ff-google_chrome", "ff-discord", "ff-spotify", "ff-freeform_settings"
     ] : [
         "org.gnome.Nautilus", "org.kde.dolphin", "thunar",
         "firefox", "zen", "chromium", "google-chrome",
@@ -4340,10 +4338,12 @@ Scope {
     Timer { id: saveTimer; interval: 400; onTriggered: root.saveSettings() }
     // FreeForm (Windows), once: a Dock the size of the Windows taskbar with gentle magnification
     FileView { id: ffDockV2; path: root.configDir + "/ff-dock-v2"; printErrors: false; blockLoading: true }
+    FileView { id: ffDockV3; path: root.configDir + "/ff-dock-v3"; printErrors: false; blockLoading: true }
     function ffDockMigrate() {
-        if (Qt.platform.os !== "windows" || ffDockV2.text() !== "") return;
-        iconSize = 40; magnification = 1.5; magnificationEnabled = true;
-        ffDockV2.setText("1"); saveTimer.restart();
+        if (Qt.platform.os !== "windows") return;
+        if (ffDockV2.text() === "") { iconSize = 40; magnification = 1.5; magnificationEnabled = true; ffDockV2.setText("1"); saveTimer.restart(); }
+        // v3: Steam, Chrome, Discord, Spotify and FreeForm Settings; a dot per open window instead of preview cells
+        if (ffDockV3.text() === "") { pinned = defaultPinned.slice(); showThumbs = false; spacing = 10; showIndicators = true; ffDockV3.setText("1"); saveTimer.restart(); }
     }
 
     // MacShell's own windows (About This Linux, Settings, Finder, Photos ...) all have the app id "org.quickshell":
@@ -4590,13 +4590,14 @@ Scope {
 
     function rebuild() {
         var tls = ToplevelManager.toplevels.values;
-        var running = {};
+        var running = {}, wc = {};
         var runOrder = [];
         for (var i = 0; i < tls.length; i++) {
             var id = appOf(tls[i]);
             if (!id) continue;
             var k = keyOf(id);
             if (!running[k]) { running[k] = true; runOrder.push({ key: k, appId: id }); }
+            wc[k] = (wc[k] || 0) + 1;
         }
 
         var L = {}, now = Date.now(), changed = false;
@@ -4614,7 +4615,7 @@ Scope {
             if (seen[ek]) continue;
             seen[ek] = true;
             list.push({ kind: "app", key: ek, appId: e.id, name: e.name, icon: e.icon, entry: e,
-                        running: !!running[ek], pinned: true });
+                        running: !!running[ek], pinned: true, wins: wc[ek] || 0 });
         }
 
         var extras = [];
@@ -4626,7 +4627,7 @@ Scope {
             list.push({ kind: "app", key: extras[x].key, appId: e2 ? e2.id : extras[x].appId,
                         name: own ? "MacShell" : (e2 ? e2.name : extras[x].appId),
                         icon: own ? logoPath : (e2 ? e2.icon : extras[x].appId.toLowerCase()),
-                        entry: e2, running: true, pinned: false });
+                        entry: e2, running: true, pinned: false, wins: wc[extras[x].key] || 1 });
         }
 
         // window previews: one cell per open window, in their own section next to the Trash
@@ -4703,7 +4704,7 @@ Scope {
                 it.fresh = !firstBuild && !knownKeys[it.key];
                 nowKeys[it.key] = true;
             }
-            sig.push(it.kind + ":" + (it.key || "") + ":" + it.running + ":" + (it.icon || "") + (it.leaving ? ":L" : ""));
+            sig.push(it.kind + ":" + (it.key || "") + ":" + it.running + ":" + (it.wins || 0) + ":" + (it.icon || "") + (it.leaving ? ":L" : ""));
         }
         appCount = nA;
         sepCount = nS;
@@ -5647,12 +5648,15 @@ Scope {
                                     mipmap: true
                                 }
 
-                                Rectangle {
+                                Row {        // one dot per open window (up to 3), like macOS
                                     visible: !cell.isSep && cell.modelData.running && root.showIndicators
-                                    width: 4; height: 4; radius: 2
-                                    color: root.dockDark ? Qt.rgba(1, 1, 1, 0.85) : Qt.rgba(0, 0, 0, 0.6)
+                                    spacing: 3
                                     anchors.horizontalCenter: parent.horizontalCenter
                                     y: cell.height + 3
+                                    Repeater {
+                                        model: Math.max(1, Math.min(3, cell.modelData.wins || 1))
+                                        Rectangle { width: 4; height: 4; radius: 2; color: root.dockDark ? Qt.rgba(1, 1, 1, 0.85) : Qt.rgba(0, 0, 0, 0.6) }
+                                    }
                                 }
 
                                 // ── launch bounce ──

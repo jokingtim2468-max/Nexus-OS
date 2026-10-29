@@ -34,14 +34,51 @@ EDITS = {
     Timer { id: saveTimer; interval: 400; onTriggered: root.saveSettings() }
     // FreeForm (Windows), once: a Dock the size of the Windows taskbar with gentle magnification
     FileView { id: ffDockV2; path: root.configDir + "/ff-dock-v2"; printErrors: false; blockLoading: true }
+    FileView { id: ffDockV3; path: root.configDir + "/ff-dock-v3"; printErrors: false; blockLoading: true }
     function ffDockMigrate() {
-        if (Qt.platform.os !== "windows" || ffDockV2.text() !== "") return;
-        iconSize = 40; magnification = 1.5; magnificationEnabled = true;
-        ffDockV2.setText("1"); saveTimer.restart();
+        if (Qt.platform.os !== "windows") return;
+        if (ffDockV2.text() === "") { iconSize = 40; magnification = 1.5; magnificationEnabled = true; ffDockV2.setText("1"); saveTimer.restart(); }
+        // v3: Steam, Chrome, Discord, Spotify and FreeForm Settings; a dot per open window instead of preview cells
+        if (ffDockV3.text() === "") { pinned = defaultPinned.slice(); showThumbs = false; spacing = 10; showIndicators = true; ffDockV3.setText("1"); saveTimer.restart(); }
     }'''),
         ('''            if (ent && typeof ent.execute === "function") { try { ent.execute(); ok = true; } catch (err3) { ok = false; } }''',
          '''            if (ent && root.hub && root.hub.launchOwn && root.hub.launchOwn(ent.id)) ok = true;
             else if (ent && typeof ent.execute === "function") { try { ent.execute(); ok = true; } catch (err3) { ok = false; } }'''),
+        # ── Dock on Windows: slimmer, one dot per open window (no preview cells) ──
+        ("""    property int topPad: 8
+    property int bottomPad: 9            // room under icons (running dots live here)""",
+         """    property int topPad: Qt.platform.os === "windows" ? 5 : 8           // FreeForm: a slimmer Dock on Windows
+    property int bottomPad: Qt.platform.os === "windows" ? 7 : 9        // room under icons (running dots live here)"""),
+        ("""            if (!running[k]) { running[k] = true; runOrder.push({ key: k, appId: id }); }""",
+         """            if (!running[k]) { running[k] = true; runOrder.push({ key: k, appId: id }); }
+            wc[k] = (wc[k] || 0) + 1;"""),
+        ("""        var running = {};""",
+         """        var running = {}, wc = {};"""),
+        ("""            list.push({ kind: "app", key: ek, appId: e.id, name: e.name, icon: e.icon, entry: e,
+                        running: !!running[ek], pinned: true });""",
+         """            list.push({ kind: "app", key: ek, appId: e.id, name: e.name, icon: e.icon, entry: e,
+                        running: !!running[ek], pinned: true, wins: wc[ek] || 0 });"""),
+        ("""                        entry: e2, running: true, pinned: false });""",
+         """                        entry: e2, running: true, pinned: false, wins: wc[extras[x].key] || 1 });"""),
+        ("""                                Rectangle {
+                                    visible: !cell.isSep && cell.modelData.running && root.showIndicators
+                                    width: 4; height: 4; radius: 2
+                                    color: root.dockDark ? Qt.rgba(1, 1, 1, 0.85) : Qt.rgba(0, 0, 0, 0.6)
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    y: cell.height + 3
+                                }""",
+         """                                Row {        // one dot per open window (up to 3), like macOS
+                                    visible: !cell.isSep && cell.modelData.running && root.showIndicators
+                                    spacing: 3
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    y: cell.height + 3
+                                    Repeater {
+                                        model: Math.max(1, Math.min(3, cell.modelData.wins || 1))
+                                        Rectangle { width: 4; height: 4; radius: 2; color: root.dockDark ? Qt.rgba(1, 1, 1, 0.85) : Qt.rgba(0, 0, 0, 0.6) }
+                                    }
+                                }"""),
+        ("""            sig.push(it.kind + ":" + (it.key || "") + ":" + it.running + ":" + (it.icon || "") + (it.leaving ? ":L" : ""));""",
+         """            sig.push(it.kind + ":" + (it.key || "") + ":" + it.running + ":" + (it.wins || 0) + ":" + (it.icon || "") + (it.leaving ? ":L" : ""));"""),
         # ── Trash = the Windows Recycle Bin ──
         ('''        if (item.special === "trash") {
             // the file manager first''',
@@ -61,9 +98,7 @@ EDITS = {
         ('''    readonly property var defaultPinned: [
         "org.gnome.Nautilus",''',
          '''    readonly property var defaultPinned: Qt.platform.os === "windows" ? [
-        "ff-file_explorer", "ff-microsoft_edge", "ff-google_chrome", "ff-firefox", "ff-terminal",
-        "ff-visual_studio_code", "ff-discord", "ff-spotify", "ff-steam",
-        "ff-freeform_widget_studio", "ff-freeform_settings"
+        "ff-steam", "ff-google_chrome", "ff-discord", "ff-spotify", "ff-freeform_settings"
     ] : [
         "org.gnome.Nautilus",'''),
         # ── Settings: FreeForm's own tab and a Windows tab (Windows only) ──

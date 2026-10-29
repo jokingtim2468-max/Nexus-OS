@@ -107,6 +107,20 @@ jobs:
           # the same shim under the Linux tool names MacShell's Settings call (see winsys.py)
           for t in xdg-open brightnessctl powerprofilesctl notify-send; do cp $P/compat/helper/macshell-helper.exe $P/compat/helper/$t.exe; done
           cp -r macshell-win/tools/fffetch $P/tools/
+          # default wallpaper: Yosemite Valley from Tunnel View, by Diliff, CC BY-SA 3.0 (Wikimedia Commons)
+          for i in 1 2 3 4; do
+            curl -fsSL -A "FreeForm-CI/1.0 (https://github.com/jokingtim2468-max/Nexus-OS)" -o "$P/shell/assets/wallpapers/FreeForm Yosemite.jpg" \
+              "https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Tunnel_View%2C_Yosemite_Valley%2C_Yosemite_NP_-_Diliff.jpg/3840px-Tunnel_View%2C_Yosemite_Valley%2C_Yosemite_NP_-_Diliff.jpg" \
+              && file "$P/shell/assets/wallpapers/FreeForm Yosemite.jpg" | grep -q JPEG && break
+            sleep $((i * 5))
+          done
+          file "$P/shell/assets/wallpapers/FreeForm Yosemite.jpg" | grep JPEG
+          # macOS-style icons (MacTahoe, GPL-3.0) and Qt's SVG plugins to draw them
+          bash macshell-win/tools/icons/build-theme.sh $P/icons
+          mkdir -p $P/bin/imageformats $P/bin/iconengines
+          cp -n "$MINGW_PREFIX"/share/qt6/plugins/imageformats/qsvg.dll $P/bin/imageformats/ 2>/dev/null || true
+          cp -n "$MINGW_PREFIX"/share/qt6/plugins/iconengines/qsvgicon.dll $P/bin/iconengines/ 2>/dev/null || true
+          ls $P/bin/imageformats $P/bin/iconengines
           cp macshell-win/tools/launcher/* $P/
           echo "$(date -u +%Y.%m.%d)-${GITHUB_SHA::7}" > $P/version.txt
           cp macshell-win/macshell/LICENSE $P/LICENSE-MacShell.txt

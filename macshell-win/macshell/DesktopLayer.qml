@@ -21,13 +21,16 @@ Variants {
     readonly property bool paused: !!(ToplevelManager.activeToplevel && ToplevelManager.activeToplevel.fullscreen)
     readonly property bool dark: dock ? dock.darkMode : true
     readonly property string fam: dock ? dock.fontFamily : "Open Runde"
+    // the default (Yosemite, downloaded when the package is built; see THIRD-PARTY.md)
+    readonly property string defaultWallpaper: "FreeForm Yosemite.jpg"
     function url(p) { return p ? "file:///" + String(p).split(String.fromCharCode(92)).join("/").replace(/^\/+/, "") : ""; }
     model: Quickshell.screens
     // Windows has no compositor wallpaper to read: start on FreeForm's own, so the glass has something to refract
     onBarChanged: {
-        if (Qt.platform.os !== "windows" || !bar || bar.wallpaperPath !== "") return;
+        // (also replaces the old default, FreeForm Tide, once)
+        if (Qt.platform.os !== "windows" || !bar || (bar.wallpaperPath !== "" && !/FreeForm Tide-(Dark|Light)\.jpg$/.test(bar.wallpaperPath))) return;
         // file:///D:/x -> D:/x  (file:///home/x -> /home/x)
-        var p = decodeURIComponent(String(Qt.resolvedUrl("assets/wallpapers/FreeForm Tide-" + (dark ? "Dark" : "Light") + ".jpg")))
+        var p = decodeURIComponent(String(Qt.resolvedUrl("assets/wallpapers/" + dl.defaultWallpaper)))
                     .replace(/^file:(\/\/)?/, "").replace(/^\/([A-Za-z]:)/, "$1");
         bar.wallpaperPath = p;
         if (dock) dock.wallpaperPath = p;
@@ -49,7 +52,7 @@ Variants {
             visible: dl.video === ""
             // nothing picked yet: FreeForm's own wallpaper
             source: dl.picture !== "" ? dl.url(dl.picture)
-                    : Qt.resolvedUrl("assets/wallpapers/FreeForm Tide-" + (dl.dark ? "Dark" : "Light") + ".jpg")
+                    : Qt.resolvedUrl("assets/wallpapers/" + dl.defaultWallpaper)
             fillMode: Image.PreserveAspectCrop
             asynchronous: true; smooth: true; cache: false
             sourceSize: Qt.size(desk.width, desk.height)
