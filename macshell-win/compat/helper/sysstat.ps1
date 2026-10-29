@@ -1,6 +1,7 @@
 # sysstat.ps1 — CPU / RAM / GPU load for desktop widgets (Widget Studio), one JSON line every 2 s:
 #   {"cpu":12,"ram":48,"ramUsed":7.6,"ramTotal":15.9,"gpu":3}
 # Uses the language-independent performance classes (Get-Counter's names are translated).
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8   # é, ñ, ó... reach FreeForm intact
 $ErrorActionPreference = 'SilentlyContinue'
 while ($true) {
     $cpu = (Get-CimInstance Win32_PerfFormattedData_PerfOS_Processor -Filter "Name='_Total'").PercentProcessorTime

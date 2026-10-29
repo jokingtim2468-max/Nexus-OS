@@ -31,7 +31,7 @@ Scope {
     property string tempUnit: "C"          // "C" | "F"
     property string locMode: "auto"        // "auto" (IP) | "city"
     property string cityName: ""
-    property real widgetScale: 1.0         // the "Widget size" slider: scales every widget and the grid (0.6 - 1.5)
+    property real widgetScale: Qt.platform.os === "windows" ? 0.5 : 1.0   // the "Widget size" slider: scales every widget and the grid (0.5 - 1.5)
 
     readonly property string fontFamily: dock ? dock.fontFamily : "Open Runde"
     readonly property string boldFontFamily: hub && hub.boldFontFamily ? hub.boldFontFamily : "Open Runde Semibold"
@@ -291,7 +291,7 @@ Scope {
         if (o.tempUnit === "C" || o.tempUnit === "F") tempUnit = o.tempUnit;
         if (o.locMode === "auto" || o.locMode === "city") locMode = o.locMode;
         if (typeof o.cityName === "string") cityName = o.cityName;
-        if (typeof o.widgetScale === "number" && isFinite(o.widgetScale)) widgetScale = Math.max(0.6, Math.min(1.5, o.widgetScale));
+        if (typeof o.widgetScale === "number" && isFinite(o.widgetScale)) widgetScale = Math.max(0.5, Math.min(1.5, o.widgetScale));
         if (Array.isArray(o.widgets)) {
             wmodel.clear();
             for (var i = 0; i < o.widgets.length; i++) {

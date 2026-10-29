@@ -42,7 +42,7 @@ def lines(d):
 def main(argv):
     flags = 0x08000000 if os.name == "nt" else 0
     r = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", PS],
-                       capture_output=True, text=True, creationflags=flags)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", creationflags=flags)
     try:
         d = json.loads(r.stdout)
     except ValueError:

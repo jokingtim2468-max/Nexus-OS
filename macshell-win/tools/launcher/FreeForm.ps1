@@ -68,7 +68,12 @@ if ($Stop) {
     New-Item -ItemType Directory -Force -Path $stateDir | Out-Null
     Set-Content $stopFlag 'stop'                                 # tells the running launcher this was on purpose
     Remove-Item (Join-Path $stateDir 'standby') -ErrorAction SilentlyContinue
-    Get-Process -Name qs -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$root*" } | Stop-Process -Force
+    # the launcher loop (another FreeForm.ps1) first, so it can't start FreeForm again; then FreeForm and its helpers
+    Get-CimInstance Win32_Process -Filter "Name='powershell.exe' OR Name='pwsh.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -match 'FreeForm\.ps1|mods\.ps1|audio\.ps1|brightness\.ps1|media\.ps1|notif\.ps1|winnet\.ps1|sysstat\.ps1' } |
+        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    Get-Process -Name qs, macshell-helper -ErrorAction SilentlyContinue | Stop-Process -Force
+    Remove-Item (Join-Path $stateDir 'standby') -ErrorAction SilentlyContinue
     Restore-Windows
     exit 0
 }

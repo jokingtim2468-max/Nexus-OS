@@ -7,6 +7,7 @@
 #
 # watch line: {"players":[{id,identity,title,artist,album,art,playing,position,length,canNext,canPrev,canSeek,shuffle,loop}]}
 param([Parameter(Position = 0)][string]$Cmd, [Parameter(Position = 1, ValueFromRemainingArguments = $true)][string[]]$Rest)
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8   # é, ñ, ó... reach FreeForm intact
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Runtime.WindowsRuntime
 $asTask = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {

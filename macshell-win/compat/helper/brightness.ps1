@@ -4,6 +4,7 @@
 #   brightness.ps1 serve      -> long-running: reads a value per line on stdin and applies the newest
 #                                one at once (smooth slider); prints the current value every 5 s
 param([string]$Cmd = 'get', [int]$Value = 50)
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8   # é, ñ, ó... reach FreeForm intact
 $ErrorActionPreference = 'SilentlyContinue'
 Add-Type -TypeDefinition @'
 using System; using System.Runtime.InteropServices; using System.Collections.Generic;

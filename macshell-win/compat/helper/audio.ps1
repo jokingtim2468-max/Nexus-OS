@@ -2,6 +2,7 @@
 # Long-running: prints {"sink":{volume,muted,name},"source":{...}} whenever it changes; reads commands on stdin:
 #   sink volume 0.42 | sink mute 1 | source volume 0.8 | source mute 0 | default <endpoint id>
 # Every ~2 s it also lists the active devices: "outs"/"ins": [{id,name}], "defOut"/"defIn": id.
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8   # é, ñ, ó... reach FreeForm intact
 $ErrorActionPreference = 'Stop'
 Add-Type -TypeDefinition @'
 using System; using System.Runtime.InteropServices;

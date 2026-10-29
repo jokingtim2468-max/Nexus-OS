@@ -1,6 +1,7 @@
 # apps.ps1 — every app in the Start Menu (shortcuts + Microsoft Store apps), with a 256 px icon.
 # Prints one JSON array: [{ name, launch, target, icon }]. Used by `macshell-helper apps sync`.
 param([string]$IconDir, [switch]$NoIcons)   # -NoIcons: fast list, only icons already extracted
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8   # é, ñ, ó... reach FreeForm intact
 $ErrorActionPreference = 'SilentlyContinue'
 New-Item -ItemType Directory -Force -Path $IconDir | Out-Null
 Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @'

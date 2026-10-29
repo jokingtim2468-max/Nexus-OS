@@ -7,6 +7,7 @@
 # Windows asks once ("Let FreeForm access your notifications?"); Settings > Privacy > Notifications
 # can turn it off again. When access is refused, nothing is mirrored and Windows shows its own.
 param([string]$Cmd = 'watch')
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8   # é, ñ, ó... reach FreeForm intact
 $ErrorActionPreference = 'Stop'
 function Out-Line($o) { [Console]::Out.WriteLine(($o | ConvertTo-Json -Compress)); [Console]::Out.Flush() }
 try {

@@ -34,7 +34,7 @@ def ps(script_or_file, *args, file=False, timeout=30):
     cmd = ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass"]
     cmd += (["-File", script_or_file] if file else ["-Command", script_or_file]) + list(args)
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, creationflags=NOWIN)
+        r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout, creationflags=NOWIN)
         return r.stdout
     except (OSError, subprocess.TimeoutExpired):
         return ""

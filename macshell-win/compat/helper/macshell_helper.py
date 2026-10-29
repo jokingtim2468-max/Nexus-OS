@@ -113,7 +113,7 @@ class WindowsBackend:
         cmd = ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
                "-File", self.PS, *args]
         flags = 0x08000000 if os.name == "nt" else 0  # CREATE_NO_WINDOW: no console flash
-        r = subprocess.run(cmd, capture_output=True, text=True, creationflags=flags)
+        r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", creationflags=flags)
         if r.returncode != 0:
             raise Fail((r.stderr or r.stdout).strip() or "failed", r.returncode)
         return json.loads(r.stdout) if want_json else None

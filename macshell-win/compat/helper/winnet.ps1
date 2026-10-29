@@ -10,6 +10,7 @@
 # Must run under Windows PowerShell 5.1 (powershell.exe), which has the WinRT projection.
 
 param([Parameter(Position = 0)][string]$Cmd, [Parameter(Position = 1, ValueFromRemainingArguments = $true)][string[]]$Rest)
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8   # é, ñ, ó... reach FreeForm intact
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
