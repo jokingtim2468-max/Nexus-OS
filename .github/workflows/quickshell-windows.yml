@@ -107,14 +107,21 @@ jobs:
           # the same shim under the Linux tool names MacShell's Settings call (see winsys.py)
           for t in xdg-open brightnessctl powerprofilesctl notify-send; do cp $P/compat/helper/macshell-helper.exe $P/compat/helper/$t.exe; done
           cp -r macshell-win/tools/fffetch $P/tools/
-          # default wallpaper: Yosemite Valley from Tunnel View, by Diliff, CC BY-SA 3.0 (Wikimedia Commons)
-          for i in 1 2 3 4; do
-            curl -fsSL -A "FreeForm-CI/1.0 (https://github.com/jokingtim2468-max/Nexus-OS)" -o "$P/shell/assets/wallpapers/FreeForm Yosemite.jpg" \
-              "https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Tunnel_View%2C_Yosemite_Valley%2C_Yosemite_NP_-_Diliff.jpg/3840px-Tunnel_View%2C_Yosemite_Valley%2C_Yosemite_NP_-_Diliff.jpg" \
-              && file "$P/shell/assets/wallpapers/FreeForm Yosemite.jpg" | grep -q JPEG && break
-            sleep $((i * 5))
-          done
-          file "$P/shell/assets/wallpapers/FreeForm Yosemite.jpg" | grep JPEG
+          # landscape wallpapers (the places macOS wallpapers show), freely licensed photos from Wikimedia Commons;
+          # each one's license is printed here and listed in THIRD-PARTY.md
+          wp() {   # wp "Saved Name.jpg" "Commons file name"
+            for i in 1 2 3 4; do
+              curl -fsSL -A "FreeForm-CI/1.0 (https://github.com/jokingtim2468-max/Nexus-OS)" -o "$P/shell/assets/wallpapers/$1" \
+                "https://commons.wikimedia.org/wiki/Special:FilePath/$2?width=3840" && file "$P/shell/assets/wallpapers/$1" | grep -q JPEG && break
+              sleep $((i * 5))
+            done
+            file "$P/shell/assets/wallpapers/$1" | grep JPEG
+            curl -fsSL -A "FreeForm-CI/1.0" "https://commons.wikimedia.org/w/api.php?action=query&format=json&prop=imageinfo&iiprop=extmetadata&titles=File:$2" \
+              | grep -o '"LicenseShortName":{"value":"[^"]*"' || true
+          }
+          wp "FreeForm Yosemite.jpg" "Tunnel_View,_Yosemite_Valley,_Yosemite_NP_-_Diliff.jpg"
+          wp "FreeForm Big Sur.jpg" "Central_Californian_Coastline,_Big_Sur_-_May_2013.jpg"
+          wp "FreeForm Sierra.jpg" "Last_snow,_Eastern_Sierra_Nevada,_CA_5-15_(21142042529).jpg"
           # macOS-style icons (MacTahoe, GPL-3.0) and Qt's SVG plugins to draw them
           bash macshell-win/tools/icons/build-theme.sh $P/icons
           mkdir -p $P/bin/imageformats $P/bin/iconengines
@@ -271,6 +278,7 @@ jobs:
           Start-Sleep -Seconds 15; Stop-Process -Id $ap.Id -Force -ErrorAction SilentlyContinue
           powershell -NoProfile -ExecutionPolicy Bypass -File macshell-win\tools\fffetch\fetch-core.ps1 *> smoke\fffetch-ps.txt
           Get-Content smoke\fffetch-ps.txt
+          Copy-Item 'pkg\FreeForm\shell\assets\wallpapers\FreeForm Yosemite.jpg', 'pkg\FreeForm\shell\assets\wallpapers\FreeForm Big Sur.jpg', 'pkg\FreeForm\shell\assets\wallpapers\FreeForm Sierra.jpg' smoke\ -ErrorAction SilentlyContinue
           foreach ($f in 'fffetch-cmd', 'helper-net', 'helper-bt', 'helper-store', 'helper-about', 'helper-power', 'helper-bright', 'helper-ffconfig', 'helper-audio', 'helper-audio-err') { "── $f"; Get-Content "smoke\$f.txt" -TotalCount 25 }
 
       # The one-line installer (tools/launcher/get.ps1) downloads this zip from the

@@ -16,6 +16,10 @@ https://github.com/vinceliuice/MacTahoe-icon-theme — not stored here: `macshel
 takes its app and place icons (pinned commit) into the package as `icons/FreeForm-Mac`, with its COPYING.
 It is the icon set MacShell recommends (via Scrimas/MacOS-Like).
 
-## Default wallpaper — "Tunnel View, Yosemite Valley, Yosemite NP" by Diliff, CC BY-SA 3.0
-https://commons.wikimedia.org/wiki/File:Tunnel_View,_Yosemite_Valley,_Yosemite_NP_-_Diliff.jpg — downloaded
-when the package is built, as `shell/assets/wallpapers/FreeForm Yosemite.jpg` (unmodified).
+## Landscape wallpapers (Wikimedia Commons, downloaded unmodified when the package is built)
+- `FreeForm Yosemite.jpg` (default): "Tunnel View, Yosemite Valley, Yosemite NP" by Diliff, CC BY-SA 3.0 —
+  https://commons.wikimedia.org/wiki/File:Tunnel_View,_Yosemite_Valley,_Yosemite_NP_-_Diliff.jpg
+- `FreeForm Big Sur.jpg`: "Central Californian Coastline, Big Sur - May 2013" by Diliff, CC BY-SA 3.0 —
+  https://commons.wikimedia.org/wiki/File:Central_Californian_Coastline,_Big_Sur_-_May_2013.jpg
+- `FreeForm Sierra.jpg`: "Last snow, Eastern Sierra Nevada, CA" (Flickr via Commons; license as printed by the CI build log) —
+  https://commons.wikimedia.org/wiki/File:Last_snow,_Eastern_Sierra_Nevada,_CA_5-15_(21142042529).jpg
