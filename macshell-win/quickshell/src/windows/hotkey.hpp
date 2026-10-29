@@ -140,4 +140,22 @@ private:
 	QTimer* mTimer = nullptr;
 };
 
+/// Caps Lock's on/off state (polled; Windows sends no event for it), for the Dynamic Island:
+///   WinCapsLock { id: caps }   ...   visible: caps.on
+class WinCapsLock: public QObject {
+	Q_OBJECT;
+	Q_PROPERTY(bool on READ on NOTIFY onChanged);
+	QML_ELEMENT;
+
+public:
+	explicit WinCapsLock(QObject* parent = nullptr);
+	[[nodiscard]] bool on() const { return this->mOn; }
+
+signals:
+	void onChanged();
+
+private:
+	bool mOn = false;
+};
+
 } // namespace qs::windows

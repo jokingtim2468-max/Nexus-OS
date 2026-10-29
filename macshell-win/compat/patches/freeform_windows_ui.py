@@ -398,6 +398,12 @@ EDITS = {
         PanelWindow {
             id: win
 '''),
+        # ── Dynamic Island (Windows): notifications show in the island at the top instead of a corner toast ──
+        ("""        if ((!root.notifDnd || urg === 2) && !root.notifOpen) {""",
+         """        if ((!root.notifDnd || urg === 2) && !root.notifOpen && root.hub && root.hub.island) {
+            if (root.isSystemNotif(n)) root.playSound("glass", 0.7);
+            root.hub.island.notify(rec);
+        } else if ((!root.notifDnd || urg === 2) && !root.notifOpen) {"""),
         # ── 2. no workspace numbers on Windows ──
         ('''    readonly property var wsIds: {
         var ids = [], vals = Hyprland.workspaces.values;''',

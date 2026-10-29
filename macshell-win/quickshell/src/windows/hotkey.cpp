@@ -356,5 +356,16 @@ void WinStandby::setActive(bool active) {
 	emit this->activeChanged();
 }
 
+WinCapsLock::WinCapsLock(QObject* parent): QObject(parent) {
+	this->mOn = (GetKeyState(VK_CAPITAL) & 1) != 0;
+	auto* timer = new QTimer(this);
+	timer->setInterval(120);
+	QObject::connect(timer, &QTimer::timeout, this, [this]() {
+		bool on = (GetKeyState(VK_CAPITAL) & 1) != 0;
+		if (on != this->mOn) { this->mOn = on; emit this->onChanged(); }
+	});
+	timer->start();
+}
+
 } // namespace qs::windows
 

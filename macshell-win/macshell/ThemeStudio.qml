@@ -173,8 +173,10 @@ Scope {
         property bool ffDarkGlass: dark
 
         readonly property bool dark: root.dock ? root.dock.darkMode : true
-        readonly property color ui: dark ? Qt.rgba(0.12, 0.12, 0.13, 0.55) : Qt.rgba(1, 1, 1, 0.6)
-        readonly property color uiSide: dark ? Qt.rgba(0.17, 0.17, 0.18, 0.45) : Qt.rgba(0.95, 0.95, 0.96, 0.5)
+        // glass while it's a window; solid when maximized or fullscreen, so the desktop doesn't show through
+        readonly property bool solid: visibility === Window.Maximized || visibility === Window.FullScreen
+        readonly property color ui: dark ? Qt.rgba(0.12, 0.12, 0.13, solid ? 1 : 0.55) : Qt.rgba(1, 1, 1, solid ? 1 : 0.6)
+        readonly property color uiSide: dark ? Qt.rgba(0.17, 0.17, 0.18, solid ? 1 : 0.45) : Qt.rgba(0.95, 0.95, 0.96, solid ? 1 : 0.5)
         readonly property color uiText: dark ? "#F5F5F7" : "#1D1D1F"
         readonly property color uiText2: dark ? Qt.rgba(1, 1, 1, 0.55) : Qt.rgba(0, 0, 0, 0.5)
         readonly property color uiField: dark ? Qt.rgba(1, 1, 1, 0.09) : Qt.rgba(0, 0, 0, 0.06)

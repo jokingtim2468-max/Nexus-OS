@@ -47,6 +47,7 @@ ShellRoot {
         property var themeStudio: themeStudio
         property var missionControl: missionControl
         property var finder: finder
+        readonly property var island: islandLoader.item       // Windows: the Dynamic Island (Caps Lock, notifications)
         function openMusic() { if (musicLoader.item) musicLoader.item.open(); else musicLoader.active = true; }
         // Windows: hide FreeForm but keep it loaded (WindowsHotkeys.qml); false if not on Windows
         function switchToWindows() { if (winHotkeys.item) { winHotkeys.item.switchToWindows(); return true; } return false; }
@@ -313,6 +314,13 @@ ShellRoot {
     Loader {
         active: Qt.platform.os === "windows"
         source: "DesktopLayer.qml"
+        onLoaded: item.hub = sharedHub
+    }
+    // Windows: the Dynamic Island at the top centre (DynamicIsland.qml)
+    Loader {
+        id: islandLoader
+        active: Qt.platform.os === "windows"
+        source: "DynamicIsland.qml"
         onLoaded: item.hub = sharedHub
     }
     // Windows: system-wide shortcuts (WindowsHotkeys.qml); on Linux the compositor binds them

@@ -26,18 +26,18 @@ DOT = 0.72         # dot diameter, as a share of the grid step
 
 
 def cells(step):
-    """Centres (in the 100 box) of the dots for a grid of `step` units."""
-    out = []
+    """Centres (in the 100 box) of the dots for a grid of `step` units. Each F gets the same grid,
+    measured from its own left edge, so the two letters match dot for dot."""
+    F = [(8, 10, 20, 90), (8, 10, 44, 26), (8, 38, 40, 53)]               # one F, at x = 8
+    one = []
     y = 10 + step / 2
     while y < 90:
         x = 8 + step / 2
-        while x < 92:
-            if inside(x, y): out.append((x, y))
+        while x < 44:
+            if any(x0 <= x <= x1 and y0 <= y <= y1 for x0, y0, x1, y1 in F): one.append((x, y))
             x += step
         y += step
-    return out
-
-
+    return one + [(x + 48, y) for x, y in one]
 
 
 def tile(size, step, bg=(0, 0, 0, 255), fg=(255, 255, 255, 255), pad=0.16, radius=0.22):

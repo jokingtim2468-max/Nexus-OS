@@ -182,6 +182,10 @@ jobs:
           Ipc widgetstudio open; Start-Sleep -Seconds 6; Shot widgetstudio; Ipc widgetstudio close
           Ipc finder open; Start-Sleep -Seconds 6; Shot files; Ipc finder close
           Ipc settings open; Start-Sleep -Seconds 6; Shot settings; Ipc settings toggle
+          # Dynamic Island: Caps Lock on, picture, off again
+          Add-Type -AssemblyName System.Windows.Forms
+          [System.Windows.Forms.SendKeys]::SendWait('{CAPSLOCK}'); Start-Sleep -Seconds 2; Shot island-caps
+          [System.Windows.Forms.SendKeys]::SendWait('{CAPSLOCK}'); Start-Sleep -Seconds 1
           Ipc themestudio open; Start-Sleep -Seconds 5; Shot themestudio; Ipc themestudio close
           Ipc about open; Start-Sleep -Seconds 5; Shot about
           "exited: $($p.HasExited)  code: $(if ($p.HasExited) { $p.ExitCode })" | Tee-Object smoke\status.txt

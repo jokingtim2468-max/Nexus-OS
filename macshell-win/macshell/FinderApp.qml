@@ -222,7 +222,9 @@ Scope {
         Rectangle {
             anchors.fill: parent
             radius: 8; clip: true
-            color: root.dark ? Qt.rgba(0, 0, 0, 0.0) : Qt.rgba(1, 1, 1, 0.0)
+            // glass while it's a window; solid when maximized or fullscreen, so the desktop doesn't show through
+            readonly property bool solid: win.visibility === Window.Maximized || win.visibility === Window.FullScreen
+            color: solid ? (root.dark ? "#1C1C1C" : "#F3F3F3") : (root.dark ? Qt.rgba(0, 0, 0, 0.0) : Qt.rgba(1, 1, 1, 0.0))
             border.width: 1; border.color: pal.sep
 
             MouseArea { x: parent.width - 8; y: parent.height - 8; width: 8; height: 8; z: 100; cursorShape: Qt.SizeFDiagCursor; onPressed: win.startSystemResize(Qt.BottomEdge | Qt.RightEdge) }

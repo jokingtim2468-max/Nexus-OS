@@ -3763,7 +3763,10 @@ Scope {
             notifHist.remove(notifHist.count - 1);
             delete root.notifRefs[old];
         }
-        if ((!root.notifDnd || urg === 2) && !root.notifOpen) {
+        if ((!root.notifDnd || urg === 2) && !root.notifOpen && root.hub && root.hub.island) {
+            if (root.isSystemNotif(n)) root.playSound("glass", 0.7);
+            root.hub.island.notify(rec);
+        } else if ((!root.notifDnd || urg === 2) && !root.notifOpen) {
             // the screenshot has its own shutter sound
             if (root.isSystemNotif(n) && !(rec.app === "macbar" && rec.summary.indexOf("Screenshot") === 0)) root.playSound("glass", 0.7);
             notifToasts.insert(0, rec);

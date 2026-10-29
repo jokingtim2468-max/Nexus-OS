@@ -429,6 +429,8 @@ Scope {
         flags: Qt.Window | Qt.FramelessWindowHint
         property int ffBackdrop: 3
         property bool ffDarkGlass: pal.dark
+        // glass while it's a window; solid when maximized or fullscreen, so the desktop doesn't show through
+        readonly property bool solid: visibility === Window.Maximized || visibility === Window.FullScreen
 
         QtObject {
             id: pal
@@ -512,7 +514,7 @@ Scope {
 
         Rectangle {
             anchors.fill: parent
-            radius: 12; color: Qt.rgba(Qt.color(pal.bg).r, Qt.color(pal.bg).g, Qt.color(pal.bg).b, 0.55)
+            radius: 12; color: Qt.rgba(Qt.color(pal.bg).r, Qt.color(pal.bg).g, Qt.color(pal.bg).b, win.solid ? 1 : 0.55)
             border.width: 1; border.color: pal.border
             clip: true
             // Windows caption buttons, top right
@@ -523,7 +525,7 @@ Scope {
             // ── left: my widgets + templates ──
             Rectangle {
                 id: side
-                width: 220; height: parent.height; color: Qt.rgba(Qt.color(pal.side).r, Qt.color(pal.side).g, Qt.color(pal.side).b, 0.45)
+                width: 220; height: parent.height; color: Qt.rgba(Qt.color(pal.side).r, Qt.color(pal.side).g, Qt.color(pal.side).b, win.solid ? 1 : 0.45)
                 Rectangle { anchors.right: parent.right; width: 1; height: parent.height; color: pal.sep }
                 DragHandler { target: null; onActiveChanged: if (active) win.startSystemMove() }
                 Column {
@@ -712,7 +714,7 @@ Scope {
             Rectangle {
                 id: inspector
                 anchors.right: parent.right
-                width: 280; height: parent.height; color: Qt.rgba(Qt.color(pal.side).r, Qt.color(pal.side).g, Qt.color(pal.side).b, 0.45)
+                width: 280; height: parent.height; color: Qt.rgba(Qt.color(pal.side).r, Qt.color(pal.side).g, Qt.color(pal.side).b, win.solid ? 1 : 0.45)
                 Rectangle { width: 1; height: parent.height; color: pal.sep }
                 Flickable {
                     anchors.fill: parent; anchors.margins: 16; anchors.topMargin: 40      // room for the caption buttons
