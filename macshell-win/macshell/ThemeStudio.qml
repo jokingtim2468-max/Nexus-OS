@@ -1,8 +1,10 @@
-// Theme Studio — make your own FreeForm theme, previewed on a Spotify-style window.
+// Theme Studio — make your own FreeForm theme, previewed on the FreeForm desktop or a Spotify-style window.
 //
 //   qs -c MacShell ipc call themestudio open        (also: Settings > Appearance > Theme > Custom…)
 //
-// Pick the background, sidebar, cards, text, secondary text and accent colours and Light/Dark.
+// Start from a preset (or "Surprise me"), pick the background, sidebar, cards, text, secondary text
+// and accent colours, Light/Dark, how glassy panels are, and a wallpaper that comes with the theme.
+// A readability check warns when text and background are too close.
 // The preview is a plain drawing of a music app: album covers and song names are grey blocks,
 // so no real music or artwork is shown. Saved themes appear next to Black / White / Graphite and
 // apply the same way (MacShell, Windows apps, and Spotify through Spicetify when installed).
@@ -36,6 +38,47 @@ Scope {
         listShared();
     }
     function close() { win.visible = false; }
+    property string previewTab: "desktop"         // desktop | spotify
+
+    // ready-made starting points (all editable)
+    readonly property var starters: [
+        { name: "Midnight", mode: "dark", bg: "#0B0D12", side: "#05060A", card: "#171A22", fg: "#F5F7FA", sub: "#8A93A6", accent: "#0A84FF", glass: 0.6, wallpaper: "FreeForm Sierra.jpg" },
+        { name: "Snow", mode: "light", bg: "#FFFFFF", side: "#F2F2F7", card: "#E9E9EE", fg: "#1D1D1F", sub: "#6E6E73", accent: "#0A84FF", glass: 0.5, wallpaper: "FreeForm Sierra.jpg" },
+        { name: "Graphite", mode: "dark", bg: "#1C1C1E", side: "#141414", card: "#2C2C2E", fg: "#F2F2F2", sub: "#9A9A9F", accent: "#8E8E93", glass: 0.55, wallpaper: "FreeForm Yosemite.jpg" },
+        { name: "Ocean", mode: "dark", bg: "#071A24", side: "#04121A", card: "#0E2A38", fg: "#E8F6FB", sub: "#7FA9B8", accent: "#2EC5E6", glass: 0.6, wallpaper: "FreeForm Big Sur.jpg" },
+        { name: "Sunset", mode: "dark", bg: "#1A0F14", side: "#12080C", card: "#2A1820", fg: "#FFF1EC", sub: "#C29A92", accent: "#FF7A45", glass: 0.55, wallpaper: "FreeForm Big Sur.jpg" },
+        { name: "Forest", mode: "dark", bg: "#0E1712", side: "#08100B", card: "#18261D", fg: "#EEF6EF", sub: "#8FA897", accent: "#30D158", glass: 0.55, wallpaper: "FreeForm Yosemite.jpg" },
+        { name: "Paper", mode: "light", bg: "#FBF8F2", side: "#F1ECE2", card: "#E8E1D3", fg: "#2B2620", sub: "#7C7366", accent: "#C8641E", glass: 0.4, wallpaper: "FreeForm Yosemite.jpg" }
+    ]
+    function useStarter(st) {
+        var d = JSON.parse(JSON.stringify(st)); d.id = draft.id; d.custom = true;
+        d.name = editing >= 0 ? draft.name : st.name; draft = d;
+    }
+    // a random but harmonious palette: one hue for the accent, a tinted near-black or near-white base
+    function surprise() {
+        var h = Math.random(), dark = Math.random() < 0.7;
+        var c = function (hh, ss, ll) { return String(Qt.hsla(hh % 1, ss, ll, 1)).toUpperCase().slice(0, 7); };
+        var d = JSON.parse(JSON.stringify(draft));
+        d.mode = dark ? "dark" : "light";
+        d.bg = dark ? c(h, 0.25, 0.07) : c(h, 0.2, 0.97);
+        d.side = dark ? c(h, 0.25, 0.04) : c(h, 0.18, 0.93);
+        d.card = dark ? c(h, 0.22, 0.13) : c(h, 0.16, 0.89);
+        d.fg = dark ? c(h, 0.15, 0.95) : c(h, 0.2, 0.12);
+        d.sub = dark ? c(h, 0.12, 0.62) : c(h, 0.1, 0.42);
+        d.accent = c(h + 0.5 + (Math.random() - 0.5) * 0.2, 0.75, dark ? 0.6 : 0.48);
+        draft = d;
+    }
+    // WCAG contrast ratio between two colours (4.5+ reads comfortably)
+    function lum(col) {
+        var q = Qt.color(col), f = function (v) { return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+        return 0.2126 * f(q.r) + 0.7152 * f(q.g) + 0.0722 * f(q.b);
+    }
+    function contrast(a, b) { var x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
+    readonly property real readability: contrast(draft.fg || "#FFFFFF", draft.bg || "#000000")
+    readonly property var wallpapers: ["FreeForm Yosemite.jpg", "FreeForm Big Sur.jpg", "FreeForm Sierra.jpg"]
+    function wallpaperFile(name) {
+        return decodeURIComponent(String(Qt.resolvedUrl("assets/wallpapers/" + name))).replace(/^file:(\/\/)?/, "").replace(/^\/([A-Za-z]:)/, "$1");
+    }
     function set(k, v) { var d = JSON.parse(JSON.stringify(draft)); d[k] = v; draft = d; }
     function save(apply) {
         var d = JSON.parse(JSON.stringify(draft));
@@ -45,6 +88,10 @@ Scope {
         themes = l; draft = d;
         store.setText(JSON.stringify({ themes: l }, null, 1));
         if (apply && dock) dock.applyThemePreset(d.id);
+        if (apply && d.wallpaper && hub && hub.bar) {                   // the theme's wallpaper comes along
+            var wp = wallpaperFile(d.wallpaper);
+            hub.bar.wallpaperPath = wp; if (dock) dock.wallpaperPath = wp;
+        }
     }
     function remove() {
         if (editing < 0) return;
@@ -106,8 +153,8 @@ Scope {
     Window {
         id: win
         title: "Theme Studio"
-        width: 1040; height: 660
-        minimumWidth: 900; minimumHeight: 560
+        width: 1120; height: 720
+        minimumWidth: 940; minimumHeight: 600
         visible: false
         color: "transparent"
         flags: Qt.Window | Qt.FramelessWindowHint
@@ -177,7 +224,7 @@ Scope {
             // ── left: the controls ──
             Rectangle {
                 id: panel
-                width: 340; height: parent.height; color: win.uiSide
+                width: 360; height: parent.height; color: win.uiSide
                 Rectangle { anchors.right: parent.right; width: 1; height: parent.height; color: win.uiSep }
                 DragHandler { target: null; onActiveChanged: if (active) win.startSystemMove() }
                 Row {
@@ -195,6 +242,51 @@ Scope {
                         id: ctl
                         width: parent.width; spacing: 14
                         Text { text: I18n.tr("Theme Studio"); color: win.uiText; font.family: root.fam; font.pixelSize: 22; font.weight: Font.Bold }
+                        // your saved themes: click one to edit it
+                        Flow {
+                            visible: root.themes.length > 0
+                            width: parent.width; spacing: 6
+                            Text { text: I18n.tr("Yours:"); color: win.uiText2; font.family: root.fam; font.pixelSize: 12; height: 26; verticalAlignment: Text.AlignVCenter }
+                            Repeater {
+                                model: root.themes
+                                delegate: Rectangle {
+                                    required property var modelData
+                                    required property int index
+                                    width: yt.implicitWidth + 30; height: 26; radius: 13
+                                    color: root.editing === index ? win.accent : win.uiField
+                                    Rectangle { x: 8; anchors.verticalCenter: parent.verticalCenter; width: 10; height: 10; radius: 5; color: parent.modelData.accent }
+                                    Text { id: yt; x: 22; anchors.verticalCenter: parent.verticalCenter; text: parent.modelData.name; color: root.editing === parent.index ? "white" : win.uiText; font.family: root.fam; font.pixelSize: 12 }
+                                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.open(parent.index) }
+                                }
+                            }
+                            Rectangle {
+                                width: 26; height: 26; radius: 13; color: win.uiField
+                                Text { anchors.centerIn: parent; text: "+"; color: win.uiText; font.pixelSize: 15 }
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.open() }
+                            }
+                        }
+                        Text { text: I18n.tr("START FROM"); color: win.uiText2; font.family: root.fam; font.pixelSize: 11; font.weight: Font.DemiBold }
+                        Flow {
+                            width: parent.width; spacing: 6
+                            Repeater {
+                                model: root.starters
+                                delegate: Rectangle {
+                                    required property var modelData
+                                    width: 64; height: 50; radius: 9; color: modelData.bg
+                                    border.width: 1; border.color: win.uiSep
+                                    Rectangle { x: 6; y: 6; width: 18; height: 18; radius: 9; color: parent.modelData.accent }
+                                    Rectangle { x: 28; y: 9; width: 28; height: 5; radius: 2.5; color: parent.modelData.fg }
+                                    Rectangle { x: 28; y: 17; width: 18; height: 4; radius: 2; color: parent.modelData.sub }
+                                    Text { x: 6; y: 30; text: parent.modelData.name; color: parent.modelData.fg; font.family: root.fam; font.pixelSize: 11 }
+                                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.useStarter(parent.modelData) }
+                                }
+                            }
+                            Rectangle {
+                                width: 64; height: 50; radius: 9; color: win.uiField
+                                Text { anchors.centerIn: parent; horizontalAlignment: Text.AlignHCenter; text: "\u2728\n" + I18n.tr("Surprise"); color: win.uiText; font.family: root.fam; font.pixelSize: 11 }
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.surprise() }
+                            }
+                        }
                         Rectangle {
                             width: parent.width; height: 30; radius: 7; color: win.uiField
                             TextInput {
@@ -217,6 +309,55 @@ Scope {
                         ColorRow { label: "Text"; key: "fg" }
                         ColorRow { label: "Secondary text"; key: "sub" }
                         ColorRow { label: "Accent"; key: "accent" }
+                        // readability: text against the background
+                        Row {
+                            spacing: 8
+                            Rectangle { width: 10; height: 10; radius: 5; anchors.verticalCenter: parent.verticalCenter
+                                        color: root.readability >= 7 ? "#30D158" : root.readability >= 4.5 ? "#FFD60A" : "#FF453A" }
+                            Text {
+                                color: win.uiText2; font.family: root.fam; font.pixelSize: 12
+                                text: (root.readability >= 7 ? I18n.tr("Text is easy to read") : root.readability >= 4.5 ? I18n.tr("Text reads OK")
+                                       : I18n.tr("Text is hard to read: make Text and Background more different")) + "  (" + root.readability.toFixed(1) + ":1)"
+                            }
+                        }
+                        // how see-through menus, the Dock and panels are
+                        Column {
+                            width: parent.width; spacing: 6
+                            Text { text: I18n.tr("Glass") + "  " + Math.round((root.draft.glass !== undefined ? root.draft.glass : 0.6) * 100) + "%"; color: win.uiText; font.family: root.fam; font.pixelSize: 13 }
+                            Rectangle {
+                                id: glassTrack
+                                width: parent.width; height: 6; radius: 3; color: win.uiField
+                                readonly property real v: root.draft.glass !== undefined ? root.draft.glass : 0.6
+                                Rectangle { width: parent.width * glassTrack.v; height: 6; radius: 3; color: win.accent }
+                                Rectangle { x: parent.width * glassTrack.v - 8; y: -5; width: 16; height: 16; radius: 8; color: "white"; border.width: 1; border.color: win.uiSep }
+                                MouseArea {
+                                    anchors.fill: parent; anchors.margins: -8
+                                    function pick(mx) { root.set("glass", Math.round(Math.max(0, Math.min(1, (mx - 8) / glassTrack.width)) * 100) / 100); }
+                                    onPressed: mouse => pick(mouse.x); onPositionChanged: mouse => pick(mouse.x)
+                                }
+                            }
+                        }
+                        // the wallpaper that comes with the theme
+                        Text { text: I18n.tr("WALLPAPER"); color: win.uiText2; font.family: root.fam; font.pixelSize: 11; font.weight: Font.DemiBold }
+                        Flow {
+                            width: parent.width; spacing: 6
+                            Repeater {
+                                model: root.wallpapers
+                                delegate: Rectangle {
+                                    required property string modelData
+                                    width: 88; height: 56; radius: 8; clip: true; color: win.uiField
+                                    border.width: root.draft.wallpaper === modelData ? 2.5 : 0; border.color: win.accent
+                                    Image { anchors.fill: parent; anchors.margins: parent.border.width; source: Qt.resolvedUrl("assets/wallpapers/" + parent.modelData); fillMode: Image.PreserveAspectCrop; sourceSize.width: 200; asynchronous: true }
+                                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.set("wallpaper", parent.modelData) }
+                                }
+                            }
+                            Rectangle {
+                                width: 88; height: 56; radius: 8; color: win.uiField
+                                border.width: !root.draft.wallpaper ? 2.5 : 0; border.color: win.accent
+                                Text { anchors.centerIn: parent; text: I18n.tr("Keep mine"); color: win.uiText; font.family: root.fam; font.pixelSize: 11 }
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.set("wallpaper", "") }
+                            }
+                        }
                     }
                 }
                 // share: export this theme, import ones from Documents/FreeForm Themes
@@ -243,10 +384,103 @@ Scope {
                 id: stageArea
                 x: panel.width; width: parent.width - panel.width; height: parent.height
                 Text { x: 28; y: 22; text: I18n.tr("Preview"); color: win.uiText2; font.family: root.fam; font.pixelSize: 12; font.weight: Font.DemiBold }
+                Row {
+                    anchors.right: parent.right; anchors.rightMargin: 28; y: 14; spacing: 6
+                    Btn { label: I18n.tr("Desktop"); primary: root.previewTab === "desktop"; onClicked: root.previewTab = "desktop" }
+                    Btn { label: I18n.tr("Spotify"); primary: root.previewTab === "spotify"; onClicked: root.previewTab = "spotify" }
+                }
+                // the FreeForm desktop in this theme: wallpaper, menu bar, a window, a menu and the Dock
+                Rectangle {
+                    id: deskPrev
+                    visible: root.previewTab === "desktop"
+                    readonly property var t: root.draft
+                    readonly property real g: t.glass !== undefined ? t.glass : 0.6
+                    function glassy(c, k) { var q = Qt.color(c); return Qt.rgba(q.r, q.g, q.b, 1 - deskPrev.g * k); }
+                    x: 28; y: 54; width: parent.width - 56; height: parent.height - 82
+                    radius: 12; clip: true; color: "#222"
+                    layer.enabled: true
+                    layer.effect: MultiEffect { shadowEnabled: true; shadowBlur: 0.8; shadowOpacity: 0.35; shadowVerticalOffset: 8 }
+                    Image {
+                        id: dpWall
+                        anchors.fill: parent; fillMode: Image.PreserveAspectCrop; asynchronous: true; sourceSize.width: 1200
+                        source: Qt.resolvedUrl("assets/wallpapers/" + (deskPrev.t.wallpaper || "FreeForm Yosemite.jpg"))
+                    }
+                    // menu bar
+                    Rectangle {
+                        width: parent.width; height: 26; color: deskPrev.glassy(deskPrev.t.side, 0.55)
+                        Row {
+                            x: 12; anchors.verticalCenter: parent.verticalCenter; spacing: 16
+                            Text { text: "FF"; color: deskPrev.t.fg; font.family: root.fam; font.pixelSize: 12; font.weight: Font.Black }
+                            Text { text: "Finder"; color: deskPrev.t.fg; font.family: root.fam; font.pixelSize: 12; font.weight: Font.Bold }
+                            Repeater { model: ["File", "Edit", "View", "Window"]; Text { required property string modelData; text: modelData; color: deskPrev.t.fg; font.family: root.fam; font.pixelSize: 12 } }
+                        }
+                        Text { anchors.right: parent.right; anchors.rightMargin: 12; anchors.verticalCenter: parent.verticalCenter; text: "Thu 9:41"; color: deskPrev.t.fg; font.family: root.fam; font.pixelSize: 12 }
+                    }
+                    // an open menu
+                    Rectangle {
+                        x: 92; y: 30; width: 170; height: 118; radius: 9; color: deskPrev.glassy(deskPrev.t.card, 0.45)
+                        border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.12)
+                        Column {
+                            x: 6; y: 6; width: parent.width - 12
+                            Repeater {
+                                model: ["New Window", "Open\u2026", "Save", "Close"]
+                                delegate: Rectangle {
+                                    required property string modelData; required property int index
+                                    width: parent.width; height: 26; radius: 5; color: index === 1 ? deskPrev.t.accent : "transparent"
+                                    Text { x: 8; anchors.verticalCenter: parent.verticalCenter; text: parent.modelData; color: parent.index === 1 ? "white" : deskPrev.t.fg; font.family: root.fam; font.pixelSize: 12 }
+                                }
+                            }
+                        }
+                    }
+                    // a window
+                    Rectangle {
+                        x: parent.width * 0.3; y: parent.height * 0.2; width: parent.width * 0.6; height: parent.height * 0.55
+                        radius: 12; color: deskPrev.t.bg; clip: true; border.width: 1; border.color: Qt.rgba(0.5, 0.5, 0.5, 0.3)
+                        Rectangle {
+                            width: parent.width * 0.3; height: parent.height; color: deskPrev.glassy(deskPrev.t.side, 0.35)
+                            Row { x: 12; y: 12; spacing: 6; Repeater { model: ["#FF5F57", "#FEBC2E", "#28C840"]; Rectangle { required property string modelData; width: 10; height: 10; radius: 5; color: modelData } } }
+                            Column {
+                                x: 10; y: 38; width: parent.width - 20; spacing: 4
+                                Repeater {
+                                    model: ["Desktop", "Documents", "Downloads", "Pictures"]
+                                    delegate: Rectangle {
+                                        required property string modelData; required property int index
+                                        width: parent.width; height: 24; radius: 6; color: index === 0 ? deskPrev.t.card : "transparent"
+                                        Text { x: 8; anchors.verticalCenter: parent.verticalCenter; text: parent.modelData; color: deskPrev.t.fg; font.family: root.fam; font.pixelSize: 12 }
+                                    }
+                                }
+                            }
+                        }
+                        Column {
+                            x: parent.width * 0.3 + 18; y: 16; spacing: 8; width: parent.width * 0.7 - 36
+                            Text { text: "Desktop"; color: deskPrev.t.fg; font.family: root.fam; font.pixelSize: 17; font.weight: Font.Bold }
+                            Text { text: "4 items, 120 GB available"; color: deskPrev.t.sub; font.family: root.fam; font.pixelSize: 12 }
+                            Grid {
+                                columns: 3; spacing: 10
+                                Repeater { model: 6; Rectangle { width: 54; height: 44; radius: 8; color: deskPrev.t.card } }
+                            }
+                            Rectangle {
+                                width: 110; height: 28; radius: 14; color: deskPrev.t.accent
+                                Text { anchors.centerIn: parent; text: "Open"; color: "white"; font.family: root.fam; font.pixelSize: 12; font.weight: Font.DemiBold }
+                            }
+                        }
+                    }
+                    // the Dock
+                    Rectangle {
+                        anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom; anchors.bottomMargin: 10
+                        width: 290; height: 50; radius: 16; color: deskPrev.glassy(deskPrev.t.card, 0.6)
+                        border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.18)
+                        Row {
+                            anchors.centerIn: parent; spacing: 8
+                            Repeater { model: ["#1DB954", "#5865F2", "#4285F4", "#1B2838", "#8E8E93"]; Rectangle { required property string modelData; width: 36; height: 36; radius: 9; color: modelData } }
+                        }
+                    }
+                }
                 Rectangle {
                     id: app
+                    visible: root.previewTab === "spotify"
                     readonly property var t: root.draft
-                    x: 28; y: 48; width: parent.width - 56; height: parent.height - 76
+                    x: 28; y: 54; width: parent.width - 56; height: parent.height - 82
                     radius: 12; color: t.bg; clip: true
                     border.width: 1; border.color: Qt.rgba(0.5, 0.5, 0.5, 0.25)
                     layer.enabled: true

@@ -197,6 +197,29 @@ Scope {
         var w = clone(cw); var it = clone(base); it.x = 16; it.y = 16;
         w.items.push(it); var l = widgets.slice(); l[current] = w; commit(l); sel = w.items.length - 1;
     }
+    // a copy of the selected block, a little offset so it's visible
+    function duplicateItem() {
+        if (!ci) return;
+        var w = clone(cw), it = clone(ci); it.x = (it.x || 0) + 12; it.y = (it.y || 0) + 12;
+        w.items.push(it); var l = widgets.slice(); l[current] = w; commit(l); sel = w.items.length - 1;
+    }
+    // a copy of the whole widget (not on the desktop until you add it)
+    function duplicateWidget(index) {
+        var src = widgets[index === undefined ? current : index]; if (!src) return;
+        var w = clone(src); w.id = Date.now().toString(36); w.name = (w.name || "Widget") + " " + I18n.tr("copy");
+        w.onDesktop = false; w.x = (w.x || 80) + 30; w.y = (w.y || 120) + 30;
+        var l = widgets.slice(); l.push(w); commit(l); current = l.length - 1; sel = -1;
+    }
+    // arrow keys: move the selected block 1 px (10 px with Shift), kept inside the widget
+    function nudge(dx, dy) {
+        if (!ci) return;
+        updateItem({ x: Math.max(0, Math.min(cw.w - (ci.w || 0), (ci.x || 0) + dx)), y: Math.max(0, Math.min(cw.h - (ci.h || 0), (ci.y || 0) + dy)) });
+    }
+    function sendBackward() {
+        if (!ci || sel <= 0) return;
+        var w = clone(cw), it = w.items.splice(sel, 1)[0]; w.items.splice(sel - 1, 0, it);
+        var l = widgets.slice(); l[current] = w; commit(l); sel = sel - 1;
+    }
     function deleteItem() {
         if (!ci) return;
         var w = clone(cw); w.items.splice(sel, 1); var l = widgets.slice(); l[current] = w; commit(l); sel = -1;
@@ -516,14 +539,22 @@ Scope {
                             width: parent.width; height: 32; radius: 7
                             color: root.current === index ? pal.sel : "transparent"
                             id: wrow
-                            Text { x: 10; anchors.verticalCenter: parent.verticalCenter; width: parent.width - 62; elide: Text.ElideRight; text: wrow.modelData.name; color: pal.text; font.family: root.fam; font.pixelSize: 13 }
+                            Text { x: 10; anchors.verticalCenter: parent.verticalCenter; width: parent.width - 80; elide: Text.ElideRight; text: wrow.modelData.name; color: pal.text; font.family: root.fam; font.pixelSize: 13 }
                             MouseArea { anchors.fill: parent; hoverEnabled: true; id: wrowMa; onClicked: { root.current = wrow.index; root.sel = -1; } }
                             // on the desktop (green) or not: click to toggle
                             Rectangle {
-                                anchors.right: delBtn.left; anchors.rightMargin: 8; anchors.verticalCenter: parent.verticalCenter
+                                anchors.right: dupBtn.left; anchors.rightMargin: 8; anchors.verticalCenter: parent.verticalCenter
                                 width: 10; height: 10; radius: 5
                                 color: wrow.modelData.onDesktop ? "#30D158" : "transparent"; border.width: 1; border.color: wrow.modelData.onDesktop ? "#30D158" : pal.text2
                                 MouseArea { anchors.fill: parent; anchors.margins: -5; onClicked: { root.current = wrow.index; root.updateWidget({ onDesktop: !wrow.modelData.onDesktop }); } }
+                            }
+                            // duplicate this widget
+                            Text {
+                                id: dupBtn
+                                anchors.right: delBtn.left; anchors.rightMargin: 8; anchors.verticalCenter: parent.verticalCenter
+                                text: "\u29C9"; color: pal.text2; font.pixelSize: 13
+                                opacity: wrowMa.containsMouse || dupMa.containsMouse ? 1 : 0
+                                MouseArea { id: dupMa; anchors.fill: parent; anchors.margins: -5; hoverEnabled: true; onClicked: root.duplicateWidget(wrow.index) }
                             }
                             // delete this widget
                             Text {
@@ -557,11 +588,13 @@ Scope {
                 x: side.width; width: parent.width - side.width - inspector.width; height: parent.height
                 Rectangle {
                     id: toolbar
-                    width: parent.width; height: 52; color: pal.bg
+                    width: parent.width; height: Math.max(52, addFlow.height + 18); color: pal.bg
                     Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: pal.sep }
                     DragHandler { target: null; onActiveChanged: if (active) win.startSystemMove() }
-                    Row {
+                    Flow {
+                        id: addFlow
                         x: 16; anchors.verticalCenter: parent.verticalCenter; spacing: 6
+                        width: parent.width - 32 - toolRight.width - 12      // wraps to a 2nd line on narrow windows
                         // back / forward one change (greyed out when there's nothing to undo / redo)
                         Repeater {
                             model: [{ g: "\u21B6", tip: "Undo", can: function () { return root.undoStack.length > 0; }, f: function () { root.undo(); } },
@@ -582,6 +615,7 @@ Scope {
                         }
                     }
                     Row {
+                        id: toolRight
                         anchors.right: parent.right; anchors.rightMargin: 16; anchors.verticalCenter: parent.verticalCenter; spacing: 6
                         // multi-monitor: which screen the widget lives on (click to cycle)
                         Chip {
@@ -599,7 +633,7 @@ Scope {
                             on: !!(root.cw && root.cw.onDesktop)
                             onClicked: root.updateWidget({ onDesktop: !root.cw.onDesktop })
                         }
-                        Chip { visible: !!root.cw; label: I18n.tr("Delete Widget"); onClicked: root.deleteWidget() }
+                        Chip { visible: !!root.cw; label: I18n.tr("Duplicate"); onClicked: root.duplicateWidget() }
                     }
                 }
                 Rectangle {
@@ -611,7 +645,17 @@ Scope {
                     Keys.onDeletePressed: root.deleteItem()
                     Shortcut { sequences: [StandardKey.Undo]; onActivated: root.undo() }
                     Shortcut { sequences: [StandardKey.Redo]; onActivated: root.redo() }
-                    Keys.onPressed: event => { if (event.key === Qt.Key_Backspace && root.sel >= 0) { root.deleteItem(); event.accepted = true; } }
+                    Shortcut { sequence: "Ctrl+D"; onActivated: root.sel >= 0 ? root.duplicateItem() : root.duplicateWidget() }
+                    Keys.onPressed: event => {
+                        var step = (event.modifiers & Qt.ShiftModifier) ? 10 : 1;
+                        if (event.key === Qt.Key_Backspace && root.sel >= 0) root.deleteItem();
+                        else if (event.key === Qt.Key_Left) root.nudge(-step, 0);
+                        else if (event.key === Qt.Key_Right) root.nudge(step, 0);
+                        else if (event.key === Qt.Key_Up) root.nudge(0, -step);
+                        else if (event.key === Qt.Key_Down) root.nudge(0, step);
+                        else return;
+                        event.accepted = true;
+                    }
                     // dotted grid
                     Canvas {
                         anchors.fill: parent
@@ -874,8 +918,15 @@ Scope {
                             Row {
                                 spacing: 6
                                 Chip { label: I18n.tr("Bring Forward"); onClicked: { var w = root.clone(root.cw), it = w.items.splice(root.sel, 1)[0]; w.items.push(it); var l = root.widgets.slice(); l[root.current] = w; root.commit(l); root.sel = w.items.length - 1; } }
+                                Chip { label: I18n.tr("Send Backward"); onClicked: root.sendBackward() }
+                            }
+                            Row {
+                                spacing: 6
+                                Chip { label: I18n.tr("Duplicate"); onClicked: root.duplicateItem() }
                                 Chip { label: I18n.tr("Delete"); onClicked: root.deleteItem() }
                             }
+                            Text { width: parent.width; wrapMode: Text.WordWrap; color: pal.text2; font.family: root.fam; font.pixelSize: 11
+                                   text: I18n.tr("Arrow keys move it (Shift: 10 px). Ctrl+D duplicates.") }
                             Rectangle { width: parent.width; height: 1; color: pal.sep }
                         }
 
