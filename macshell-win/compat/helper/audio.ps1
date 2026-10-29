@@ -61,13 +61,13 @@ public static class FFAudio {
 $stdin = [Console]::In
 $pending = $stdin.ReadLineAsync()
 $last = ''
-$devAt = [DateTime]::MinValue; $devs = @{}; $quiet = 99
+$devAt = [DateTime]::MinValue; $devs = @{}; $quiet = 99; $quit = $false
 while ($true) {
     $busy = $false
     $want = @{}
     while ($pending.IsCompleted) {                 # every queued command; a slider drag keeps only the newest value
         $line = $pending.Result
-        if ($null -eq $line) { exit 0 }
+        if ($null -eq $line) { $quit = $true; break }   # stdin closed: report once more, then stop
         $pending = $stdin.ReadLineAsync(); $busy = $true
         $f = $line.Trim() -split '\s+'
         if ($f[0] -eq 'default') { try { [FFAudio]::SetDefault($line.Trim().Substring(8)) } catch {}; $devAt = [DateTime]::MinValue }
@@ -88,6 +88,7 @@ while ($true) {
     $j = @{ outs = $devs.outs; ins = $devs.ins; defOut = $devs.defOut; defIn = $devs.defIn; sink = @{ volume = [Math]::Round([FFAudio]::Get(0), 3); muted = [FFAudio]::Muted(0) }
             source = @{ volume = [Math]::Round([FFAudio]::Get(1), 3); muted = [FFAudio]::Muted(1) } } | ConvertTo-Json -Compress -Depth 4
     if ($j -ne $last) { [Console]::Out.WriteLine($j); [Console]::Out.Flush(); $last = $j }
+    if ($quit) { exit 0 }
     if ($busy) { $quiet = 0 } else { $quiet++ }
     Start-Sleep -Milliseconds $(if ($quiet -lt 40) { 15 } else { 200 })   # quick while sliding, idle otherwise
 }

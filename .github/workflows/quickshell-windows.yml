@@ -259,7 +259,7 @@ jobs:
           & pkg\FreeForm\compat\helper\brightnessctl.exe -m *> smoke\helper-bright.txt
           # the sound devices list (one JSON line from audio.ps1, then stop it)
           $ap = Start-Process powershell.exe -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "pkg\FreeForm\compat\helper\audio.ps1") -RedirectStandardOutput smoke\helper-audio.txt -RedirectStandardError smoke\helper-audio-err.txt -PassThru -WindowStyle Hidden
-          Start-Sleep -Seconds 8; Stop-Process -Id $ap.Id -Force -ErrorAction SilentlyContinue
+          Start-Sleep -Seconds 15; Stop-Process -Id $ap.Id -Force -ErrorAction SilentlyContinue
           powershell -NoProfile -ExecutionPolicy Bypass -File macshell-win\tools\fffetch\fetch-core.ps1 *> smoke\fffetch-ps.txt
           Get-Content smoke\fffetch-ps.txt
           foreach ($f in 'fffetch-cmd', 'helper-net', 'helper-bt', 'helper-store', 'helper-about', 'helper-power', 'helper-bright', 'helper-ffconfig', 'helper-audio', 'helper-audio-err') { "── $f"; Get-Content "smoke\$f.txt" -TotalCount 25 }
