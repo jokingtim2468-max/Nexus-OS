@@ -11,7 +11,11 @@ What it changes:
   * Spotify: only when Spicetify (open source, https://spicetify.app) is installed — writes a
     "FreeForm" theme with one colour scheme per preset and runs `spicetify apply`.
     Spotify itself has no theming; without Spicetify it is left alone.
+  * Discord: only when a client mod is installed — Vencord, Vesktop or BetterDiscord: writes a
+    "FreeForm" theme (CSS colour variables) into its themes folder and turns it on.
+  * Windows accent colour (Start, title bars, links): the theme's accent.
 """
+import json
 import os
 import shutil
 import subprocess
@@ -79,6 +83,91 @@ def apply_spotify(name, extra=None):
     return "Spotify: themed (%s)." % name
 
 
+DISCORD_CSS = """/**
+ * @name FreeForm
+ * @description Follows your FreeForm theme (made by FreeForm; rewritten when you apply a theme)
+ * @author FreeForm
+ * @version 1.0
+ */
+:root, .theme-dark, .theme-light {
+  --background-primary: #%(main)s; --background-secondary: #%(card)s; --background-secondary-alt: #%(card)s;
+  --background-tertiary: #%(bg)s; --background-floating: #%(bg)s; --background-accent: #%(accent)s;
+  --background-modifier-hover: #%(text)s14; --background-modifier-selected: #%(text)s24;
+  --channeltextarea-background: #%(card)s; --modal-background: #%(main)s; --bg-base-primary: #%(main)s;
+  --bg-base-secondary: #%(card)s; --bg-base-tertiary: #%(bg)s; --bg-surface-raised: #%(card)s;
+  --text-normal: #%(text)s; --text-default: #%(text)s; --header-primary: #%(text)s; --header-secondary: #%(subtext)s;
+  --text-muted: #%(subtext)s; --interactive-normal: #%(subtext)s; --interactive-hover: #%(text)s;
+  --interactive-active: #%(text)s; --channels-default: #%(subtext)s; --brand-500: #%(accent)s;
+  --brand-experiment: #%(accent)s; --text-link: #%(accent)s; --button-filled-brand-background: #%(accent)s;
+}
+"""
+
+
+def apply_discord(p):
+    """Vencord / Vesktop / BetterDiscord: write FreeForm.theme.css and enable it."""
+    appdata = os.environ.get("APPDATA") or os.path.expanduser("~/.config")
+    css = DISCORD_CSS % p
+    done = []
+    # Vencord and Vesktop: themes/<file>.css, enabled in settings/settings.json "enabledThemes"
+    for client, base in (("Vencord", os.path.join(appdata, "Vencord")), ("Vesktop", os.path.join(appdata, "vesktop"))):
+        if not os.path.isdir(base):
+            continue
+        os.makedirs(os.path.join(base, "themes"), exist_ok=True)
+        with open(os.path.join(base, "themes", "FreeForm.theme.css"), "w", encoding="utf-8") as fh:
+            fh.write(css)
+        sp = os.path.join(base, "settings", "settings.json")
+        try:
+            with open(sp, encoding="utf-8") as fh:
+                cfg = json.load(fh)
+            on = cfg.get("enabledThemes") or []
+            if "FreeForm.theme.css" not in on:
+                cfg["enabledThemes"] = on + ["FreeForm.theme.css"]
+                with open(sp, "w", encoding="utf-8") as fh:
+                    json.dump(cfg, fh, indent=4)
+        except (OSError, ValueError):
+            pass                                                        # first run: the user enables it once in Themes
+        done.append(client)
+    # BetterDiscord: themes/<file>.theme.css, enabled in data/stable/themes.json
+    bd = os.path.join(appdata, "BetterDiscord")
+    if os.path.isdir(bd):
+        os.makedirs(os.path.join(bd, "themes"), exist_ok=True)
+        with open(os.path.join(bd, "themes", "FreeForm.theme.css"), "w", encoding="utf-8") as fh:
+            fh.write(css)
+        tp = os.path.join(bd, "data", "stable", "themes.json")
+        try:
+            with open(tp, encoding="utf-8") as fh:
+                cfg = json.load(fh)
+        except (OSError, ValueError):
+            cfg = {}
+        cfg["FreeForm"] = True
+        try:
+            os.makedirs(os.path.dirname(tp), exist_ok=True)
+            with open(tp, "w", encoding="utf-8") as fh:
+                json.dump(cfg, fh, indent=4)
+        except OSError:
+            pass
+        done.append("BetterDiscord")
+    return "Discord: themed (%s)." % ", ".join(done) if done else "Discord: no client mod (Vencord, Vesktop, BetterDiscord) found, left unchanged."
+
+
+def apply_accent(p):
+    """Windows accent colour (Start, title bars, links) from the theme's accent."""
+    if os.name != "nt":
+        return "Accent: unchanged."
+    import winreg
+    h = p["accent"]
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    abgr = 0xFF000000 | (b << 16) | (g << 8) | r                          # Windows stores 0xAABBGGRR
+    argb = 0xFF000000 | (r << 16) | (g << 8) | b
+    with winreg.CreateKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\DWM") as k:
+        winreg.SetValueEx(k, "AccentColor", 0, winreg.REG_DWORD, abgr)
+        winreg.SetValueEx(k, "ColorizationColor", 0, winreg.REG_DWORD, argb)
+    with winreg.CreateKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Explorer\Accent") as k:
+        winreg.SetValueEx(k, "AccentColorMenu", 0, winreg.REG_DWORD, abgr)
+        winreg.SetValueEx(k, "StartColorMenu", 0, winreg.REG_DWORD, abgr)
+    return "Windows accent: #%s." % h
+
+
 def apply_system(p):
     if os.name == "nt":
         import winreg
@@ -108,10 +197,14 @@ def main(argv):
         p = from_studio(t)
         print(apply_system(p))
         print(apply_spotify(name, {name: p}))
+        print(apply_discord(p))
+        print(apply_accent(p))
         return 0
     if a[0] == "apply" and a[1] in PRESETS:
         print(apply_system(PRESETS[a[1]]))
         print(apply_spotify(a[1]))
+        print(apply_discord(PRESETS[a[1]]))
+        print(apply_accent(PRESETS[a[1]]))
         return 0
     print("usage: theme list | theme apply %s" % "|".join(PRESETS), file=sys.stderr)
     return 64
