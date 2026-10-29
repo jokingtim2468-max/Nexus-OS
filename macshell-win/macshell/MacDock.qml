@@ -2768,10 +2768,10 @@ Scope {
                     SRow {
                         visible: !!(root.hub && root.hub.widgetStudio)
                         t: pal
-                        title: I18n.tr("Match the desktop theme")
-                        subtitle: I18n.tr("Widgets use the theme's colours; turn off to get each widget's own colours back")
+                        title: I18n.tr("Match the desktop theme (all widgets)")
+                        subtitle: I18n.tr("Every widget uses the theme's colours; Widget Studio's Match Theme button changes just one")
                         SSwitch { t: pal; checked: !!(root.hub && root.hub.widgetStudio && root.hub.widgetStudio.matchTheme)
-                                  onToggled: v => { if (root.hub && root.hub.widgetStudio) root.hub.widgetStudio.matchTheme = v; } }
+                                  onToggled: v => { if (root.hub && root.hub.widgetStudio) root.hub.widgetStudio.setMatchAll(v); } }
                     }
                     SRow {
                         t: pal
@@ -5821,9 +5821,11 @@ Scope {
                                 // couple of smaller bounces settle it back onto the Dock. Nothing plays while the Dock is tucked away.
                                 readonly property bool wantBounce: !cell.isSep && root.bounceOnLaunch && root.launching[cell.modelData.key] !== undefined
                                 property bool bounceShown: false          // a bounce was actually visible, so it deserves a settle
+                                property int bounces: 0
                                 function bounceStep() {
+                                    if (!cell.wantBounce) cell.bounces = 0;
                                     if (ui.tucked) return;
-                                    if (cell.wantBounce) { cell.bounceShown = true; if (!bounceAnim.running && !settleAnim.running) bounceAnim.start(); }
+                                    if (cell.wantBounce && cell.bounces < 5) { cell.bounceShown = true; if (!bounceAnim.running && !settleAnim.running) { cell.bounces++; bounceAnim.start(); } }
                                     else if (cell.bounceShown && !bounceAnim.running && !settleAnim.running) { cell.bounceShown = false; settleAnim.start(); }
                                 }
                                 onWantBounceChanged: bounceStep()

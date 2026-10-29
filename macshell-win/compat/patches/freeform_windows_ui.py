@@ -223,10 +223,10 @@ EDITS = {
          """                    SRow {
                         visible: !!(root.hub && root.hub.widgetStudio)
                         t: pal
-                        title: I18n.tr("Match the desktop theme")
-                        subtitle: I18n.tr("Widgets use the theme's colours; turn off to get each widget's own colours back")
+                        title: I18n.tr("Match the desktop theme (all widgets)")
+                        subtitle: I18n.tr("Every widget uses the theme's colours; Widget Studio's Match Theme button changes just one")
                         SSwitch { t: pal; checked: !!(root.hub && root.hub.widgetStudio && root.hub.widgetStudio.matchTheme)
-                                  onToggled: v => { if (root.hub && root.hub.widgetStudio) root.hub.widgetStudio.matchTheme = v; } }
+                                  onToggled: v => { if (root.hub && root.hub.widgetStudio) root.hub.widgetStudio.setMatchAll(v); } }
                     }
                     SRow {
                         t: pal
@@ -317,6 +317,15 @@ EDITS = {
         if (Qt.platform.os === "windows" && String(tl.appId).toLowerCase() === "qs") return ffOwnWindows[tl.title] || "";
         return (tl.appId === "org.quickshell" && tl.title === "Clock") ? "macshell-clock" : tl.appId;
     }"""),
+        # a launching app bounces at most 5 times (an app whose window the Dock can't match kept bouncing)
+        ("""                                function bounceStep() {
+                                    if (ui.tucked) return;
+                                    if (cell.wantBounce) { cell.bounceShown = true; if (!bounceAnim.running && !settleAnim.running) bounceAnim.start(); }""",
+         """                                property int bounces: 0
+                                function bounceStep() {
+                                    if (!cell.wantBounce) cell.bounces = 0;
+                                    if (ui.tucked) return;
+                                    if (cell.wantBounce && cell.bounces < 5) { cell.bounceShown = true; if (!bounceAnim.running && !settleAnim.running) { cell.bounces++; bounceAnim.start(); } }"""),
         # ── Trash = the Windows Recycle Bin ──
         ('''        if (item.special === "trash") {
             // the file manager first''',

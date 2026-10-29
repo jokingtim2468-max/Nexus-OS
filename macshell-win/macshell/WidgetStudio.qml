@@ -198,8 +198,15 @@ Scope {
                                                         : { card: "#F2F2F7", fg: "#1D1D1F", accent: d.accent || "#0A84FF" };
         return { card: t.card || "#2A2A2C", fg: t.fg || "#FFFFFF", accent: t.accent || "#0A84FF" };
     }
+    // a widget's own choice (Widget Studio's Match Theme button) wins; otherwise the all-widgets setting
+    function matches(w) { return w && w.matchTheme !== undefined ? !!w.matchTheme : matchTheme; }
+    // Settings > Widgets: all widgets at once (clears each widget's own choice)
+    function setMatchAll(v) {
+        var l = widgets.map(function (w) { var c = clone(w); delete c.matchTheme; return c; });
+        matchTheme = v; commit(l);
+    }
     function themed(w) {
-        if (!matchTheme || !w) return w;
+        if (!w || !matches(w)) return w;
         var o = clone(w), th = theme;
         o.bg = o.bg || {}; o.bg.color = th.card;
         for (var i = 0; i < (o.items || []).length; i++) {
@@ -802,7 +809,7 @@ Scope {
                             onClicked: { var o = ["wallpaper", "dark", "light", "grid"]; root.canvasBg = o[(o.indexOf(root.canvasBg) + 1) % o.length]; }
                         }
                         // all widgets in the desktop theme's colours
-                        Chip { label: I18n.tr("Match Theme"); on: root.matchTheme; onClicked: root.matchTheme = !root.matchTheme }
+                        Chip { visible: !!root.cw; label: I18n.tr("Match Theme"); on: root.matches(root.cw); onClicked: root.updateWidget({ matchTheme: !root.matches(root.cw) }) }
                     }
                 }
                 Rectangle {
