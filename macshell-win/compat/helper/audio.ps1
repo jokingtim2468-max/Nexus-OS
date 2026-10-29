@@ -61,28 +61,33 @@ public static class FFAudio {
 $stdin = [Console]::In
 $pending = $stdin.ReadLineAsync()
 $last = ''
-$tick = 0; $devs = @{}
+$devAt = [DateTime]::MinValue; $devs = @{}; $quiet = 99
 while ($true) {
-    if ($pending.IsCompleted) {
+    $busy = $false
+    $want = @{}
+    while ($pending.IsCompleted) {                 # every queued command; a slider drag keeps only the newest value
         $line = $pending.Result
-        if ($null -eq $line) { break }
+        if ($null -eq $line) { exit 0 }
+        $pending = $stdin.ReadLineAsync(); $busy = $true
         $f = $line.Trim() -split '\s+'
+        if ($f[0] -eq 'default') { try { [FFAudio]::SetDefault($line.Trim().Substring(8)) } catch {}; $devAt = [DateTime]::MinValue }
+        else { $want["$($f[0]) $($f[1])"] = $f }
+    }
+    foreach ($f in $want.Values) {
         $flow = if ($f[0] -eq 'source') { 1 } else { 0 }
         try {
-            if ($f[0] -eq 'default') { [FFAudio]::SetDefault($line.Trim().Substring(8)); $tick = 0 }
-            elseif ($f[1] -eq 'volume') { [FFAudio]::Set($flow, [float]$f[2]) }
+            if ($f[1] -eq 'volume') { [FFAudio]::Set($flow, [float]$f[2]) }
             elseif ($f[1] -eq 'mute') { [FFAudio]::Mute($flow, $f[2] -eq '1') }
         } catch {}
-        $pending = $stdin.ReadLineAsync()
     }
-    if ($tick -le 0) {
-        $tick = 8
+    if ((Get-Date) -ge $devAt) {                  # the device list: every 2 s
+        $devAt = (Get-Date).AddSeconds(2)
         $devs = @{ outs = @([FFAudio]::List(0) | ForEach-Object { @{ id = $_[0]; name = $_[1] } }); defOut = [FFAudio]::DefaultId(0)
                    ins = @([FFAudio]::List(1) | ForEach-Object { @{ id = $_[0]; name = $_[1] } }); defIn = [FFAudio]::DefaultId(1) }
     }
-    $tick--
     $j = @{ outs = $devs.outs; ins = $devs.ins; defOut = $devs.defOut; defIn = $devs.defIn; sink = @{ volume = [Math]::Round([FFAudio]::Get(0), 3); muted = [FFAudio]::Muted(0) }
             source = @{ volume = [Math]::Round([FFAudio]::Get(1), 3); muted = [FFAudio]::Muted(1) } } | ConvertTo-Json -Compress -Depth 4
     if ($j -ne $last) { [Console]::Out.WriteLine($j); [Console]::Out.Flush(); $last = $j }
-    Start-Sleep -Milliseconds 250
+    if ($busy) { $quiet = 0 } else { $quiet++ }
+    Start-Sleep -Milliseconds $(if ($quiet -lt 40) { 15 } else { 200 })   # quick while sliding, idle otherwise
 }

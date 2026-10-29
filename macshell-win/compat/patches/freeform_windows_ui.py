@@ -66,6 +66,118 @@ EDITS = {
         "ff-freeform_widget_studio", "ff-freeform_settings"
     ] : [
         "org.gnome.Nautilus",'''),
+        # ── Settings: FreeForm's own tab and a Windows tab (Windows only) ──
+        ("""            { id: "about",      sec: 7, name: "About",           glyph: "about",    c1: "#A7A7AD", c2: "#7C7C82", keys: "version reset config folder macdock macbar macshell" }
+        ]""",
+         """            { id: "about",      sec: 7, name: "About",           glyph: "about",    c1: "#A7A7AD", c2: "#7C7C82", keys: "version reset config folder macdock macbar macshell" }
+        ].concat(Qt.platform.os === "windows" ? [
+            // 8 · FreeForm on Windows
+            { id: "freeform",   sec: 8, name: "FreeForm",        glyph: "behavior", c1: "#3A3A3C", c2: "#000000", keys: "freeform startup sign in login launcher taskbar desktop icons update version quit exit shortcuts hotkeys" },
+            { id: "windows",    sec: 8, name: "Windows",         wg: "keyboard",   c1: "#3D9BFF", c2: "#0A6CFF", keys: "windows update apps default storage privacy accounts time language gaming printers night light control panel device manager" }
+        ] : [])"""),
+        ("""                        apps: paneApps, about: paneAbout
+                    })""",
+         """                        apps: paneApps, about: paneAbout, freeform: paneFreeForm, windows: paneWindows
+                    })"""),
+        ("""        Component {
+            id: paneAbout
+""",
+         """        // ── FreeForm (Windows): the launcher's options, updates, shortcuts ──
+        Component {
+            id: paneFreeForm
+            Column {
+                id: ffPane
+                spacing: 10
+                property var cfg: ({})
+                function set(k, v) { var c = Object.assign({}, cfg); c[k] = v; cfg = c; Quickshell.execDetached(["macshell-helper", "ffconfig", "set", k, v ? "1" : "0"]); }
+                Process { running: true; command: ["macshell-helper", "ffconfig", "get"]; stdout: StdioCollector { onStreamFinished: { try { ffPane.cfg = JSON.parse(text); } catch (e) {} } } }
+                SLabel { t: pal; header: true; text: I18n.tr("Startup") }
+                SCard {
+                    t: pal
+                    SRow { t: pal; title: I18n.tr("Start FreeForm when I sign in"); SSwitch { t: pal; checked: !!ffPane.cfg.autoStart; onToggled: v => ffPane.set("autoStart", v) } }
+                    SRow { t: pal; title: I18n.tr("Skip the launcher window"); subtitle: I18n.tr("Hold Shift while opening FreeForm to see it anyway"); SSwitch { t: pal; checked: !!ffPane.cfg.skipLauncher; onToggled: v => ffPane.set("skipLauncher", v) } }
+                }
+                SLabel { t: pal; header: true; text: I18n.tr("Windows") }
+                SCard {
+                    t: pal
+                    SRow { t: pal; title: I18n.tr("Hide the Windows taskbar"); subtitle: I18n.tr("Win+Alt+T shows it for a moment"); SSwitch { t: pal; checked: ffPane.cfg.hideTaskbar !== false; onToggled: v => ffPane.set("hideTaskbar", v) } }
+                    SRow { t: pal; title: I18n.tr("Hide Windows desktop icons"); SSwitch { t: pal; checked: ffPane.cfg.hideIcons !== false; onToggled: v => ffPane.set("hideIcons", v) } }
+                }
+                SLabel { t: pal; text: I18n.tr("Taskbar and desktop icon changes apply the next time FreeForm starts.") }
+                SLabel { t: pal; header: true; text: I18n.tr("Updates") }
+                SCard {
+                    t: pal
+                    SRow { t: pal; title: I18n.tr("Install updates automatically"); SSwitch { t: pal; checked: ffPane.cfg.autoUpdate !== false; onToggled: v => ffPane.set("autoUpdate", v) } }
+                    SRow {
+                        t: pal; title: I18n.tr("Version"); subtitle: ffPane.cfg.version || ""
+                        SButton { t: pal; text: I18n.tr("Check for Updates…"); onClicked: if (ffPane.cfg.root) Quickshell.execDetached(["cmd.exe", "/c", "start", "", ffPane.cfg.root + "\\\\FreeFormLauncher.cmd"]) }
+                    }
+                }
+                SLabel { t: pal; header: true; text: I18n.tr("Keyboard Shortcuts") }
+                SCard {
+                    t: pal
+                    Repeater {
+                        model: [["Win", "Launchpad (all apps)"], ["Alt+Space", "Spotlight search"], ["Win+Tab", "Mission Control"], ["Alt+Tab", "Switch between apps"],
+                                ["Win+Alt+A", "Control Center"], ["Win+Alt+N", "Wi-Fi and network"], ["Win+Alt+T", "Show the Windows taskbar"], ["Win+Alt+F", "Turn FreeForm off"]]
+                        delegate: SRow {
+                            required property var modelData
+                            t: pal; title: I18n.tr(modelData[1])
+                            Text { text: modelData[0]; color: pal.text2; font.family: root.fontForWeight(font.weight, pal.fam); font.pixelSize: 13 }
+                        }
+                    }
+                }
+                Row {
+                    spacing: 8
+                    SButton { t: pal; text: I18n.tr("Open Launcher…"); onClicked: if (ffPane.cfg.root) Quickshell.execDetached(["cmd.exe", "/c", "start", "", ffPane.cfg.root + "\\\\FreeFormLauncher.cmd"]) }
+                    SButton { t: pal; text: I18n.tr("Quit FreeForm"); destructive: true; onClicked: Qt.quit() }
+                }
+            }
+        }
+
+        // ── Windows: shortcuts into Windows' own settings ──
+        Component {
+            id: paneWindows
+            Column {
+                spacing: 10
+                Repeater {
+                    model: [
+                        { h: "System", rows: [["Windows Update", "ms-settings:windowsupdate"], ["Storage", "ms-settings:storagesense"], ["Night light", "ms-settings:nightlight"],
+                                              ["Display resolution and scale", "ms-settings:display"], ["Power and sleep", "ms-settings:powersleep"]] },
+                        { h: "Apps", rows: [["Installed apps", "ms-settings:appsfeatures"], ["Default apps", "ms-settings:defaultapps"], ["Startup apps", "ms-settings:startupapps"],
+                                            ["App volume and devices", "ms-settings:apps-volume"]] },
+                        { h: "Devices", rows: [["Printers and scanners", "ms-settings:printers"], ["Mouse", "ms-settings:mousetouchpad"], ["Typing and keyboard layouts", "ms-settings:regionlanguage"]] },
+                        { h: "Accounts and Privacy", rows: [["Your info", "ms-settings:yourinfo"], ["Sign-in options", "ms-settings:signinoptions"], ["Privacy and security", "ms-settings:privacy"]] },
+                        { h: "More", rows: [["Date and time", "ms-settings:dateandtime"], ["Gaming", "ms-settings:gaming-gamemode"], ["Windows Settings", "ms-settings:"],
+                                            ["Control Panel", "control.exe"], ["Device Manager", "devmgmt.msc"]] }
+                    ]
+                    delegate: Column {
+                        id: winGroup
+                        required property var modelData
+                        width: parent.width
+                        spacing: 10
+                        SLabel { t: pal; header: true; text: I18n.tr(winGroup.modelData.h) }
+                        SCard {
+                            t: pal
+                            Repeater {
+                                model: winGroup.modelData.rows
+                                delegate: SRow {
+                                    required property var modelData
+                                    t: pal; title: I18n.tr(modelData[0])
+                                    SButton {
+                                        t: pal; text: I18n.tr("Open")
+                                        onClicked: Quickshell.execDetached(modelData[1].indexOf("ms-settings:") === 0 ? ["explorer.exe", modelData[1]] : (modelData[1] === "devmgmt.msc" ? ["mmc.exe", "devmgmt.msc"] : [modelData[1]]))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Component {
+            id: paneAbout
+"""),
         # ── Settings on Windows: account name, profile picture ──
         ('''        command: ["sh", "-c", "n=$(getent passwd \\"$USER\\" | cut -d: -f5 | cut -d, -f1); printf '%s' \\"${n:-$USER}\\""]''',
          '''        command: Qt.platform.os === "windows" ? ["cmd.exe", "/c", "echo %USERNAME%"]
@@ -75,15 +187,28 @@ EDITS = {
     ],
     "MacBar.qml": [
         # ── Control Center on Windows: brightness (laptop panel or DDC/CI monitor), output/input device ──
-        ('''        command: ["sh", "-c", "brightnessctl -m 2>/dev/null | head -n1"]''',
-         '''        command: Qt.platform.os === "windows" ? ["brightnessctl", "-m"] : ["sh", "-c", "brightnessctl -m 2>/dev/null | head -n1"]'''),
-        # PowerShell per reading is costly on Windows: poll every 5 s, apply a slider drag at most 4x a second
-        ('''    Timer { interval: 850; repeat: true; running: true; onTriggered: root.refreshBrightness() }''',
-         '''    Timer { interval: Qt.platform.os === "windows" ? 5000 : 850; repeat: true; running: true; onTriggered: root.refreshBrightness() }'''),
+        # brightness on Windows: one long-running brightness.ps1 takes every slider value as it moves
+        ('''    function refreshBrightness() { if (!brightProc.running) brightProc.running = true; }''',
+         '''    function refreshBrightness() { if (Qt.platform.os !== "windows" && !brightProc.running) brightProc.running = true; }
+    Process {
+        id: brightServe
+        running: Qt.platform.os === "windows" && (Quickshell.env("FREEFORM_HELPER") || "") !== ""
+        stdinEnabled: true
+        command: ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File",
+                  Quickshell.env("FREEFORM_HELPER") + "/brightness.ps1", "serve"]
+        stdout: SplitParser {
+            onRead: line => {
+                var p = parseInt(line);
+                if (!isNaN(p) && !brightApply.running && Math.abs(p / 100 - root.brightness) > 0.015) root.brightness = p / 100;
+            }
+        }
+    }'''),
         ('''        id: brightApply
-        interval: 40''',
+        interval: 40
+        onTriggered: Quickshell.execDetached(["brightnessctl"''',
          '''        id: brightApply
-        interval: Qt.platform.os === "windows" ? 250 : 40'''),
+        interval: Qt.platform.os === "windows" ? 16 : 40
+        onTriggered: if (Qt.platform.os === "windows") brightServe.write(Math.max(1, Math.round(root.brightness * 100)) + "\\n"); else Quickshell.execDetached(["brightnessctl"'''),
         ('''        osdQuiet("volume", 1500);
         Quickshell.execDetached(["sh", "-c", "wpctl set-default''',
          '''        osdQuiet("volume", 1500);

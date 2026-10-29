@@ -2137,10 +2137,23 @@ Scope {
 
     // brightness
     property real brightness: 0.5
-    function refreshBrightness() { if (!brightProc.running) brightProc.running = true; }
+    function refreshBrightness() { if (Qt.platform.os !== "windows" && !brightProc.running) brightProc.running = true; }
+    Process {
+        id: brightServe
+        running: Qt.platform.os === "windows" && (Quickshell.env("FREEFORM_HELPER") || "") !== ""
+        stdinEnabled: true
+        command: ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File",
+                  Quickshell.env("FREEFORM_HELPER") + "/brightness.ps1", "serve"]
+        stdout: SplitParser {
+            onRead: line => {
+                var p = parseInt(line);
+                if (!isNaN(p) && !brightApply.running && Math.abs(p / 100 - root.brightness) > 0.015) root.brightness = p / 100;
+            }
+        }
+    }
     Process {
         id: brightProc
-        command: Qt.platform.os === "windows" ? ["brightnessctl", "-m"] : ["sh", "-c", "brightnessctl -m 2>/dev/null | head -n1"]
+        command: ["sh", "-c", "brightnessctl -m 2>/dev/null | head -n1"]
         stdout: StdioCollector {
             onStreamFinished: {
                 var f = text.trim().split(",");
@@ -2150,8 +2163,8 @@ Scope {
     }
     Timer {
         id: brightApply
-        interval: Qt.platform.os === "windows" ? 250 : 40
-        onTriggered: Quickshell.execDetached(["brightnessctl", "-q", "set", Math.max(1, Math.round(root.brightness * 100)) + "%"])
+        interval: Qt.platform.os === "windows" ? 16 : 40
+        onTriggered: if (Qt.platform.os === "windows") brightServe.write(Math.max(1, Math.round(root.brightness * 100)) + "\n"); else Quickshell.execDetached(["brightnessctl", "-q", "set", Math.max(1, Math.round(root.brightness * 100)) + "%"])
     }
     function setBrightness(v) { osdQuiet("brightness", 1800); brightness = Math.max(0.01, Math.min(1, v)); brightApply.restart(); }
     onBrightnessChanged: showOsd("brightness", brightness)
@@ -2174,7 +2187,7 @@ Scope {
         brightApply.restart();
         showOsd("brightness", brightness);
     }
-    Timer { interval: Qt.platform.os === "windows" ? 5000 : 850; repeat: true; running: true; onTriggered: root.refreshBrightness() }
+    Timer { interval: 850; repeat: true; running: true; onTriggered: root.refreshBrightness() }
     // ═════════════ KEYBOARD LAYOUT ═════════════
     // Hyprland's event gives an immediate update; a small reconciliation poll handles dropped events and
     // keyboards whose active keymap changes without a usable activelayout payload.

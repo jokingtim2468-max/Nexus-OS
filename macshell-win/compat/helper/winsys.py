@@ -10,7 +10,10 @@ notify-send.exe; each passes its own name first, so `brightnessctl -m` arrives h
   powerprofilesctl get|set power-saver|balanced|performance   (Windows power plans)
   notify-send [-a APP] TITLE [BODY]  a Windows notification
   pickface                           choose a picture -> ~/.face (512x512), prints "ok"
+  ffconfig get                       FreeForm's own options as JSON (Settings > FreeForm)
+  ffconfig set KEY 0|1               hideTaskbar hideIcons skipLauncher autoUpdate (launcher.json), autoStart (Run key)
 """
+import json
 import os
 import re
 import subprocess
@@ -41,6 +44,62 @@ def plan_for(guid_text):
         if v in g:
             return k
     return "balanced"
+
+
+CONFIG_KEYS = ("hideTaskbar", "hideIcons", "skipLauncher", "autoUpdate")
+
+
+def config_path():
+    return os.path.join(os.environ.get("APPDATA", os.path.expanduser("~")), "FreeForm", "launcher.json")
+
+
+def package_root():
+    return os.path.normpath(os.path.join(HERE, "..", ".."))
+
+
+def ffconfig(a):
+    cfg = {"hideTaskbar": True, "hideIcons": True, "skipLauncher": False, "autoUpdate": True}
+    try:
+        with open(config_path(), encoding="utf-8-sig") as f:
+            cfg.update(json.load(f))
+    except (OSError, ValueError):
+        pass
+    run_key = r"Software\Microsoft\Windows\CurrentVersion\Run"
+    if a[:1] == ["set"] and len(a) > 2:
+        key, on = a[1], a[2] in ("1", "on", "true")
+        if key == "autoStart":
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, run_key, 0, winreg.KEY_SET_VALUE) as k:
+                if on:
+                    winreg.SetValueEx(k, "FreeForm", 0, winreg.REG_SZ, '"%s"' % os.path.join(package_root(), "FreeForm.cmd"))
+                else:
+                    try:
+                        winreg.DeleteValue(k, "FreeForm")
+                    except OSError:
+                        pass
+        elif key in CONFIG_KEYS:
+            cfg[key] = on
+            os.makedirs(os.path.dirname(config_path()), exist_ok=True)
+            with open(config_path(), "w", encoding="utf-8") as f:
+                json.dump(cfg, f, indent=2)
+        return 0
+    auto = False
+    if os.name == "nt":
+        import winreg
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, run_key) as k:
+                auto = bool(winreg.QueryValueEx(k, "FreeForm")[0])
+        except OSError:
+            pass
+    try:
+        with open(os.path.join(package_root(), "version.txt"), encoding="utf-8") as f:
+            version = f.read().strip()
+    except OSError:
+        version = "dev"
+    out = {k: bool(cfg.get(k)) for k in CONFIG_KEYS}
+    out.update(autoStart=auto, version=version, root=package_root())
+    print(json.dumps(out))
+    return 0
 
 
 def main(argv):
@@ -95,6 +154,8 @@ def main(argv):
            "$id='{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe';"
            "[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($id).Show([Windows.UI.Notifications.ToastNotification]::new($x))")
         return 0
+    if tool == "ffconfig":
+        return ffconfig(a)
     if tool == "pickface":
         face = os.path.join(os.path.expanduser("~"), ".face").replace("'", "''")
         out = ps("Add-Type -AssemblyName System.Windows.Forms,System.Drawing;"

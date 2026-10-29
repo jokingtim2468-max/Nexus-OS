@@ -18,7 +18,8 @@ Singleton {
         property real volume: 0
         property bool muted: false
         property var volumes: [volume]
-        onVolumeChanged: if (!pw.syncing && flow !== "") proc.write(flow + " volume " + volume.toFixed(3) + "\n")
+        property double touched: 0        // while a slider moves, Windows' (slightly older) echo must not pull it back
+        onVolumeChanged: if (!pw.syncing && flow !== "") { touched = Date.now(); proc.write(flow + " volume " + volume.toFixed(3) + "\n"); }
         onMutedChanged: if (!pw.syncing && flow !== "") proc.write(flow + " mute " + (muted ? "1" : "0") + "\n")
     }
     component Node: QtObject {
@@ -84,8 +85,8 @@ Singleton {
                     if (JSON.stringify(v.map(function (n) { return n.name + n.description; })) !== JSON.stringify(pw.nodes.values.map(function (n) { return n.name + n.description; })))
                         pw.nodes.values = v;
                 }
-                if (d.sink && d.sink.volume >= 0) { pw.defaultAudioSink.audio.volume = d.sink.volume; pw.defaultAudioSink.audio.muted = d.sink.muted; }
-                if (d.source && d.source.volume >= 0) { pw.defaultAudioSource.audio.volume = d.source.volume; pw.defaultAudioSource.audio.muted = d.source.muted; }
+                if (d.sink && d.sink.volume >= 0 && Date.now() - pw.defaultAudioSink.audio.touched > 600) { pw.defaultAudioSink.audio.volume = d.sink.volume; pw.defaultAudioSink.audio.muted = d.sink.muted; }
+                if (d.source && d.source.volume >= 0 && Date.now() - pw.defaultAudioSource.audio.touched > 600) { pw.defaultAudioSource.audio.volume = d.source.volume; pw.defaultAudioSource.audio.muted = d.source.muted; }
                 pw.syncing = false;
             }
         }

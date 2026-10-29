@@ -685,7 +685,11 @@ Scope {
             // 7 · Apps & About
             { id: "apps",       sec: 7, name: "Applications",    glyph: "apps",     c1: "#FFB340", c2: "#FF9500", keys: "pinned apps keep remove reset dock" },
             { id: "about",      sec: 7, name: "About",           glyph: "about",    c1: "#A7A7AD", c2: "#7C7C82", keys: "version reset config folder macdock macbar macshell" }
-        ]
+        ].concat(Qt.platform.os === "windows" ? [
+            // 8 · FreeForm on Windows
+            { id: "freeform",   sec: 8, name: "FreeForm",        glyph: "behavior", c1: "#3A3A3C", c2: "#000000", keys: "freeform startup sign in login launcher taskbar desktop icons update version quit exit shortcuts hotkeys" },
+            { id: "windows",    sec: 8, name: "Windows",         wg: "keyboard",   c1: "#3D9BFF", c2: "#0A6CFF", keys: "windows update apps default storage privacy accounts time language gaming printers night light control panel device manager" }
+        ] : [])
 
         readonly property var filtered: {
             var q = query.trim().toLowerCase();
@@ -1343,7 +1347,7 @@ Scope {
                         displays: paneDisplays, menubar: paneMenuBar, wallpaper: paneWallpaper,
                         notifications: paneNotif, sound: paneSound, focus: paneFocus,
                         widgets: paneWidgets, lockscreen: paneLock, users: paneUsers, keyboard: paneKeyboard, mouse: paneMouse, trackpad: paneTrackpad,
-                        apps: paneApps, about: paneAbout
+                        apps: paneApps, about: paneAbout, freeform: paneFreeForm, windows: paneWindows
                     })[prefsWindow.panes[prefsWindow.cur].id]
                     onLoaded: fadeIn.restart()
                 }
@@ -3904,6 +3908,99 @@ Scope {
                                               : I18n.tr("Nothing here yet.")
                 }
                 SLabel { t: pal; text: I18n.tr("Tip: Ctrl+Alt+W opens the quick wallpaper picker, which shows animated wallpapers too.") }
+            }
+        }
+
+        // ── FreeForm (Windows): the launcher's options, updates, shortcuts ──
+        Component {
+            id: paneFreeForm
+            Column {
+                id: ffPane
+                spacing: 10
+                property var cfg: ({})
+                function set(k, v) { var c = Object.assign({}, cfg); c[k] = v; cfg = c; Quickshell.execDetached(["macshell-helper", "ffconfig", "set", k, v ? "1" : "0"]); }
+                Process { running: true; command: ["macshell-helper", "ffconfig", "get"]; stdout: StdioCollector { onStreamFinished: { try { ffPane.cfg = JSON.parse(text); } catch (e) {} } } }
+                SLabel { t: pal; header: true; text: I18n.tr("Startup") }
+                SCard {
+                    t: pal
+                    SRow { t: pal; title: I18n.tr("Start FreeForm when I sign in"); SSwitch { t: pal; checked: !!ffPane.cfg.autoStart; onToggled: v => ffPane.set("autoStart", v) } }
+                    SRow { t: pal; title: I18n.tr("Skip the launcher window"); subtitle: I18n.tr("Hold Shift while opening FreeForm to see it anyway"); SSwitch { t: pal; checked: !!ffPane.cfg.skipLauncher; onToggled: v => ffPane.set("skipLauncher", v) } }
+                }
+                SLabel { t: pal; header: true; text: I18n.tr("Windows") }
+                SCard {
+                    t: pal
+                    SRow { t: pal; title: I18n.tr("Hide the Windows taskbar"); subtitle: I18n.tr("Win+Alt+T shows it for a moment"); SSwitch { t: pal; checked: ffPane.cfg.hideTaskbar !== false; onToggled: v => ffPane.set("hideTaskbar", v) } }
+                    SRow { t: pal; title: I18n.tr("Hide Windows desktop icons"); SSwitch { t: pal; checked: ffPane.cfg.hideIcons !== false; onToggled: v => ffPane.set("hideIcons", v) } }
+                }
+                SLabel { t: pal; text: I18n.tr("Taskbar and desktop icon changes apply the next time FreeForm starts.") }
+                SLabel { t: pal; header: true; text: I18n.tr("Updates") }
+                SCard {
+                    t: pal
+                    SRow { t: pal; title: I18n.tr("Install updates automatically"); SSwitch { t: pal; checked: ffPane.cfg.autoUpdate !== false; onToggled: v => ffPane.set("autoUpdate", v) } }
+                    SRow {
+                        t: pal; title: I18n.tr("Version"); subtitle: ffPane.cfg.version || ""
+                        SButton { t: pal; text: I18n.tr("Check for Updates…"); onClicked: if (ffPane.cfg.root) Quickshell.execDetached(["cmd.exe", "/c", "start", "", ffPane.cfg.root + "\\FreeFormLauncher.cmd"]) }
+                    }
+                }
+                SLabel { t: pal; header: true; text: I18n.tr("Keyboard Shortcuts") }
+                SCard {
+                    t: pal
+                    Repeater {
+                        model: [["Win", "Launchpad (all apps)"], ["Alt+Space", "Spotlight search"], ["Win+Tab", "Mission Control"], ["Alt+Tab", "Switch between apps"],
+                                ["Win+Alt+A", "Control Center"], ["Win+Alt+N", "Wi-Fi and network"], ["Win+Alt+T", "Show the Windows taskbar"], ["Win+Alt+F", "Turn FreeForm off"]]
+                        delegate: SRow {
+                            required property var modelData
+                            t: pal; title: I18n.tr(modelData[1])
+                            Text { text: modelData[0]; color: pal.text2; font.family: root.fontForWeight(font.weight, pal.fam); font.pixelSize: 13 }
+                        }
+                    }
+                }
+                Row {
+                    spacing: 8
+                    SButton { t: pal; text: I18n.tr("Open Launcher…"); onClicked: if (ffPane.cfg.root) Quickshell.execDetached(["cmd.exe", "/c", "start", "", ffPane.cfg.root + "\\FreeFormLauncher.cmd"]) }
+                    SButton { t: pal; text: I18n.tr("Quit FreeForm"); destructive: true; onClicked: Qt.quit() }
+                }
+            }
+        }
+
+        // ── Windows: shortcuts into Windows' own settings ──
+        Component {
+            id: paneWindows
+            Column {
+                spacing: 10
+                Repeater {
+                    model: [
+                        { h: "System", rows: [["Windows Update", "ms-settings:windowsupdate"], ["Storage", "ms-settings:storagesense"], ["Night light", "ms-settings:nightlight"],
+                                              ["Display resolution and scale", "ms-settings:display"], ["Power and sleep", "ms-settings:powersleep"]] },
+                        { h: "Apps", rows: [["Installed apps", "ms-settings:appsfeatures"], ["Default apps", "ms-settings:defaultapps"], ["Startup apps", "ms-settings:startupapps"],
+                                            ["App volume and devices", "ms-settings:apps-volume"]] },
+                        { h: "Devices", rows: [["Printers and scanners", "ms-settings:printers"], ["Mouse", "ms-settings:mousetouchpad"], ["Typing and keyboard layouts", "ms-settings:regionlanguage"]] },
+                        { h: "Accounts and Privacy", rows: [["Your info", "ms-settings:yourinfo"], ["Sign-in options", "ms-settings:signinoptions"], ["Privacy and security", "ms-settings:privacy"]] },
+                        { h: "More", rows: [["Date and time", "ms-settings:dateandtime"], ["Gaming", "ms-settings:gaming-gamemode"], ["Windows Settings", "ms-settings:"],
+                                            ["Control Panel", "control.exe"], ["Device Manager", "devmgmt.msc"]] }
+                    ]
+                    delegate: Column {
+                        id: winGroup
+                        required property var modelData
+                        width: parent.width
+                        spacing: 10
+                        SLabel { t: pal; header: true; text: I18n.tr(winGroup.modelData.h) }
+                        SCard {
+                            t: pal
+                            Repeater {
+                                model: winGroup.modelData.rows
+                                delegate: SRow {
+                                    required property var modelData
+                                    t: pal; title: I18n.tr(modelData[0])
+                                    SButton {
+                                        t: pal; text: I18n.tr("Open")
+                                        onClicked: Quickshell.execDetached(modelData[1].indexOf("ms-settings:") === 0 ? ["explorer.exe", modelData[1]] : (modelData[1] === "devmgmt.msc" ? ["mmc.exe", "devmgmt.msc"] : [modelData[1]]))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 

@@ -24,7 +24,7 @@ Commands (what the QML calls):
   stats watch                                             (CPU / RAM load for widgets; sysstat.py)
   apps sync                                               (Start Menu apps -> .desktop files; see apps.py)
   theme list | theme apply black|white|graphite|default     (Windows/GTK app mode + Spotify; see theme.py)
-  xdg-open | brightnessctl | powerprofilesctl | notify-send | pickface   (see winsys.py)
+  xdg-open | brightnessctl | powerprofilesctl | notify-send | pickface | ffconfig   (see winsys.py)
 """
 import json
 import os
@@ -349,7 +349,7 @@ def main(argv=None):
     if argv[:1] == ["about"]:
         import about
         return about.main(argv[1:])
-    if argv[:1] and argv[0] in ("xdg-open", "brightnessctl", "powerprofilesctl", "notify-send", "pickface"):
+    if argv[:1] and argv[0] in ("xdg-open", "brightnessctl", "powerprofilesctl", "notify-send", "pickface", "ffconfig"):
         import winsys
         return winsys.main(argv)
     if argv[:1] == ["theme"]:
