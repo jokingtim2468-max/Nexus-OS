@@ -238,6 +238,15 @@ jobs:
           "── qs errors"; Get-ChildItem $logs -Filter 'run-*.err.log' | Select-Object -Last 1 | ForEach-Object { Select-String -Path $_.FullName -Pattern 'ERROR|is not a type|ReferenceError|TypeError|Cannot open' | Select-Object -First 30 | ForEach-Object { $_.Line } }
           powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$pkg\FreeForm.ps1" -Stop
           Start-Sleep -Seconds 8
+          # a clean first-run look for screenshots / marketing: no test widget, so the default widgets appear
+          $bmp.Dispose()
+          Remove-Item (Join-Path $cfg 'custom-widgets.json') -ErrorAction SilentlyContinue
+          $l2 = Start-Process powershell.exe -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$pkg\FreeForm.ps1`"", '-Force') -PassThru -WindowStyle Hidden
+          Start-Sleep -Seconds 35
+          (New-Object -ComObject Shell.Application).MinimizeAll(); Start-Sleep -Seconds 4
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File macshell-win\tools\ci\ScreenGrab.ps1 "$((Get-Location).Path)\smoke\showcase.png"
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$pkg\FreeForm.ps1" -Stop
+          Start-Sleep -Seconds 6
           "after Stop: qs running: $([bool](Get-Process qs -ErrorAction SilentlyContinue))   launcher running: $(-not $launcher.HasExited)"
           if (-not $qs) { Write-Error 'FreeForm did not start'; exit 1 }
           if (-not $wallOk) { Write-Error 'desktop wallpaper missing'; exit 1 }
