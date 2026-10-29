@@ -106,6 +106,9 @@ Item {
         id: clipArea
         anchors.fill: parent
         layer.enabled: true
+        // drawn at 2x and smoothed down: sharp text at Windows display scaling (125%, 150%) and in the editor's preview
+        layer.textureSize: Qt.size(Math.max(1, width * 2), Math.max(1, height * 2))
+        layer.smooth: true; layer.mipmap: true
         layer.effect: MultiEffect { maskEnabled: true; maskSource: clipMask; maskThresholdMin: 0.5; maskSpreadAtMin: 1.0 }
 
         Repeater {
@@ -374,7 +377,10 @@ Item {
                             width: parent.width * (wv.ctx ? wv.ctx.progressOf(it.d.source || "media") : 0.4)
                             height: parent.height; radius: parent.radius
                             color: it.d.color || "white"
-                            Behavior on width { NumberAnimation { duration: 400 } }
+                            // media: glide at the song's own pace between the once-a-second updates, so the bar
+                            // never sits still then jumps; the rest (CPU, RAM, battery) ease quickly to the new value
+                            Behavior on width { NumberAnimation { duration: (it.d.source || "media") === "media" ? 1000 : 250
+                                                                  easing.type: (it.d.source || "media") === "media" ? Easing.Linear : Easing.OutCubic } }
                         }
                     }
                     MouseArea {

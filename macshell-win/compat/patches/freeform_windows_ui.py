@@ -243,6 +243,71 @@ EDITS = {
         else openPrefs(pane);""",
          """        if (prefsWindow.visible && prefsWindow.visibility !== Window.Minimized) prefsWindow.visible = false;
         else openPrefs(pane);"""),
+        # ── your own colours for the menu bar and the Dock (Settings > Appearance; "" = the theme's) ──
+        ("""    property string iconTintColor: "#0a84ff\"""",
+         """    property string iconTintColor: "#0a84ff"
+    property string dockColor: ""                // "" = follow the theme; else a colour of your own for the Dock"""),
+        ("""            iconTint: iconTint, iconTintColor: iconTintColor, iconTintStrength: iconTintStrength""",
+         """            iconTint: iconTint, iconTintColor: iconTintColor, iconTintStrength: iconTintStrength, dockColor: dockColor"""),
+        ("""                    "showTrash", "showLabels", "showIndicators", "bounceOnLaunch", "showThumbs", "windowCapture", "iconTint", "iconTintColor", "iconTintStrength"];""",
+         """                    "showTrash", "showLabels", "showIndicators", "bounceOnLaunch", "showThumbs", "windowCapture", "iconTint", "iconTintColor", "iconTintStrength", "dockColor"];"""),
+        ("""                        visible: !root.liquidActive
+                        anchors.fill: parent
+                        radius: root.cornerRadius
+                        color: root.dockDark ? Qt.rgba(0.10, 0.10, 0.11, root.glassOpacity)
+                                             : Qt.rgba(1, 1, 1, root.glassOpacity * 0.55)""",
+         """                        visible: !root.liquidActive
+                        anchors.fill: parent
+                        radius: root.cornerRadius
+                        color: root.dockColor !== "" ? Qt.rgba(Qt.color(root.dockColor).r, Qt.color(root.dockColor).g, Qt.color(root.dockColor).b, Math.max(0.35, root.glassOpacity))
+                             : root.dockDark ? Qt.rgba(0.10, 0.10, 0.11, root.glassOpacity)
+                                             : Qt.rgba(1, 1, 1, root.glassOpacity * 0.55)"""),
+        ("""                        title: I18n.tr("Bar background")""",
+         """                        title: I18n.tr("Bar background")
+                        visible: Qt.platform.os !== "windows\""""),
+        ("""                            onMoved: v => { if (root.bar) root.bar.barBgOpacity = v; }
+                        }
+                    }""",
+         """                            onMoved: v => { if (root.bar) root.bar.barBgOpacity = v; }
+                        }
+                    }
+                    // colour pickers for the menu bar and the Dock: swatches, a hex box, Default = follow the theme
+                    Repeater {
+                        model: [{ t: "Menu bar colour", k: "bar" }, { t: "Dock colour", k: "dock" }]
+                        delegate: SRow {
+                            id: colRow
+                            required property var modelData
+                            t: pal; title: I18n.tr(modelData.t)
+                            subtitle: I18n.tr("Pick a colour, type a hex code, or Default to follow the theme")
+                            readonly property string cur: modelData.k === "bar" ? (root.bar ? root.bar.barColor : "") : root.dockColor
+                            function setc(c) {
+                                if (colRow.modelData.k === "bar") { if (root.bar) { root.bar.barColor = c; if (c !== "" && root.bar.barBgOpacity < 0.5) root.bar.barBgOpacity = 0.75; } }
+                                else root.dockColor = c;
+                            }
+                            Row {
+                                spacing: 5
+                                Repeater {
+                                    model: ["#000000", "#1C1C1E", "#3A3A3C", "#FFFFFF", "#0A84FF", "#5E5CE6", "#BF5AF2", "#FF375F", "#FF9F0A", "#30D158", "#64D2FF"]
+                                    delegate: Rectangle {
+                                        required property string modelData
+                                        width: 18; height: 18; radius: 9; color: modelData; anchors.verticalCenter: parent.verticalCenter
+                                        border.width: colRow.cur.toUpperCase() === modelData ? 2.5 : 1
+                                        border.color: colRow.cur.toUpperCase() === modelData ? pal.accent : pal.cardBorder
+                                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: colRow.setc(parent.modelData) }
+                                    }
+                                }
+                                Rectangle {
+                                    width: 70; height: 22; radius: 6; color: pal.field; anchors.verticalCenter: parent.verticalCenter
+                                    TextInput {
+                                        anchors.fill: parent; anchors.leftMargin: 6; verticalAlignment: TextInput.AlignVCenter
+                                        text: colRow.cur; color: pal.text; font.pixelSize: 11; clip: true
+                                        onEditingFinished: if (/^#[0-9a-fA-F]{6}$/.test(text)) colRow.setc(text.toUpperCase())
+                                    }
+                                }
+                                SButton { t: pal; text: I18n.tr("Default"); onClicked: colRow.setc("") }
+                            }
+                        }
+                    }"""),
         # ── Trash = the Windows Recycle Bin ──
         ('''        if (item.special === "trash") {
             // the file manager first''',
@@ -562,6 +627,15 @@ EDITS = {
                                                     }"""),
         ("""    readonly property bool liquidActive: barStyle === "liquid" && glassState === "ready" && !gaming""",
          """    readonly property bool liquidActive: Qt.platform.os !== "windows" && barStyle === "liquid" && glassState === "ready" && !gaming"""),
+        # your own menu bar colour (Settings > Appearance; "" = the theme's)
+        ("""    property real barBgOpacity: 0.10""",
+         """    property string barColor: ""             // "" = follow the theme; else a colour of your own for the menu bar
+    property real barBgOpacity: 0.10"""),
+        ("""        "barStyle", "barGlass", "glassRim", "glassGrain", "glassLiquid", "glassBlur", "barBgOpacity",""",
+         """        "barStyle", "barGlass", "glassRim", "glassGrain", "glassLiquid", "glassBlur", "barBgOpacity", "barColor","""),
+        ("""                color: root.darkMode ? Qt.rgba(0.10, 0.10, 0.11, root.barBgOpacity) : Qt.rgba(1, 1, 1, root.barBgOpacity)""",
+         """                color: root.barColor !== "" ? Qt.rgba(Qt.color(root.barColor).r, Qt.color(root.barColor).g, Qt.color(root.barColor).b, root.barBgOpacity)
+                     : root.darkMode ? Qt.rgba(0.10, 0.10, 0.11, root.barBgOpacity) : Qt.rgba(1, 1, 1, root.barBgOpacity)"""),
         # ── 2. no workspace numbers on Windows ──
         ('''    readonly property var wsIds: {
         var ids = [], vals = Hyprland.workspaces.values;''',

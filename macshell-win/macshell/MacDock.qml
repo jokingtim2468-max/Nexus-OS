@@ -219,6 +219,7 @@ Scope {
     // Dock icon tint: every icon is re-coloured with one colour (works with any icon pack)
     property bool iconTint: false
     property string iconTintColor: "#0a84ff"
+    property string dockColor: ""                // "" = follow the theme; else a colour of your own for the Dock
     property real iconTintStrength: 1.0
     readonly property var tintChoices: [
         { name: "Blue",     c: "#0a84ff" }, { name: "Purple", c: "#bf5af2" }, { name: "Pink",  c: "#ff375f" },
@@ -1545,6 +1546,7 @@ Scope {
                     SRow {
                         t: pal
                         title: I18n.tr("Bar background")
+                        visible: Qt.platform.os !== "windows"
                         subtitle: I18n.tr("A separate layer (macbarbg) so Hyprland can blur it. Needs: layerrule = blur, macbarbg")
                         SSlider {
                             t: pal
@@ -1552,6 +1554,43 @@ Scope {
                             value: root.bar ? root.bar.barBgOpacity : 0.10
                             leftLabel: I18n.tr("Hidden"); rightLabel: I18n.tr("Tinted")
                             onMoved: v => { if (root.bar) root.bar.barBgOpacity = v; }
+                        }
+                    }
+                    // colour pickers for the menu bar and the Dock: swatches, a hex box, Default = follow the theme
+                    Repeater {
+                        model: [{ t: "Menu bar colour", k: "bar" }, { t: "Dock colour", k: "dock" }]
+                        delegate: SRow {
+                            id: colRow
+                            required property var modelData
+                            t: pal; title: I18n.tr(modelData.t)
+                            subtitle: I18n.tr("Pick a colour, type a hex code, or Default to follow the theme")
+                            readonly property string cur: modelData.k === "bar" ? (root.bar ? root.bar.barColor : "") : root.dockColor
+                            function setc(c) {
+                                if (colRow.modelData.k === "bar") { if (root.bar) { root.bar.barColor = c; if (c !== "" && root.bar.barBgOpacity < 0.5) root.bar.barBgOpacity = 0.75; } }
+                                else root.dockColor = c;
+                            }
+                            Row {
+                                spacing: 5
+                                Repeater {
+                                    model: ["#000000", "#1C1C1E", "#3A3A3C", "#FFFFFF", "#0A84FF", "#5E5CE6", "#BF5AF2", "#FF375F", "#FF9F0A", "#30D158", "#64D2FF"]
+                                    delegate: Rectangle {
+                                        required property string modelData
+                                        width: 18; height: 18; radius: 9; color: modelData; anchors.verticalCenter: parent.verticalCenter
+                                        border.width: colRow.cur.toUpperCase() === modelData ? 2.5 : 1
+                                        border.color: colRow.cur.toUpperCase() === modelData ? pal.accent : pal.cardBorder
+                                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: colRow.setc(parent.modelData) }
+                                    }
+                                }
+                                Rectangle {
+                                    width: 70; height: 22; radius: 6; color: pal.field; anchors.verticalCenter: parent.verticalCenter
+                                    TextInput {
+                                        anchors.fill: parent; anchors.leftMargin: 6; verticalAlignment: TextInput.AlignVCenter
+                                        text: colRow.cur; color: pal.text; font.pixelSize: 11; clip: true
+                                        onEditingFinished: if (/^#[0-9a-fA-F]{6}$/.test(text)) colRow.setc(text.toUpperCase())
+                                    }
+                                }
+                                SButton { t: pal; text: I18n.tr("Default"); onClicked: colRow.setc("") }
+                            }
                         }
                     }
                 }
@@ -4394,7 +4433,7 @@ Scope {
             hideMode: hideMode, hideDelay: hideDelay, monitor: monitor,
             showTrash: showTrash, showLabels: showLabels, showIndicators: showIndicators,
             bounceOnLaunch: bounceOnLaunch, showThumbs: showThumbs, windowCapture: windowCapture,
-            iconTint: iconTint, iconTintColor: iconTintColor, iconTintStrength: iconTintStrength
+            iconTint: iconTint, iconTintColor: iconTintColor, iconTintStrength: iconTintStrength, dockColor: dockColor
         };
         settingsStore.setText(JSON.stringify(o, null, 2));
     }
@@ -4403,7 +4442,7 @@ Scope {
         if (!o || typeof o !== "object") return;
         var keys = ["dockEnabled", "settingsEnabled", "iconSize", "magnification", "magnificationEnabled", "spacing", "margin", "cornerRadius",
                     "darkMode", "appearanceMode", "glassOpacity", "dockStyle", "wallpaperPath", "glassDebug", "glassRim", "glassGrain", "glassLiquid", "glassBlur", "accent", "fontFamily", "hideMode", "hideDelay", "monitor",
-                    "showTrash", "showLabels", "showIndicators", "bounceOnLaunch", "showThumbs", "windowCapture", "iconTint", "iconTintColor", "iconTintStrength"];
+                    "showTrash", "showLabels", "showIndicators", "bounceOnLaunch", "showThumbs", "windowCapture", "iconTint", "iconTintColor", "iconTintStrength", "dockColor"];
         for (var i = 0; i < keys.length; i++) {
             if (o[keys[i]] === undefined) continue;
             try { root[keys[i]] = o[keys[i]]; } catch (err) { }
@@ -5566,7 +5605,8 @@ Scope {
                         visible: !root.liquidActive
                         anchors.fill: parent
                         radius: root.cornerRadius
-                        color: root.dockDark ? Qt.rgba(0.10, 0.10, 0.11, root.glassOpacity)
+                        color: root.dockColor !== "" ? Qt.rgba(Qt.color(root.dockColor).r, Qt.color(root.dockColor).g, Qt.color(root.dockColor).b, Math.max(0.35, root.glassOpacity))
+                             : root.dockDark ? Qt.rgba(0.10, 0.10, 0.11, root.glassOpacity)
                                              : Qt.rgba(1, 1, 1, root.glassOpacity * 0.55)
                         border.width: 1
                         border.color: root.dockDark ? Qt.rgba(0, 0, 0, 0.45) : Qt.rgba(0, 0, 0, 0.12)

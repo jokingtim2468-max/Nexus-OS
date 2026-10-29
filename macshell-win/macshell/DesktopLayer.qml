@@ -18,6 +18,9 @@ Variants {
     readonly property string picture: bar ? bar.wallpaperPath : ""
     readonly property string video: bar ? bar.wallpaperVideo : ""
     readonly property bool engine: bar ? bar.weCurrent !== "" : false
+    // a Wallpaper Engine wallpaper saves its small preview picture as the wallpaper path (for the glass);
+    // never stretch that over the screen: Wallpaper Engine draws the real one
+    readonly property bool engineLeftover: /workshop\/content\/431960|[\\/]preview\.(jpg|jpeg|gif|png)$/i.test(picture.split(String.fromCharCode(92)).join("/"))
     readonly property bool paused: !!(ToplevelManager.activeToplevel && ToplevelManager.activeToplevel.fullscreen)
     readonly property bool dark: dock ? dock.darkMode : true
     readonly property string fam: dock ? dock.fontFamily : "Open Runde"
@@ -40,7 +43,7 @@ Variants {
         id: desk
         required property var modelData
         screen: modelData
-        visible: !dl.engine
+        visible: !dl.engine && !dl.engineLeftover
         anchors { top: true; bottom: true; left: true; right: true }
         exclusionMode: ExclusionMode.Ignore
         color: "black"
@@ -55,7 +58,7 @@ Variants {
                     : Qt.resolvedUrl("assets/wallpapers/" + dl.defaultWallpaper)
             fillMode: Image.PreserveAspectCrop
             asynchronous: true; smooth: true; cache: false
-            sourceSize: Qt.size(desk.modelData.width, desk.modelData.height)   // the screen size (the window is 0x0 when this first loads)
+            // no sourceSize: decode at the picture's own resolution (a size taken from the screen could be 0 and look pixelated)
         }
         Loader {
             anchors.fill: parent
