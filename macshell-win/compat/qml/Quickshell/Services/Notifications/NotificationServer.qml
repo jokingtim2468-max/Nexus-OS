@@ -22,9 +22,12 @@ QtObject {
 
     readonly property string ps1dir: Quickshell.env("FREEFORM_HELPER") || ""
     property Component comp: Component { Notification {} }
+    property bool go: false
+    property Timer startDelay: Timer { interval: 4000; running: true; onTriggered: server.go = true }
 
     property Process watcher: Process {
-        running: server.ps1dir !== ""
+        // started 4 s after FreeForm (see Mpris.qml); restarts whenever it stops, unless Windows denied access
+        running: server.ps1dir !== "" && server.go
         command: ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", server.ps1dir + "/notif.ps1", "watch"]
         stdout: SplitParser {
             onRead: line => {
@@ -35,7 +38,7 @@ QtObject {
             }
         }
         // restart after sleep/resume or a crash, but not when access was refused
-        onExited: if (server.access === "allowed") restart.start()
+        onExited: if (server.access !== "denied") restart.start()
     }
     property Timer restart: Timer { interval: 5000; onTriggered: server.watcher.running = true }
 }

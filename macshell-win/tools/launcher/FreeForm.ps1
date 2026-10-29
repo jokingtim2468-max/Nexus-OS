@@ -96,8 +96,14 @@ $env:PATH = (Join-Path $root 'python') + ';' + $env:FREEFORM_HELPER + ';' + (Joi
 $qs = Join-Path $root 'bin\qs.exe'
 $shell = Join-Path $root 'shell\shell.qml'
 
-# Spotify / Discord theming mods (Spicetify, Vencord): installed and kept working in the background (mods.ps1)
-Start-Process powershell.exe -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', "`"$(Join-Path $root 'mods.ps1')`"") -WindowStyle Hidden
+# Spotify / Discord theming mods (Spicetify, Vencord): only when switched on (Settings > FreeForm), and not
+# at the same moment as FreeForm's own helpers (too many PowerShells starting at once fail with 0xc0000142)
+$modsWanted = $false
+try { $mc = Get-Content (Join-Path $env:APPDATA 'FreeForm\launcher.json') -Raw | ConvertFrom-Json; $modsWanted = [bool]$mc.modSpotify -or [bool]$mc.modDiscord } catch {}
+if ($modsWanted -and (Test-Path (Join-Path $root 'mods.ps1'))) {
+    Start-Process powershell.exe -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-Command',
+        "Start-Sleep -Seconds 45; & '$(Join-Path $root 'mods.ps1')'") -WindowStyle Hidden
+}
 # Start Menu apps -> MacShell's app list (Dock, Spotlight, Launchpad); refreshed in the background
 Start-Process -FilePath (Join-Path $env:FREEFORM_HELPER 'macshell-helper.exe') -ArgumentList 'apps', 'sync' -WindowStyle Hidden
 # launcher settings (FreeFormLauncher.ps1 > Configure settings)

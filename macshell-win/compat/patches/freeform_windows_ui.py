@@ -472,9 +472,14 @@ EDITS = {
         # brightness on Windows: one long-running brightness.ps1 takes every slider value as it moves
         ('''    function refreshBrightness() { if (!brightProc.running) brightProc.running = true; }''',
          '''    function refreshBrightness() { if (Qt.platform.os !== "windows" && !brightProc.running) brightProc.running = true; }
+    Timer { interval: 8000; running: Qt.platform.os === "windows"; onTriggered: brightServe.go = true }
+    Timer { id: brightAgain; interval: 5000; onTriggered: if (brightServe.go) brightServe.running = true }
     Process {
         id: brightServe
-        running: Qt.platform.os === "windows" && (Quickshell.env("FREEFORM_HELPER") || "") !== ""
+        // started 8 s after FreeForm (helpers starting all at once can fail with 0xc0000142); restarts if it stops
+        property bool go: false
+        running: Qt.platform.os === "windows" && (Quickshell.env("FREEFORM_HELPER") || "") !== "" && go
+        onExited: brightAgain.restart()
         stdinEnabled: true
         command: ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File",
                   Quickshell.env("FREEFORM_HELPER") + "/brightness.ps1", "serve"]

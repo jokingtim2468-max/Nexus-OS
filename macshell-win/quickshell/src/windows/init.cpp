@@ -49,7 +49,13 @@ class WindowsPlugin: public QsEnginePlugin {
 
 	bool applies() override { return QGuiApplication::platformName() == "windows"; }
 
-	void init() override { QGuiApplication::instance()->installEventFilter(new RoundCorners()); }
+	void init() override {
+		// FreeForm runs many hidden helpers (PowerShell, Python): if one fails to start, Windows must not pop
+		// an error box over the desktop (e.g. "unable to start correctly (0xc0000142)"); FreeForm retries it.
+		// Child processes inherit this error mode.
+		SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
+		QGuiApplication::instance()->installEventFilter(new RoundCorners());
+	}
 
 	void registerTypes() override {
 		qmlRegisterType<WinPanelInterface>("Quickshell._WindowsOverlay", 1, 0, "PanelWindow");

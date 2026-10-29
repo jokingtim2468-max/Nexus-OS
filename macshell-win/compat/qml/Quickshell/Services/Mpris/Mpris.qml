@@ -50,10 +50,13 @@ Singleton {
         function raise() {}
     }
     Component { id: playerComp; Player {} }
+    property bool go: false
+    Timer { interval: 2000; running: true; onTriggered: mpris.go = true }
 
     Process {
         id: watcher
-        running: mpris.ps1dir !== ""
+        // started 2 s after FreeForm (helpers starting all at once can fail with 0xc0000142); restarts on exit
+        running: mpris.ps1dir !== "" && mpris.go
         command: ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", mpris.ps1dir + "/media.ps1", "watch"]
         stdout: SplitParser {
             onRead: line => {

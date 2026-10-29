@@ -29,5 +29,7 @@ Singleton {
             }
         }
     }
-    Timer { interval: 30000; repeat: true; running: up.ps1dir !== ""; triggeredOnStart: true; onTriggered: proc.running = true }
+    // first reading 6 s after FreeForm starts (helpers starting all at once can fail), then every 30 s
+    Timer { interval: 6000; running: up.ps1dir !== ""; onTriggered: proc.running = true }
+    Timer { interval: 30000; repeat: true; running: up.ps1dir !== ""; onTriggered: proc.running = true }
 }
