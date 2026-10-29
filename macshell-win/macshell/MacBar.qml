@@ -89,10 +89,10 @@ Scope {
 
     // ───────────── CONFIG (all persisted to settings.json) ─────────────
     property bool barEnabled: true           // the menu bar strip itself
-    // FreeForm (Windows): the bar tucks away while an app window is focused; touching the top edge brings it back
+    // FreeForm (Windows): the bar tucks away while a full-screen app is in front; touching the top edge brings it back
     readonly property bool barAutoHide: Qt.platform.os === "windows"
     property bool barPeek: false
-    readonly property bool barAppFocused: barAutoHide && ToplevelManager.activeToplevel !== null
+    readonly property bool barAppFocused: barAutoHide && ToplevelManager.activeToplevel !== null && ToplevelManager.activeToplevel.fullscreen
     Timer { id: barUnpeek; interval: 600; onTriggered: root.barPeek = false }
     // every part of the shell can be switched off on its own (the installer's feature picker writes these too)
     property bool spotlightEnabled: true     // Spotlight (the magnifier / its keybind)
@@ -3019,10 +3019,8 @@ Scope {
             }));
             m.push(msep());
             m.push(mi("System Settings\u2026", "", function () { root.openSettings(); }));
-            m.push(mi("App Store\u2026", "", function () { if (hub && hub.appStore) hub.appStore.open(""); }));
             m.push(mi("Welcome Tour\u2026", "", function () { if (hub && hub.tour) hub.tour.start(); }));
             m.push(mi("Widget Studio\u2026", "", function () { if (hub && hub.widgetStudio) hub.widgetStudio.open(); }));
-            m.push(mi("Music\u2026", "", function () { if (hub && hub.openMusic) hub.openMusic(); }));
             m.push(msep());
             m.push(mi("Lock Screen", "", function () { root.lockScreen(); }));
             m.push(mi("Sleep", "", function () { root.sleepMachine(); }));
@@ -4395,7 +4393,7 @@ Scope {
             color: "transparent"
 
             exclusionMode: ExclusionMode.Normal
-            exclusiveZone: root.barEnabled && !root.barAutoHide ? root.barHeight : 0
+            exclusiveZone: root.barEnabled ? root.barHeight : 0
 
             WlrLayershell.namespace: "macbar"
             WlrLayershell.layer: WlrLayer.Top

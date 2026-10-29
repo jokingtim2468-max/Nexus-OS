@@ -26,15 +26,16 @@ function Save-Art($s, $p, $key) {
     $path = ''
     try {
         if ($p.Thumbnail) {
-            $stream = Await ($p.Thumbnail.OpenReadAsync()) ([Windows.Storage.Streams.IRandomAccessStreamWithContentType])
-            $reader = New-Object Windows.Storage.Streams.DataReader($stream.GetInputStreamAt(0))
-            $n = [uint32]$stream.Size
-            Await ($reader.LoadAsync($n)) ([uint32]) | Out-Null
-            $bytes = New-Object byte[] $n; $reader.ReadBytes($bytes)
-            $path = Join-Path $artDir ("art-{0}.png" -f ([Math]::Abs($key.GetHashCode())))
-            [IO.File]::WriteAllBytes($path, $bytes)
+            $ras = Await ($p.Thumbnail.OpenReadAsync()) ([Windows.Storage.Streams.IRandomAccessStreamWithContentType])
+            # the real file type (Spotify sends JPEG): Qt picks the decoder by extension first
+            $ext = if ("$($ras.ContentType)" -match 'png') { 'png' } elseif ("$($ras.ContentType)" -match 'bmp') { 'bmp' } else { 'jpg' }
+            $path = Join-Path $artDir ("art-{0}.{1}" -f ([Math]::Abs($key.GetHashCode())), $ext)
+            $in = [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($ras)
+            $out = [IO.File]::Create($path)
+            try { $in.CopyTo($out) } finally { $out.Close(); $in.Close() }
+            if ((Get-Item $path).Length -lt 64) { Remove-Item $path; $path = '' }
         }
-    } catch {}
+    } catch { [Console]::Error.WriteLine("art: $($_.Exception.Message)"); $path = '' }
     # apps often publish the cover a moment after the title: only remember a cover once we have one
     if ($path) { $artCache[$key] = $path }
     $path

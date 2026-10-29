@@ -21,7 +21,7 @@ install_qml_module(quickshell-windows)
 add_library(quickshell-windows-init OBJECT init.cpp)
 
 target_link_libraries(quickshell-windows PRIVATE Qt::Quick shell32 user32 gdi32 dwmapi)
-target_link_libraries(quickshell-windows-init PRIVATE Qt::Quick Qt::Qml)
+target_link_libraries(quickshell-windows-init PRIVATE Qt::Quick Qt::Qml dwmapi)
 
 qs_module_pch(quickshell-windows SET large)
 

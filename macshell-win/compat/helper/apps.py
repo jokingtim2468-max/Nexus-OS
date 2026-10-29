@@ -20,12 +20,17 @@ def desktop_dir():
     return os.path.join(home, "applications")
 
 
+# Windows apps whose names clash with FreeForm's own ("Settings" is FreeForm's)
+RENAME = {"Settings": "Windows Settings"}
+
+
 def entry(app):
     """One .desktop file's text for an app from apps.ps1."""
     target = app.get("target") or ""
     wm = os.path.splitext(os.path.basename(target.replace("\\", "/")))[0].lower() if target else ""
     exec_ = "explorer.exe %s" % exec_arg(app["launch"])                 # opens exactly like the Start Menu
-    lines = ["[Desktop Entry]", "Type=Application", "Name=%s" % app["name"], "Exec=%s" % exec_]
+    name = RENAME.get(app["name"], app["name"])
+    lines = ["[Desktop Entry]", "Type=Application", "Name=%s" % name, "Exec=%s" % exec_]
     if app.get("icon"):
         lines.append("Icon=%s" % app["icon"].replace("\\", "/"))     # Qt reads C:/... fine; backslashes get mangled
     if wm:
@@ -40,9 +45,7 @@ def exec_arg(s):
 
 
 # FreeForm's own apps, so Spotlight and Launchpad find them: (name, IPC target, icon in shell/assets)
-OWN = [("Finder", "finder", "freeform-logo.png"), ("Widget Studio", "widgetstudio", "freeform-logo.png"), ("Music", "music", "music-app.svg"),
-       ("Theme Studio", "themestudio", "freeform-logo.png"), ("App Store", "appstore", "freeform-logo.png"),
-       ("FreeForm Settings", "settings", "freeform-logo.png"), ("Welcome Tour", "tour", "freeform-logo.png")]
+OWN = [("Widget Studio", "widgetstudio", "freeform-logo.png"), ("Settings", "settings", "freeform-logo.png")]
 
 
 def own_entries(root):

@@ -141,8 +141,13 @@ void WinPanelWindow::connectWindow() {
 	    this,
 	    &WinPanelWindow::updatePanelStack
 	);
+	// a panel that wants the keyboard (Spotlight, Launchpad) takes it as soon as it's shown
+	QObject::connect(this->window, &QQuickWindow::visibleChanged, this, [this]() {
+		if (this->mGrabFocus && this->window->isVisible()) this->takeFocus();
+	});
 
 	this->window->setFlag(Qt::FramelessWindowHint);
+	this->window->setProperty("qsPanel", true); // not an app window: no rounded corners (init.cpp)
 	this->updateAboveWindows();
 	this->updateFocusable();
 
@@ -424,6 +429,33 @@ void WinPanelWindow::updateFocusable() {
 	if (this->bFocusable) exStyle &= ~WS_EX_NOACTIVATE;
 	else exStyle |= WS_EX_NOACTIVATE;
 	SetWindowLongPtrW(hwnd, GWL_EXSTYLE, exStyle);
+
+	if (this->mGrabFocus && this->window->isVisible()) this->takeFocus();
+}
+
+void WinPanelWindow::setGrabFocus(bool grab) {
+	if (grab == this->mGrabFocus) return;
+	this->mGrabFocus = grab;
+	if (grab && this->window != nullptr && this->window->isVisible()) this->takeFocus();
+}
+
+void WinPanelWindow::takeFocus() {
+	if (this->window == nullptr || this->window->handle() == nullptr) return;
+	auto* hwnd = reinterpret_cast<HWND>(this->window->winId()); // NOLINT
+	if (GetForegroundWindow() == hwnd) return;
+
+	// Windows only lets the app in front hand over the keyboard. Joining its input queue for a
+	// moment makes us part of it, so the panel really gets focus (without this, typing after
+	// pressing Win went on into the app underneath).
+	auto* fg = GetForegroundWindow();
+	auto fgThread = fg != nullptr ? GetWindowThreadProcessId(fg, nullptr) : 0;
+	auto ourThread = GetCurrentThreadId();
+	auto attached = fgThread != 0 && fgThread != ourThread && AttachThreadInput(ourThread, fgThread, TRUE);
+	SetForegroundWindow(hwnd);
+	BringWindowToTop(hwnd);
+	SetFocus(hwnd);
+	if (attached) AttachThreadInput(ourThread, fgThread, FALSE);
+	this->window->requestActivate();
 }
 
 // WinPanelInterface

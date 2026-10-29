@@ -12,6 +12,7 @@
 #include <qdir.h>
 #include <qfile.h>
 #include <qstring.h>
+#include <qtenvironmentvariables.h>
 
 QPixmap
 IconImageProvider::requestPixmap(const QString& id, QSize* size, const QSize& requestedSize) {
@@ -39,6 +40,12 @@ IconImageProvider::requestPixmap(const QString& id, QSize* size, const QSize& re
 	auto iconFile = IconImageProvider::localIconFile(QUrl::fromPercentEncoding(iconName.toUtf8()));
 	auto icon = QDir::isAbsolutePath(iconFile) && QFile::exists(iconFile) ? QIcon(iconFile) : QIcon::fromTheme(iconName);
 	if (icon.isNull() && !fallbackName.isEmpty()) icon = QIcon::fromTheme(fallbackName);
+	if (icon.isNull()) {
+		// Windows: a running app's own icon, saved by the window list (see windows/toplevel.cpp)
+		auto saved = IconImageProvider::savedAppIcon(iconName);
+		if (saved.isEmpty() && !fallbackName.isEmpty()) saved = IconImageProvider::savedAppIcon(fallbackName);
+		if (!saved.isEmpty()) icon = QIcon(saved);
+	}
 	if (icon.isNull() && !path.isEmpty()) icon = QPixmap(path);
 
 	auto targetSize = requestedSize.isValid() ? requestedSize : QSize(100, 100);
@@ -52,6 +59,17 @@ IconImageProvider::requestPixmap(const QString& id, QSize* size, const QSize& re
 
 	if (size != nullptr) *size = pixmap.size();
 	return pixmap;
+}
+
+QString IconImageProvider::savedAppIcon(const QString& name) {
+#ifdef _WIN32
+	if (name.isEmpty() || name.contains('/') || name.contains('\\')) return QString();
+	auto file = qEnvironmentVariable("LOCALAPPDATA") + "/FreeForm/icons/apps/" + name.toLower() + ".png";
+	if (QFile::exists(file)) return file;
+#else
+	Q_UNUSED(name);
+#endif
+	return QString();
 }
 
 QString IconImageProvider::localIconFile(const QString& icon) {

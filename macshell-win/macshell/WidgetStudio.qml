@@ -91,6 +91,22 @@ Scope {
 
     function clone(o) { return JSON.parse(JSON.stringify(o)); }
     function commit(list) { widgets = list; saveTimer.restart(); }
+    // first start (no saved widgets yet): a clock, a calendar and a music player on the desktop
+    function addDefaults() {
+        var pick = function (name) { for (var i = 0; i < templates.length; i++) if (templates[i].name === name) return clone(templates[i]); return null; };
+        var spots = [["Clock", 40, 60], ["Calendar", 40, 190], ["Mini Player", 40, 380]], l = [];
+        for (var k = 0; k < spots.length; k++) {
+            var w = pick(spots[k][0]);
+            if (!w) continue;
+            w.id = "default-" + k; w.onDesktop = true; w.x = spots[k][1]; w.y = spots[k][2];
+            l.push(w);
+        }
+        commit(l);
+        current = 0;
+    }
+    function removeFromDesktop(index) { var l = widgets.slice(), w = clone(l[index]); w.onDesktop = false; l[index] = w; commit(l); }
+    function deleteAt(index) { var l = widgets.slice(); l.splice(index, 1); commit(l); current = Math.min(current, l.length - 1); sel = -1; }
+
     function addFromTemplate(i) {
         var w = clone(templates[i]);
         w.id = Date.now().toString(36); w.onDesktop = false; w.x = 80 + widgets.length * 30; w.y = 120 + widgets.length * 30;
@@ -194,7 +210,7 @@ Scope {
         path: root.home + "/.config/macshell/custom-widgets.json"
         printErrors: false
         onLoaded: { try { root.widgets = JSON.parse(text()).widgets || []; } catch (e) {} root.loaded = true; }
-        onLoadFailed: root.loaded = true
+        onLoadFailed: { root.addDefaults(); root.loaded = true; }
     }
     Timer { id: saveTimer; interval: 400; onTriggered: store.setText(JSON.stringify({ widgets: root.widgets }, null, 1)) }
 
@@ -215,7 +231,9 @@ Scope {
             }
             anchors { top: true; left: true }
             margins { left: Math.max(0, (dw.w.x || 0) + dragX); top: Math.max(0, (dw.w.y || 0) + dragY) }
-            implicitWidth: dw.w.w; implicitHeight: dw.w.h
+            property bool menuOpen: false
+            // room for the right-click menu under the widget while it's open
+            implicitWidth: Math.max(dw.w.w, menuOpen ? 210 : 0); implicitHeight: dw.w.h + (menuOpen ? menuBox.height + 8 : 0)
             exclusionMode: ExclusionMode.Ignore
             color: "transparent"
             WlrLayershell.layer: WlrLayer.Bottom
@@ -224,6 +242,44 @@ Scope {
             WlrLayershell.keyboardFocus: (dw.w.items || []).some(function (x) { return x.type === "note"; }) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
             WidgetView { widget: dw.w; ctx: wctx; fam: root.fam; onItemEdited: (index, key, value) => root.setItemField(dw.modelData.i, index, key, value) }
             // drag anywhere that isn't a control to move it; saved when let go
+            // right-click: a menu with Edit / Remove from Desktop / Delete
+            TapHandler { acceptedButtons: Qt.RightButton; onTapped: { dw.menuOpen = !dw.menuOpen; menuClose.restart(); } }
+            TapHandler { acceptedButtons: Qt.LeftButton; onTapped: dw.menuOpen = false }
+            Timer { id: menuClose; interval: 6000; onTriggered: dw.menuOpen = false }
+            Rectangle {
+                id: menuBox
+                visible: dw.menuOpen
+                y: dw.w.h + 6; width: 200; height: menuCol.height + 10; radius: 10
+                color: root.darkMode ? "#2C2C2E" : "#FFFFFF"
+                border.width: 1; border.color: root.darkMode ? Qt.rgba(1, 1, 1, 0.16) : Qt.rgba(0, 0, 0, 0.2)
+                Column {
+                    id: menuCol
+                    x: 5; y: 5; width: parent.width - 10
+                    Repeater {
+                        model: [{ t: "Edit Widget\u2026", a: "edit" }, { t: "Remove from Desktop", a: "hide" }, { t: "Delete Widget", a: "delete", warn: true }]
+                        delegate: Rectangle {
+                            required property var modelData
+                            width: menuCol.width; height: 28; radius: 6
+                            color: mItem.containsMouse ? root.accent : "transparent"
+                            Text {
+                                x: 10; anchors.verticalCenter: parent.verticalCenter; text: I18n.tr(parent.modelData.t)
+                                color: mItem.containsMouse ? "white" : (parent.modelData.warn ? "#FF453A" : (root.darkMode ? "#F5F5F7" : "#1D1D1F"))
+                                font.family: root.fam; font.pixelSize: 13
+                            }
+                            MouseArea {
+                                id: mItem; anchors.fill: parent; hoverEnabled: true
+                                onClicked: {
+                                    var i = dw.modelData.i, a = parent.modelData.a;
+                                    dw.menuOpen = false;
+                                    if (a === "edit") { root.current = i; root.sel = -1; root.open(); }
+                                    else if (a === "hide") root.removeFromDesktop(i);
+                                    else root.deleteAt(i);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             DragHandler {
                 target: null
                 acceptedButtons: Qt.LeftButton
@@ -240,7 +296,8 @@ Scope {
         width: 1120; height: 700
         minimumWidth: 900; minimumHeight: 560
         visible: false
-        color: "transparent"
+        // Windows: a solid window (its corners are rounded by Windows 11); elsewhere the rounded frame below
+        color: Qt.platform.os === "windows" ? pal.bg : "transparent"
         flags: Qt.Window | Qt.FramelessWindowHint
 
         QtObject {
@@ -341,10 +398,17 @@ Scope {
                     x: 18; y: 18; spacing: 8
                     Repeater {
                         model: ["#FF5F57", "#FEBC2E", "#28C840"]
-                        delegate: Rectangle { required property string modelData; required property int index; width: 14; height: 14; radius: 7; color: index !== 1 && win.active ? modelData : pal.lightOff; border.width: 1; border.color: Qt.rgba(0, 0, 0, 0.14) }
+                        delegate: Rectangle {
+                            required property string modelData; required property int index
+                            width: 14; height: 14; radius: 7; color: win.active ? modelData : pal.lightOff; border.width: 1; border.color: Qt.rgba(0, 0, 0, 0.14)
+                            MouseArea {
+                                anchors.fill: parent; anchors.margins: -3
+                                onClicked: parent.index === 0 ? win.visible = false : parent.index === 1 ? win.showMinimized()
+                                         : (win.visibility === Window.Maximized ? win.showNormal() : win.showMaximized())
+                            }
+                        }
                     }
                 }
-                MouseArea { x: 16; y: 16; width: 20; height: 18; onClicked: win.visible = false }
                 Column {
                     x: 10; y: 52; width: parent.width - 20; spacing: 2
                     Label { leftPadding: 8; text: I18n.tr("MY WIDGETS") }
@@ -355,9 +419,24 @@ Scope {
                             required property int index
                             width: parent.width; height: 32; radius: 7
                             color: root.current === index ? pal.sel : "transparent"
-                            Text { x: 10; anchors.verticalCenter: parent.verticalCenter; width: parent.width - 40; elide: Text.ElideRight; text: parent.modelData.name; color: pal.text; font.family: root.fam; font.pixelSize: 13 }
-                            Rectangle { visible: parent.modelData.onDesktop; anchors.right: parent.right; anchors.rightMargin: 10; anchors.verticalCenter: parent.verticalCenter; width: 7; height: 7; radius: 4; color: "#30D158" }
-                            MouseArea { anchors.fill: parent; onClicked: { root.current = parent.index; root.sel = -1; } }
+                            id: wrow
+                            Text { x: 10; anchors.verticalCenter: parent.verticalCenter; width: parent.width - 62; elide: Text.ElideRight; text: wrow.modelData.name; color: pal.text; font.family: root.fam; font.pixelSize: 13 }
+                            MouseArea { anchors.fill: parent; hoverEnabled: true; id: wrowMa; onClicked: { root.current = wrow.index; root.sel = -1; } }
+                            // on the desktop (green) or not: click to toggle
+                            Rectangle {
+                                anchors.right: delBtn.left; anchors.rightMargin: 8; anchors.verticalCenter: parent.verticalCenter
+                                width: 10; height: 10; radius: 5
+                                color: wrow.modelData.onDesktop ? "#30D158" : "transparent"; border.width: 1; border.color: wrow.modelData.onDesktop ? "#30D158" : pal.text2
+                                MouseArea { anchors.fill: parent; anchors.margins: -5; onClicked: { root.current = wrow.index; root.updateWidget({ onDesktop: !wrow.modelData.onDesktop }); } }
+                            }
+                            // delete this widget
+                            Text {
+                                id: delBtn
+                                anchors.right: parent.right; anchors.rightMargin: 8; anchors.verticalCenter: parent.verticalCenter
+                                text: "\u00D7"; color: pal.text2; font.pixelSize: 17
+                                opacity: wrowMa.containsMouse || delMa.containsMouse ? 1 : 0.35
+                                MouseArea { id: delMa; anchors.fill: parent; anchors.margins: -5; hoverEnabled: true; onClicked: { root.current = wrow.index; root.deleteWidget(); } }
+                            }
                         }
                     }
                     Item { width: 1; height: 12 }
@@ -406,22 +485,27 @@ Scope {
                         }
                         Chip {
                             visible: !!root.cw
-                            label: root.cw && root.cw.onDesktop ? I18n.tr("On Desktop ✓") : I18n.tr("Show on Desktop")
+                            label: root.cw && root.cw.onDesktop ? I18n.tr("Remove from Desktop") : I18n.tr("Add to Desktop")
                             on: !!(root.cw && root.cw.onDesktop)
                             onClicked: root.updateWidget({ onDesktop: !root.cw.onDesktop })
                         }
+                        Chip { visible: !!root.cw; label: I18n.tr("Delete Widget"); onClicked: root.deleteWidget() }
                     }
                 }
                 Rectangle {
                     id: canvas
                     y: toolbar.height; width: parent.width; height: parent.height - toolbar.height
                     color: pal.canvas
+                    // Delete / Backspace removes the selected block (click a block, then press it)
+                    focus: true
+                    Keys.onDeletePressed: root.deleteItem()
+                    Keys.onPressed: event => { if (event.key === Qt.Key_Backspace && root.sel >= 0) { root.deleteItem(); event.accepted = true; } }
                     // dotted grid
                     Canvas {
                         anchors.fill: parent
                         onPaint: { var c = getContext("2d"); c.fillStyle = pal.dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.08)"; for (var x = 10; x < width; x += 20) for (var y = 10; y < height; y += 20) c.fillRect(x, y, 2, 2); }
                     }
-                    MouseArea { anchors.fill: parent; onPressed: root.sel = -1 }
+                    MouseArea { anchors.fill: parent; onPressed: { root.sel = -1; canvas.forceActiveFocus(); } }
                     Text {
                         visible: !root.cw
                         anchors.centerIn: parent

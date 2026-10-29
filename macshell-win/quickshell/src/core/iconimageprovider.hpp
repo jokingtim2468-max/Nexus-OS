@@ -12,6 +12,8 @@ public:
 	static QPixmap missingPixmap(const QSize& size);
 	// An icon given as a file path, cleaned up: URL-decoded, and "/D:/x" (from a file:///D:/x URL) -> "D:/x".
 	static QString localIconFile(const QString& icon);
+	// Windows: %LOCALAPPDATA%\FreeForm\icons\apps\<name>.png if a running app's icon was saved there.
+	static QString savedAppIcon(const QString& name);
 
 	static QString requestString(
 	    const QString& icon,

@@ -2,9 +2,9 @@
 
 Applied after freeform_apps.py (same engine: exact find -> replace, each must match once).
 
-1. The menu bar tucks away while an app window is focused and slides back when the pointer
-   touches the top edge of the screen (or a menu is open). On Windows it no longer reserves
-   space, so apps use the whole screen, like a macOS full-screen app.
+1. The menu bar tucks away while a full-screen app (game, video) is in front and slides back
+   when the pointer touches the top edge (or a menu is open). Otherwise it stays, and windows
+   are kept below it.
 2. No workspace numbers: Windows has no Hyprland workspaces to switch.
 4. Dock: Windows apps pinned by default (ids are the ff-*.desktop files `apps sync` writes).
 3. Power: Restart / Shut Down use Windows' shutdown.exe, Sleep suspends, and "Log Out" becomes
@@ -14,16 +14,56 @@ Applied after freeform_apps.py (same engine: exact find -> replace, each must ma
 """
 EDITS = {
     "MacDock.qml": [
+        # ── Dock on Windows: taskbar-sized, 1.5x magnification of the hovered icon and its neighbours ──
+        ('''    readonly property real magRadius: (iconSize + spacing) * 2.6''',
+         '''    readonly property real magRadius: (iconSize + spacing) * (Qt.platform.os === "windows" ? 1.6 : 2.6)'''),
+        ('''    readonly property int windowHeight: Math.ceil(margin + bgHeight + iconSize * (effMag - 1) + 72 + menuRoom)''',
+         '''    readonly property int windowHeight: Math.ceil(margin + bgHeight + iconSize * (effMag - 1) + (Qt.platform.os === "windows" ? 104 : 72) + menuRoom)'''),
+        ('''        onLoaded: {
+            try { root.applySettings(JSON.parse(text())); } catch (err) { }
+            root.settingsReady = true;''',
+         '''        onLoaded: {
+            try { root.applySettings(JSON.parse(text())); } catch (err) { }
+            root.ffDockMigrate();
+            root.settingsReady = true;'''),
+        ('''        onLoadFailed: root.settingsReady = true
+    }
+    Timer { id: saveTimer; interval: 400; onTriggered: root.saveSettings() }''',
+         '''        onLoadFailed: { root.ffDockMigrate(); root.settingsReady = true; }
+    }
+    Timer { id: saveTimer; interval: 400; onTriggered: root.saveSettings() }
+    // FreeForm (Windows), once: a Dock the size of the Windows taskbar with gentle magnification
+    FileView { id: ffDockV2; path: root.configDir + "/ff-dock-v2"; printErrors: false; blockLoading: true }
+    function ffDockMigrate() {
+        if (Qt.platform.os !== "windows" || ffDockV2.text() !== "") return;
+        iconSize = 40; magnification = 1.5; magnificationEnabled = true;
+        ffDockV2.setText("1"); saveTimer.restart();
+    }'''),
         ('''            if (ent && typeof ent.execute === "function") { try { ent.execute(); ok = true; } catch (err3) { ok = false; } }''',
          '''            if (ent && root.hub && root.hub.launchOwn && root.hub.launchOwn(ent.id)) ok = true;
             else if (ent && typeof ent.execute === "function") { try { ent.execute(); ok = true; } catch (err3) { ok = false; } }'''),
+        # ── Trash = the Windows Recycle Bin ──
+        ('''        if (item.special === "trash") {
+            // the file manager first''',
+         '''        if (item.special === "trash") {
+            if (Qt.platform.os === "windows") { Quickshell.execDetached(["explorer.exe", "shell:RecycleBinFolder"]); return; }
+            // the file manager first'''),
+        ('''    function emptyTrash() {
+''',
+         '''    function emptyTrash() {
+        if (Qt.platform.os === "windows") {
+            Quickshell.execDetached(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", "Clear-RecycleBin -Force -ErrorAction SilentlyContinue"]);
+            if (bar) bar.playSound("trash", 0.8);
+            return;
+        }
+'''),
         # ── 4. Windows apps pinned by default ──
         ('''    readonly property var defaultPinned: [
         "org.gnome.Nautilus",''',
          '''    readonly property var defaultPinned: Qt.platform.os === "windows" ? [
-        "ff-freeform_finder", "ff-microsoft_edge", "ff-google_chrome", "ff-firefox", "ff-terminal",
+        "ff-file_explorer", "ff-microsoft_edge", "ff-google_chrome", "ff-firefox", "ff-terminal",
         "ff-visual_studio_code", "ff-discord", "ff-spotify", "ff-steam",
-        "ff-freeform_music", "ff-freeform_widget_studio", "ff-freeform_app_store", "ff-freeform_settings"
+        "ff-freeform_widget_studio", "ff-freeform_settings"
     ] : [
         "org.gnome.Nautilus",'''),
     ],
@@ -44,13 +84,11 @@ EDITS = {
         # ── 1. auto-hide state ──
         ('''    property bool barEnabled: true           // the menu bar strip itself''',
          '''    property bool barEnabled: true           // the menu bar strip itself
-    // FreeForm (Windows): the bar tucks away while an app window is focused; touching the top edge brings it back
+    // FreeForm (Windows): the bar tucks away while a full-screen app is in front; touching the top edge brings it back
     readonly property bool barAutoHide: Qt.platform.os === "windows"
     property bool barPeek: false
-    readonly property bool barAppFocused: barAutoHide && ToplevelManager.activeToplevel !== null
+    readonly property bool barAppFocused: barAutoHide && ToplevelManager.activeToplevel !== null && ToplevelManager.activeToplevel.fullscreen
     Timer { id: barUnpeek; interval: 600; onTriggered: root.barPeek = false }'''),
-        ('''            exclusiveZone: root.barEnabled ? root.barHeight : 0''',
-         '''            exclusiveZone: root.barEnabled && !root.barAutoHide ? root.barHeight : 0'''),
         ('''            Item {
                 id: ui
                 anchors.fill: parent

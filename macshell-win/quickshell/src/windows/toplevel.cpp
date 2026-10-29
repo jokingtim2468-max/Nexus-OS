@@ -1,7 +1,9 @@
 #include "toplevel.hpp"
 
 #include <dwmapi.h>
+#include <qdir.h>
 #include <qfileinfo.h>
+#include <qimage.h>
 #include <qguiapplication.h>
 #include <qscreen.h>
 #include <windows.h>
@@ -39,7 +41,7 @@ bool isAppWindow(HWND hwnd) {
 
 // The equivalent of a Wayland app_id: the executable's base name, lower case
 // ("firefox", "code", "explorer"), which the Windows DesktopEntries use as their id too.
-QString appIdFor(HWND hwnd) {
+QString exePathFor(HWND hwnd) {
 	DWORD pid = 0;
 	GetWindowThreadProcessId(hwnd, &pid);
 
@@ -51,10 +53,30 @@ QString appIdFor(HWND hwnd) {
 	auto ok = QueryFullProcessImageNameW(process, 0, path, &size);
 	CloseHandle(process);
 	if (!ok) return QString();
+	return QString::fromWCharArray(path, static_cast<qsizetype>(size));
+}
 
-	return QFileInfo(QString::fromWCharArray(path, static_cast<qsizetype>(size)))
-	    .completeBaseName()
-	    .toLower();
+QString appIdFor(HWND hwnd) { return QFileInfo(exePathFor(hwnd)).completeBaseName().toLower(); }
+
+// The app's own icon, saved as %LOCALAPPDATA%\FreeForm\icons\apps\<app id>.png, so apps without
+// a Start Menu shortcut (portable tools, games...) still get their real icon in the Dock.
+void saveAppIcon(HWND hwnd, const QString& appId) {
+	if (appId.isEmpty()) return;
+	auto dir = QDir(qEnvironmentVariable("LOCALAPPDATA") + "/FreeForm/icons/apps");
+	auto file = dir.filePath(appId + ".png");
+	if (QFileInfo::exists(file)) return;
+
+	auto exe = exePathFor(hwnd);
+	if (exe.isEmpty()) return;
+	HICON icon = nullptr;
+	UINT id = 0;
+	auto wexe = exe.toStdWString();
+	if (PrivateExtractIconsW(wexe.c_str(), 0, 256, 256, &icon, &id, 1, 0) == 0 || icon == nullptr) return;
+	auto image = QImage::fromHICON(icon);
+	DestroyIcon(icon);
+	if (image.isNull()) return;
+	dir.mkpath(".");
+	image.save(file, "PNG");
 }
 
 void CALLBACK winEventProc(
@@ -78,6 +100,7 @@ Toplevel::Toplevel(quintptr hwnd, QObject* parent)
     : QObject(parent)
     , mHwnd(hwnd)
     , mAppId(appIdFor(toHwnd(hwnd))) {
+	saveAppIcon(toHwnd(hwnd), this->mAppId);
 	this->refresh();
 }
 

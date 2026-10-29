@@ -51,13 +51,8 @@ ShellRoot {
         // FreeForm's own apps (the ff-freeform_* entries apps sync writes): opened right here, not through `qs ipc`
         function launchOwn(id) {
             switch (String(id).replace(/\.desktop$/, "")) {
-            case "ff-freeform_finder": finder.open(""); return true;
             case "ff-freeform_widget_studio": widgetStudio.open(); return true;
-            case "ff-freeform_music": openMusic(); return true;
-            case "ff-freeform_theme_studio": themeStudio.open(); return true;
-            case "ff-freeform_app_store": appStore.open(""); return true;
-            case "ff-freeform_freeform_settings": macDock.openPrefs("general"); return true;
-            case "ff-freeform_welcome_tour": tour.start(); return true;
+            case "ff-freeform_settings": macDock.openPrefs("general"); return true;
             }
             return false;
         }

@@ -33,6 +33,7 @@ void WlrLayershell::setKeyboardFocus(WlrKeyboardFocus::Enum focus) {
 	if (focus == this->mKeyboardFocus) return;
 	this->mKeyboardFocus = focus;
 	this->panel->setFocusable(focus != WlrKeyboardFocus::None);
+	this->panel->setGrabFocus(focus == WlrKeyboardFocus::Exclusive);
 	emit this->keyboardFocusChanged();
 }
 

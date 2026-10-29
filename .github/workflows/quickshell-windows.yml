@@ -199,10 +199,24 @@ jobs:
           powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$pkg\install.ps1"
           $lnk = Join-Path ([Environment]::GetFolderPath('Desktop')) 'FreeForm.lnk'
           "desktop shortcut: $(Test-Path $lnk)  icon: $((New-Object -ComObject WScript.Shell).CreateShortcut($lnk).IconLocation)"
+          # a yellow sticky note placed on the desktop, to check widgets really show
+          $cfg = Join-Path $env:USERPROFILE '.config\macshell'
+          New-Item -ItemType Directory -Force -Path $cfg | Out-Null
+          '{"widgets":[{"id":"t1","name":"Note","onDesktop":true,"x":300,"y":300,"w":220,"h":200,"bg":{"color":"#FFD60A","opacity":1,"radius":18,"border":false},"items":[]}]}' | Set-Content (Join-Path $cfg 'custom-widgets.json')
           $launcher = Start-Process powershell.exe -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$pkg\FreeForm.ps1`"", '-Force') -PassThru -WindowStyle Hidden
           Start-Sleep -Seconds 45
           $qs = Get-Process qs -ErrorAction SilentlyContinue
           "qs running: $([bool]$qs)   launcher running: $(-not $launcher.HasExited)"
+          # look at the screen: wallpaper present (not black), widget present (yellow)
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+          [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+          $w = $bmp.GetPixel(410, 400); $wp = $bmp.GetPixel([int]($b.Width * 0.8), [int]($b.Height * 0.5))
+          "widget pixel: $w   wallpaper pixel: $wp"
+          $widgetOk = $w.R -gt 200 -and $w.G -gt 170 -and $w.B -lt 90
+          $wallOk = ($wp.R + $wp.G + $wp.B) -gt 40
+          "widget on desktop: $widgetOk   wallpaper shown: $wallOk"
           $logs = Join-Path $env:LOCALAPPDATA 'FreeForm\logs'
           "── launcher.log"; Get-Content (Join-Path $logs 'launcher.log') -Tail 40 -ErrorAction SilentlyContinue
           "── qs errors"; Get-ChildItem $logs -Filter 'run-*.err.log' | Select-Object -Last 1 | ForEach-Object { Select-String -Path $_.FullName -Pattern 'ERROR|is not a type|ReferenceError|TypeError|Cannot open' | Select-Object -First 30 | ForEach-Object { $_.Line } }
@@ -210,6 +224,8 @@ jobs:
           Start-Sleep -Seconds 8
           "after Stop: qs running: $([bool](Get-Process qs -ErrorAction SilentlyContinue))   launcher running: $(-not $launcher.HasExited)"
           if (-not $qs) { Write-Error 'FreeForm did not start'; exit 1 }
+          if (-not $wallOk) { Write-Error 'desktop wallpaper missing'; exit 1 }
+          if (-not $widgetOk) { Write-Error 'desktop widget not visible'; exit 1 }
 
       - name: fetch in cmd and PowerShell
         shell: pwsh

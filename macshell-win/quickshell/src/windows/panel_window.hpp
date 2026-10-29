@@ -59,6 +59,8 @@ public:
 	void setAboveWindows(bool aboveWindows) { this->bAboveWindows = aboveWindows; }
 	// The background layer (FreeForm's wallpaper): kept under every other bottom panel, e.g. desktop widgets.
 	void setLowest(bool lowest);
+	// keyboard focus Exclusive (Spotlight, Launchpad): take the keyboard as soon as it shows
+	void setGrabFocus(bool grab);
 
 	[[nodiscard]] Anchors anchors() const { return this->bAnchors; }
 	void setAnchors(Anchors anchors) { this->bAnchors = anchors; }
@@ -101,6 +103,7 @@ private:
 	void removeAppBar();
 	void updateAboveWindows();
 	void updateFocusable();
+	void takeFocus();
 	void updateDimensions(bool propagate = true);
 	void updateDimensionsCb() { this->updateDimensions(); }
 
@@ -111,6 +114,7 @@ private:
 	WinPanelEventFilter eventFilter;
 	bool appBarRegistered = false;
 	bool mLowest = false;
+	bool mGrabFocus = false;
 	QTimer lowestTimer;
 	void pushToBottom();
 	quintptr appBarHwnd = 0;
@@ -166,6 +170,7 @@ public:
 	// NOLINTEND
 
 	void setLowest(bool lowest) { this->panel->setLowest(lowest); }
+	void setGrabFocus(bool grab) { this->panel->setGrabFocus(grab); }
 
 private:
 	WinPanelWindow* panel;

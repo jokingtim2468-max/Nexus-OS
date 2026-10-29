@@ -226,9 +226,9 @@ Scope {
         { name: "White",    c: "#ffffff" }, { name: "Black",  c: "#1c1c1e" }
     ]
     readonly property var defaultPinned: Qt.platform.os === "windows" ? [
-        "ff-freeform_finder", "ff-microsoft_edge", "ff-google_chrome", "ff-firefox", "ff-terminal",
+        "ff-file_explorer", "ff-microsoft_edge", "ff-google_chrome", "ff-firefox", "ff-terminal",
         "ff-visual_studio_code", "ff-discord", "ff-spotify", "ff-steam",
-        "ff-freeform_music", "ff-freeform_widget_studio", "ff-freeform_app_store", "ff-freeform_settings"
+        "ff-freeform_widget_studio", "ff-freeform_settings"
     ] : [
         "org.gnome.Nautilus", "org.kde.dolphin", "thunar",
         "firefox", "zen", "chromium", "google-chrome",
@@ -2059,7 +2059,8 @@ Scope {
                                     }
                                 }
                             }
-                            Column {                           // make your own (Theme Studio)
+                            Column {                           // make your own (Theme Studio) — off: FreeForm keeps only Widget Studio as its own app
+                                visible: false
                                 spacing: 4
                                 Rectangle {
                                     width: 64; height: 42; radius: 8
@@ -4111,9 +4112,9 @@ Scope {
     readonly property real effMag: magnificationEnabled ? magnification : 1
     readonly property int bgHeight: iconSize + topPad + bottomPad
     readonly property int sepWidth: 9
-    readonly property real magRadius: (iconSize + spacing) * 2.6
+    readonly property real magRadius: (iconSize + spacing) * (Qt.platform.os === "windows" ? 1.6 : 2.6)
     readonly property int menuRoom: 300
-    readonly property int windowHeight: Math.ceil(margin + bgHeight + iconSize * (effMag - 1) + 72 + menuRoom)
+    readonly property int windowHeight: Math.ceil(margin + bgHeight + iconSize * (effMag - 1) + (Qt.platform.os === "windows" ? 104 : 72) + menuRoom)
     readonly property string configDir: Quickshell.env("HOME") + "/.config/macdock"
 
     property var items: []
@@ -4231,12 +4232,20 @@ Scope {
         printErrors: false
         onLoaded: {
             try { root.applySettings(JSON.parse(text())); } catch (err) { }
+            root.ffDockMigrate();
             root.settingsReady = true;
             if (root.dockStyle === "liquid") root.startGlass();
         }
-        onLoadFailed: root.settingsReady = true
+        onLoadFailed: { root.ffDockMigrate(); root.settingsReady = true; }
     }
     Timer { id: saveTimer; interval: 400; onTriggered: root.saveSettings() }
+    // FreeForm (Windows), once: a Dock the size of the Windows taskbar with gentle magnification
+    FileView { id: ffDockV2; path: root.configDir + "/ff-dock-v2"; printErrors: false; blockLoading: true }
+    function ffDockMigrate() {
+        if (Qt.platform.os !== "windows" || ffDockV2.text() !== "") return;
+        iconSize = 40; magnification = 1.5; magnificationEnabled = true;
+        ffDockV2.setText("1"); saveTimer.restart();
+    }
 
     // MacShell's own windows (About This Linux, Settings, Finder, Photos ...) all have the app id "org.quickshell":
     // they show the MacShell logo and name instead of a generic icon
@@ -4316,6 +4325,11 @@ Scope {
     // Empty Trash: KDE's ktrash when it exists (it also cleans trashes on other drives and keeps Dolphin's trash icon in sync),
     // otherwise the standard XDG trash folder is cleared directly. (gio is not used: without gvfs it "succeeds" without doing anything.)
     function emptyTrash() {
+        if (Qt.platform.os === "windows") {
+            Quickshell.execDetached(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", "Clear-RecycleBin -Force -ErrorAction SilentlyContinue"]);
+            if (bar) bar.playSound("trash", 0.8);
+            return;
+        }
         Quickshell.execDetached(["sh", "-c",
             "command -v ktrash6 >/dev/null 2>&1 && ktrash6 --empty && exit 0; "
             + "command -v ktrash5 >/dev/null 2>&1 && ktrash5 --empty && exit 0; "
@@ -4355,6 +4369,7 @@ Scope {
     function activate(item, forceNew) {
         if (item.kind === "win") { if (item.tl) item.tl.activate(); return; }
         if (item.special === "trash") {
+            if (Qt.platform.os === "windows") { Quickshell.execDetached(["explorer.exe", "shell:RecycleBinFolder"]); return; }
             // the file manager first (Dolphin understands trash:/ natively); xdg-open only as the last resort
             Quickshell.execDetached(["sh", "-c",
                 "if command -v dolphin >/dev/null 2>&1; then exec dolphin trash:/; fi; "
