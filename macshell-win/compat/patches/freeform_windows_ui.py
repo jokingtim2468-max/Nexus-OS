@@ -147,7 +147,9 @@ EDITS = {
             prefsWindow.x = Math.round((sc.width - prefsWindow.width) / 2);
             prefsWindow.y = Math.round(34 + (sc.height - 124 - prefsWindow.height) / 2);
         }
+        if (prefsWindow.visibility === Window.Minimized) prefsWindow.showNormal();   // minimized still counts as open
         prefsWindow.visible = true;
+        prefsWindow.raise();
         prefsWindow.requestActivate();
     }"""),
         # Settings > Notifications: custom sounds, for all apps or per app (Windows; kept by the Dynamic Island)
@@ -236,6 +238,11 @@ EDITS = {
         # the hovered icon draws above its neighbours, so its name label isn't covered by the next icon
         ("""                                z: isDragged ? 100 : 0""",
          """                                z: isDragged ? 100 : (ma.containsMouse ? 50 : 0)"""),
+        # toggling a minimized Settings window brings it back instead of hiding it
+        ("""        if (prefsWindow.visible) prefsWindow.visible = false;
+        else openPrefs(pane);""",
+         """        if (prefsWindow.visible && prefsWindow.visibility !== Window.Minimized) prefsWindow.visible = false;
+        else openPrefs(pane);"""),
         # ── Trash = the Windows Recycle Bin ──
         ('''        if (item.special === "trash") {
             // the file manager first''',

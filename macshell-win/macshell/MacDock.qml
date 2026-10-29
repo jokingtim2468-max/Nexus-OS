@@ -4336,12 +4336,14 @@ Scope {
             prefsWindow.x = Math.round((sc.width - prefsWindow.width) / 2);
             prefsWindow.y = Math.round(34 + (sc.height - 124 - prefsWindow.height) / 2);
         }
+        if (prefsWindow.visibility === Window.Minimized) prefsWindow.showNormal();   // minimized still counts as open
         prefsWindow.visible = true;
+        prefsWindow.raise();
         prefsWindow.requestActivate();
     }
 
     function togglePrefs(pane) {
-        if (prefsWindow.visible) prefsWindow.visible = false;
+        if (prefsWindow.visible && prefsWindow.visibility !== Window.Minimized) prefsWindow.visible = false;
         else openPrefs(pane);
     }
 

@@ -76,7 +76,7 @@ Scope {
             if (sc) { win.width = Math.min(win.width, sc.width - 40); win.height = Math.min(win.height, sc.height - 124);
                       win.x = Math.round((sc.width - win.width) / 2); win.y = Math.round(34 + (sc.height - 124 - win.height) / 2); }
         }
-        win.visible = true; win.raise(); win.requestActivate();
+        if (win.visibility === Window.Minimized) win.showNormal(); win.visible = true; win.raise(); win.requestActivate();
         if (drives.length === 0) drivesProc.running = true;
     }
     function close() { win.visible = false; }

@@ -35,7 +35,7 @@ Scope {
         editing = index === undefined ? -1 : index;
         draft = editing >= 0 ? JSON.parse(JSON.stringify(themes[editing])) : newDraft();
         if (!win.visible) placeWindow();
-        win.visible = true; win.raise(); win.requestActivate();
+        if (win.visibility === Window.Minimized) win.showNormal(); win.visible = true; win.raise(); win.requestActivate();
         listShared();
     }
     // open fully on screen, below the menu bar and above the Dock (smaller screens get a smaller window)

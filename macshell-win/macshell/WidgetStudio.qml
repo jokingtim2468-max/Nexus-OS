@@ -31,7 +31,7 @@ Scope {
 
     WidgetContext { id: wctx; hub: root.hub }
 
-    function open() { if (!win.visible) placeWindow(); win.visible = true; win.raise(); win.requestActivate(); if (widgets.length === 0) addFromTemplate(0); else if (current < 0) current = 0; listShared(); }
+    function open() { if (!win.visible) placeWindow(); if (win.visibility === Window.Minimized) win.showNormal(); win.visible = true; win.raise(); win.requestActivate(); if (widgets.length === 0) addFromTemplate(0); else if (current < 0) current = 0; listShared(); }
     // open fully on screen, below the menu bar and above the Dock (smaller screens get a smaller window)
     function placeWindow() {
         var s = Quickshell.screens.length ? Quickshell.screens[0] : null; if (!s) return;
