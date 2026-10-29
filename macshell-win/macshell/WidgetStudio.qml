@@ -172,6 +172,35 @@ Scope {
         updateItem({ spans: sp });
     }
     property int movingIndex: -1            // the desktop widget in Move mode (snaps to the grid)
+
+    // ── Match the desktop theme: every widget is drawn in the current theme's colours (its own colours are kept
+    // and come back when this is off). Background = the theme's card colour, text = its text colour,
+    // progress bars / today on the calendar = its accent. Saved with the widgets.
+    property bool matchTheme: false
+    readonly property var theme: {
+        var d = root.dock;
+        if (!d) return { card: "#2A2A2C", fg: "#F5F5F7", accent: "#0A84FF" };
+        var t = null, l = d.themePresets || [];
+        for (var i = 0; i < l.length; i++) if (l[i].id === d.themePreset) t = l[i];
+        if (!t || t.id === "default") return d.darkMode ? { card: "#2A2A2C", fg: "#F5F5F7", accent: d.accent || "#0A84FF" }
+                                                        : { card: "#F2F2F7", fg: "#1D1D1F", accent: d.accent || "#0A84FF" };
+        return { card: t.card || "#2A2A2C", fg: t.fg || "#FFFFFF", accent: t.accent || "#0A84FF" };
+    }
+    function themed(w) {
+        if (!matchTheme || !w) return w;
+        var o = clone(w), th = theme;
+        o.bg = o.bg || {}; o.bg.color = th.card;
+        for (var i = 0; i < (o.items || []).length; i++) {
+            var it = o.items[i];
+            if (it.type === "progress") it.color = th.accent;
+            else if (it.type === "calendar") { it.color = th.fg; it.accent = th.accent; }
+            else if (it.type === "shape" || it.type === "image" || it.type === "art") continue;      // pictures and shapes keep their look
+            else if (it.type === "clock") { it.color = th.card; it.face = th.fg; it.hand = th.accent; }
+            else it.color = th.fg;
+            if (it.spans) delete it.spans;                                                              // one theme colour for the whole text
+        }
+        return o;
+    }
     // first start (no saved widgets yet): a clock, a calendar and a music player on the desktop
     function addDefaults() {
         var pick = function (name) { for (var i = 0; i < templates.length; i++) if (templates[i].name === name) return clone(templates[i]); return null; };
@@ -335,10 +364,11 @@ Scope {
         id: store
         path: root.home + "/.config/macshell/custom-widgets.json"
         printErrors: false
-        onLoaded: { try { root.widgets = JSON.parse(text()).widgets || []; } catch (e) {} root.loaded = true; root.migrateGrid(); }
+        onLoaded: { try { var o = JSON.parse(text()); root.widgets = o.widgets || []; root.matchTheme = !!o.matchTheme; } catch (e) {} root.loaded = true; root.migrateGrid(); }
         onLoadFailed: { root.addDefaults(); root.undoStack = []; root.loaded = true; }
     }
-    Timer { id: saveTimer; interval: 400; onTriggered: store.setText(JSON.stringify({ widgets: root.widgets }, null, 1)) }
+    Timer { id: saveTimer; interval: 400; onTriggered: store.setText(JSON.stringify({ widgets: root.widgets, matchTheme: root.matchTheme }, null, 1)) }
+    onMatchThemeChanged: if (loaded) saveTimer.restart()
 
     // ═════════════ ON THE DESKTOP ═════════════
     // the grid, shown on the desktop while a widget is being moved
@@ -391,7 +421,7 @@ Scope {
             WlrLayershell.namespace: "freeform-widget"
             // a widget with a sticky note takes the keyboard when clicked
             WlrLayershell.keyboardFocus: (dw.w.items || []).some(function (x) { return x.type === "note"; }) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
-            WidgetView { widget: dw.w; ctx: wctx; fam: root.fam; onItemEdited: (index, key, value) => root.setItemField(dw.modelData.i, index, key, value) }
+            WidgetView { widget: root.themed(dw.w); ctx: wctx; fam: root.fam; onItemEdited: (index, key, value) => root.setItemField(dw.modelData.i, index, key, value) }
             // drag anywhere that isn't a control to move it; saved when let go
             readonly property bool moving: root.movingIndex === dw.modelData.i
             // Move mode: highlighted outline and a Done button; dragging snaps to the grid
@@ -672,6 +702,8 @@ Scope {
                             onClicked: root.updateWidget({ onDesktop: !root.cw.onDesktop })
                         }
                         Chip { visible: !!root.cw; label: I18n.tr("Duplicate"); onClicked: root.duplicateWidget() }
+                        // all widgets in the desktop theme's colours
+                        Chip { label: I18n.tr("Match Theme"); on: root.matchTheme; onClicked: root.matchTheme = !root.matchTheme }
                     }
                 }
                 Rectangle {
@@ -715,7 +747,7 @@ Scope {
                         scale: sc
                         WidgetView {
                             id: preview
-                            widget: root.cw || ({ w: 10, h: 10, items: [] })
+                            widget: root.themed(root.cw) || ({ w: 10, h: 10, items: [] })
                             ctx: wctx; fam: root.fam
                             editing: true; selected: root.sel
                             onPicked: i => root.sel = i

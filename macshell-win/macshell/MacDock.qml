@@ -2727,6 +2727,14 @@ Scope {
                         }
                     }
                     SRow {
+                        visible: !!(root.hub && root.hub.widgetStudio)
+                        t: pal
+                        title: I18n.tr("Match the desktop theme")
+                        subtitle: I18n.tr("Widgets use the theme's colours; turn off to get each widget's own colours back")
+                        SSwitch { t: pal; checked: !!(root.hub && root.hub.widgetStudio && root.hub.widgetStudio.matchTheme)
+                                  onToggled: v => { if (root.hub && root.hub.widgetStudio) root.hub.widgetStudio.matchTheme = v; } }
+                    }
+                    SRow {
                         t: pal
                         title: I18n.tr("Widget size")
                         subtitle: I18n.tr("Makes every desktop widget smaller or larger (") + Math.round((wgPane.wdg ? wgPane.wdg.widgetScale : 1) * 100) + "%)"

@@ -214,6 +214,21 @@ EDITS = {
         ("""    function togglePin(item) {""",
          """    function setPinnedIds(l) { pinned = l; store.setText(JSON.stringify(l, null, 2)); rebuild(); }
     function togglePin(item) {"""),
+        # Settings > Widgets: draw every widget in the desktop theme's colours (Widget Studio keeps the setting)
+        ("""                    SRow {
+                        t: pal
+                        title: I18n.tr("Widget size")""",
+         """                    SRow {
+                        visible: !!(root.hub && root.hub.widgetStudio)
+                        t: pal
+                        title: I18n.tr("Match the desktop theme")
+                        subtitle: I18n.tr("Widgets use the theme's colours; turn off to get each widget's own colours back")
+                        SSwitch { t: pal; checked: !!(root.hub && root.hub.widgetStudio && root.hub.widgetStudio.matchTheme)
+                                  onToggled: v => { if (root.hub && root.hub.widgetStudio) root.hub.widgetStudio.matchTheme = v; } }
+                    }
+                    SRow {
+                        t: pal
+                        title: I18n.tr("Widget size")"""),
         # ── Trash = the Windows Recycle Bin ──
         ('''        if (item.special === "trash") {
             // the file manager first''',
