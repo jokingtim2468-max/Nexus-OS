@@ -31,6 +31,16 @@ QUrl QsUrlInterceptor::intercept(
 ) {
 	auto url = originalUrl;
 
+#ifdef Q_OS_WIN
+	// "file://" + "D:/x" (MacShell joins paths that way, fine on Linux) reads as host "d", path "/x" on
+	// Windows: put the drive back into the path -> file:///D:/x
+	if (url.scheme() == "file" && url.host().size() == 1 && url.host().at(0).isLetter()) {
+		auto fixed = QUrl::fromLocalFile(url.host().toUpper() % ":" % url.path());
+		if (url.hasQuery()) fixed.setQuery(url.query());
+		url = fixed;
+	}
+#endif
+
 	if (url.scheme() == "root") {
 		url.setScheme("qs");
 

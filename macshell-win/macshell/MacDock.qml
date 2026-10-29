@@ -4810,7 +4810,7 @@ Scope {
     // ═════════════ LIQUID GLASS BACKEND ═════════════
     // glassState: "idle" → "building" (qsb running) → "ready" | "failed". "failed" falls back to Normal Blur.
     property string glassState: "idle"
-    readonly property bool liquidActive: dockStyle === "liquid" && glassState === "ready" && !(bar && bar.gaming)
+    readonly property bool liquidActive: Qt.platform.os !== "windows" && dockStyle === "liquid" && glassState === "ready" && !(bar && bar.gaming)
     // Settings' own glass (back / forward pill, knobs of switches and sliders): available whenever the shader is built,
     // whatever the Dock style is
     readonly property bool settingsGlass: glassState === "ready" && !(bar && bar.gaming)
@@ -5636,7 +5636,7 @@ Scope {
                                     NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
                                 }
                                 transform: Translate { x: cell.dx }
-                                z: isDragged ? 100 : 0
+                                z: isDragged ? 100 : (ma.containsMouse ? 50 : 0)
 
                                 readonly property bool leavingCell: modelData.leaving === true
                                 property real appear: modelData.fresh ? 0 : 1

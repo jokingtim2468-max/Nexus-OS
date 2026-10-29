@@ -229,6 +229,13 @@ EDITS = {
                     SRow {
                         t: pal
                         title: I18n.tr("Widget size")"""),
+        # Windows: no Liquid Glass (it refracts a saved copy of the wallpaper, which goes stale with Wallpaper
+        # Engine or a Windows wallpaper); the plain frosted Dock instead
+        ("""    readonly property bool liquidActive: dockStyle === "liquid" && glassState === "ready" && !(bar && bar.gaming)""",
+         """    readonly property bool liquidActive: Qt.platform.os !== "windows" && dockStyle === "liquid" && glassState === "ready" && !(bar && bar.gaming)"""),
+        # the hovered icon draws above its neighbours, so its name label isn't covered by the next icon
+        ("""                                z: isDragged ? 100 : 0""",
+         """                                z: isDragged ? 100 : (ma.containsMouse ? 50 : 0)"""),
         # ── Trash = the Windows Recycle Bin ──
         ('''        if (item.special === "trash") {
             // the file manager first''',
@@ -546,6 +553,8 @@ EDITS = {
                                                             }
                                                         }
                                                     }"""),
+        ("""    readonly property bool liquidActive: barStyle === "liquid" && glassState === "ready" && !gaming""",
+         """    readonly property bool liquidActive: Qt.platform.os !== "windows" && barStyle === "liquid" && glassState === "ready" && !gaming"""),
         # ── 2. no workspace numbers on Windows ──
         ('''    readonly property var wsIds: {
         var ids = [], vals = Hyprland.workspaces.values;''',

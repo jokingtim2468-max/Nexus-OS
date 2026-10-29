@@ -26,7 +26,7 @@ class Entries(unittest.TestCase):
         open(os.path.join(d, "org.gnome.Mine.desktop"), "w").close()        # not ours: kept
         A.write_all([{"name": "A", "launch": "a.lnk"}, {"name": "B", "launch": "b.lnk"}], d)
         A.write_all([{"name": "A", "launch": "a.lnk"}], d)
-        self.assertEqual(sorted(os.listdir(d)), ["ff-a.desktop", "org.gnome.Mine.desktop"])
+        self.assertEqual(sorted(os.listdir(d)), ["ff-a.desktop", "ff-file_explorer.desktop", "org.gnome.Mine.desktop"])   # + File Explorer, always added
 
     def test_mac_theme_icon_wins_when_the_theme_has_one(self):
         themed = {"google-chrome", "system-file-manager"}

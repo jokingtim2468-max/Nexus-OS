@@ -104,9 +104,15 @@ def filename(name):
     return "ff-" + re.sub(r"[^a-z0-9._-]", "_", name.lower()) + ".desktop"
 
 
+# Windows apps that aren't Start Menu shortcuts on Windows 11 but should be findable (Spotlight, Launchpad, Dock)
+SYSTEM_APPS = [{"name": "File Explorer", "launch": "explorer.exe", "target": "C:\\Windows\\explorer.exe", "icon": ""}]
+
+
 def write_all(apps, d, own=(), themed=frozenset()):
     os.makedirs(d, exist_ok=True)
     keep = set()
+    have = {a["name"].lower() for a in apps}
+    apps = list(apps) + [a for a in SYSTEM_APPS if a["name"].lower() not in have]
     items = [(filename(a["name"]), entry(a, themed)) for a in apps] + [(filename("freeform " + n), t) for n, t in own]
     for f, text in items:
         keep.add(f)

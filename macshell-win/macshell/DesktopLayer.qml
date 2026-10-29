@@ -55,7 +55,7 @@ Variants {
                     : Qt.resolvedUrl("assets/wallpapers/" + dl.defaultWallpaper)
             fillMode: Image.PreserveAspectCrop
             asynchronous: true; smooth: true; cache: false
-            sourceSize: Qt.size(desk.width, desk.height)
+            sourceSize: Qt.size(desk.modelData.width, desk.modelData.height)   // the screen size (the window is 0x0 when this first loads)
         }
         Loader {
             anchors.fill: parent

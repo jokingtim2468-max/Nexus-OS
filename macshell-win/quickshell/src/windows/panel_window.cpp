@@ -437,15 +437,29 @@ void placeAbove(HWND hwnd, HWND anchor) {
 // Desktop panels (below the app windows): the desktop layer right above Explorer's desktop
 // window, widgets right above the desktop layer. Re-checked twice a second, since clicking
 // one or Explorer redrawing its desktop can reorder them.
+// is hwnd stacked above anchor? (walk down the z-order from hwnd looking for anchor)
+bool isAbove(HWND hwnd, HWND anchor) {
+	if (anchor == nullptr) return true;
+	auto* w = GetWindow(hwnd, GW_HWNDNEXT);
+	for (int i = 0; w != nullptr && i < 4096; i++, w = GetWindow(w, GW_HWNDNEXT)) {
+		if (w == anchor) return true;
+	}
+	return false;
+}
+
 void WinPanelWindow::pushToBottom() {
 	if (this->window == nullptr || this->window->handle() == nullptr || !this->window->isVisible()) return;
 	auto* hwnd = reinterpret_cast<HWND>(this->window->winId()); // NOLINT
 	auto* desktop = FindWindowW(L"Progman", nullptr);
 	if (this->mLowest) {
 		gBackgroundPanel = hwnd;
-		placeAbove(hwnd, desktop);
+		if (!isAbove(hwnd, desktop)) placeAbove(hwnd, desktop);       // (one per screen: don't make them swap)
 	} else {
-		placeAbove(hwnd, gBackgroundPanel != nullptr && IsWindow(gBackgroundPanel) ? gBackgroundPanel : desktop);
+		auto* anchor = gBackgroundPanel != nullptr && IsWindow(gBackgroundPanel) ? gBackgroundPanel : desktop;
+		// already somewhere above the desktop layer: leave it. Re-placing each widget "right above" the
+		// layer made several widgets swap places every tick, which flickered.
+		if (isAbove(hwnd, anchor)) return;
+		placeAbove(hwnd, anchor);
 	}
 }
 

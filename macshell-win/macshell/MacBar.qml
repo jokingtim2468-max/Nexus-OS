@@ -3557,7 +3557,7 @@ Scope {
 
     // ═════════════ LIQUID GLASS BACKEND (same pipeline as macdock) ═════════════
     property string glassState: "idle"       // idle → building → ready | failed
-    readonly property bool liquidActive: barStyle === "liquid" && glassState === "ready" && !gaming
+    readonly property bool liquidActive: Qt.platform.os !== "windows" && barStyle === "liquid" && glassState === "ready" && !gaming
     readonly property string glassShaderSrc: decodeURIComponent(Qt.resolvedUrl("liquidglass.frag").toString().replace("file://", ""))
     readonly property string glassShaderOut: configDir + "/liquidglass.frag.qsb"
     readonly property url glassShaderUrl: "file://" + glassShaderOut
