@@ -48,6 +48,8 @@ ShellRoot {
         property var missionControl: missionControl
         property var finder: finder
         function openMusic() { if (musicLoader.item) musicLoader.item.open(); else musicLoader.active = true; }
+        // Windows: hide FreeForm but keep it loaded (WindowsHotkeys.qml); false if not on Windows
+        function switchToWindows() { if (winHotkeys.item) { winHotkeys.item.switchToWindows(); return true; } return false; }
         // FreeForm's own apps (the ff-freeform_* entries apps sync writes): opened right here, not through `qs ipc`
         function launchOwn(id) {
             switch (String(id).replace(/\.desktop$/, "")) {
@@ -313,6 +315,7 @@ ShellRoot {
     }
     // Windows: system-wide shortcuts (WindowsHotkeys.qml); on Linux the compositor binds them
     Loader {
+        id: winHotkeys
         active: Qt.platform.os === "windows"
         source: "WindowsHotkeys.qml"
         onLoaded: item.hub = sharedHub

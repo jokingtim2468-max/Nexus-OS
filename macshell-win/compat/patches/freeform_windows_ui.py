@@ -103,7 +103,7 @@ EDITS = {
                     SRow { t: pal; title: I18n.tr("Hide the Windows taskbar"); subtitle: I18n.tr("Win+Alt+T shows it for a moment"); SSwitch { t: pal; checked: ffPane.cfg.hideTaskbar !== false; onToggled: v => ffPane.set("hideTaskbar", v) } }
                     SRow { t: pal; title: I18n.tr("Hide Windows desktop icons"); SSwitch { t: pal; checked: ffPane.cfg.hideIcons !== false; onToggled: v => ffPane.set("hideIcons", v) } }
                 }
-                SLabel { t: pal; text: I18n.tr("Taskbar and desktop icon changes apply the next time FreeForm starts.") }
+                SLabel { t: pal; text: I18n.tr("Taskbar and desktop icon changes apply the next time FreeForm starts. Switch to Windows keeps FreeForm loaded in the background, so opening it again is instant.") }
                 SLabel { t: pal; header: true; text: I18n.tr("Updates") }
                 SCard {
                     t: pal
@@ -118,7 +118,7 @@ EDITS = {
                     t: pal
                     Repeater {
                         model: [["Win", "Launchpad (all apps)"], ["Alt+Space", "Spotlight search"], ["Win+Tab", "Mission Control"], ["Alt+Tab", "Switch between apps"],
-                                ["Win+Alt+A", "Control Center"], ["Win+Alt+N", "Wi-Fi and network"], ["Win+Alt+T", "Show the Windows taskbar"], ["Win+Alt+F", "Turn FreeForm off"]]
+                                ["Win+Alt+A", "Control Center"], ["Win+Alt+N", "Wi-Fi and network"], ["Win+Alt+T", "Show the Windows taskbar"], ["Win+Alt+F", "Switch to Windows and back"]]
                         delegate: SRow {
                             required property var modelData
                             t: pal; title: I18n.tr(modelData[1])
@@ -129,7 +129,8 @@ EDITS = {
                 Row {
                     spacing: 8
                     SButton { t: pal; text: I18n.tr("Open Launcher…"); onClicked: if (ffPane.cfg.root) Quickshell.execDetached(["cmd.exe", "/c", "start", "", ffPane.cfg.root + "\\\\FreeFormLauncher.cmd"]) }
-                    SButton { t: pal; text: I18n.tr("Quit FreeForm"); destructive: true; onClicked: Qt.quit() }
+                    SButton { t: pal; text: I18n.tr("Switch to Windows"); onClicked: if (!(root.hub && root.hub.switchToWindows())) Qt.quit() }
+                    SButton { t: pal; text: I18n.tr("Quit FreeForm Completely"); destructive: true; onClicked: Qt.quit() }
                 }
             }
         }
@@ -329,10 +330,10 @@ EDITS = {
         ('''    function logOut() {
 ''',
          '''    function logOut() {
-        if (Qt.platform.os === "windows") { Qt.quit(); return; }            // FreeForm: back to the Windows desktop
+        if (Qt.platform.os === "windows") { if (!(root.hub && root.hub.switchToWindows())) Qt.quit(); return; }   // FreeForm: back to Windows (stays loaded)
 '''),
         ('''            m.push(mc("Log Out\\u2026", function () { root.logOut(); }));''',
-         '''            m.push(Qt.platform.os === "windows" ? mi("Quit FreeForm", "", function () { Qt.quit(); })
+         '''            m.push(Qt.platform.os === "windows" ? mi("Switch to Windows", "", function () { root.logOut(); })
                                                 : mc("Log Out\\u2026", function () { root.logOut(); }));'''),
     ],
 }

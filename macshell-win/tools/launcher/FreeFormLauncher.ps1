@@ -24,6 +24,8 @@ function Start-FreeForm([switch]$Force) {
 $shift = [System.Windows.Input.Keyboard]::IsKeyDown([System.Windows.Input.Key]::LeftShift) -or
          [System.Windows.Input.Keyboard]::IsKeyDown([System.Windows.Input.Key]::RightShift)
 if (-not $env:FREEFORM_LAUNCHER_TEST -and (($cfg.skipLauncher -and -not $shift) -or $args -contains '-Launch')) { Start-FreeForm; exit 0 }
+# FreeForm is still loaded in the background ("Switch to Windows"): bring it straight back
+if (-not $env:FREEFORM_LAUNCHER_TEST -and -not $shift -and (Get-Process -Name qs -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$root*" })) { Start-FreeForm; exit 0 }
 
 $version = 'dev'
 $vf = Join-Path $root 'version.txt'

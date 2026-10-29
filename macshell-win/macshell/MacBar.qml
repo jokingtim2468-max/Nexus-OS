@@ -399,7 +399,7 @@ Scope {
         sh('sh ~/.config/quickshell/MacLock/lock-via-ipc.sh; sleep 0.5; systemctl suspend');
     }
     function logOut() {
-        if (Qt.platform.os === "windows") { Qt.quit(); return; }            // FreeForm: back to the Windows desktop
+        if (Qt.platform.os === "windows") { if (!(root.hub && root.hub.switchToWindows())) Qt.quit(); return; }   // FreeForm: back to Windows (stays loaded)
         sh('if command -v uwsm >/dev/null 2>&1 && uwsm check is-active >/dev/null 2>&1; then uwsm stop; '
            + 'else hyprctl dispatch "hl.dsp.exit()" || hyprctl dispatch exit; fi');
     }
@@ -3042,7 +3042,7 @@ Scope {
             m.push(mc("Restart\u2026", function () { sh("systemctl reboot"); }));
             m.push(mc("Shut Down\u2026", function () { sh("systemctl poweroff"); }));
             m.push(msep());
-            m.push(Qt.platform.os === "windows" ? mi("Quit FreeForm", "", function () { Qt.quit(); })
+            m.push(Qt.platform.os === "windows" ? mi("Switch to Windows", "", function () { root.logOut(); })
                                                 : mc("Log Out\u2026", function () { root.logOut(); }));
         } else {
             var id = activeAppId.toLowerCase(), kind = appKind(id), has = activeAppId !== "";

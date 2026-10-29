@@ -7,6 +7,7 @@
 #include <qobject.h>
 #include <qqmlintegration.h>
 #include <qqmlparserstatus.h>
+#include <qtimer.h>
 #include <qtmetamacros.h>
 
 namespace qs::windows {
@@ -115,6 +116,28 @@ signals:
 
 private:
 	bool mEnabled = true;
+};
+
+/// Standby: FreeForm stays loaded but every one of its windows is hidden, so Windows looks
+/// normal and coming back is instant. While active, windows that try to show are hidden again.
+class WinStandby: public QObject {
+	Q_OBJECT;
+	Q_PROPERTY(bool active READ active WRITE setActive NOTIFY activeChanged);
+	QML_ELEMENT;
+
+public:
+	explicit WinStandby(QObject* parent = nullptr);
+
+	[[nodiscard]] bool active() const { return this->mActive; }
+	void setActive(bool active);
+
+signals:
+	void activeChanged();
+
+private:
+	void hideAll();
+	bool mActive = false;
+	QTimer* mTimer = nullptr;
 };
 
 } // namespace qs::windows

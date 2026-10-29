@@ -2,6 +2,8 @@
 
 #include <qabstractnativeeventfilter.h>
 #include <qcoreapplication.h>
+#include <qguiapplication.h>
+#include <qwindow.h>
 #include <qhash.h>
 #include <qlist.h>
 #include <qmetaobject.h>
@@ -324,4 +326,35 @@ void WinAltTab::setEnabled(bool enabled) {
 	emit this->enabledChanged();
 }
 
+WinStandby::WinStandby(QObject* parent): QObject(parent) {
+	this->mTimer = new QTimer(this);
+	this->mTimer->setInterval(300);
+	QObject::connect(this->mTimer, &QTimer::timeout, this, &WinStandby::hideAll);
+}
+
+void WinStandby::hideAll() {
+	for (auto* w: QGuiApplication::topLevelWindows()) {
+		if (!w->handle()) continue;
+		auto hwnd = reinterpret_cast<HWND>(w->winId());
+		if (IsWindowVisible(hwnd)) ShowWindow(hwnd, SW_HIDE);
+	}
+}
+
+void WinStandby::setActive(bool active) {
+	if (active == this->mActive) return;
+	this->mActive = active;
+	if (active) {
+		this->hideAll();
+		this->mTimer->start();
+	} else {
+		this->mTimer->stop();
+		// Qt still counts them as shown: put back exactly those
+		for (auto* w: QGuiApplication::topLevelWindows()) {
+			if (w->handle() && w->isVisible()) ShowWindow(reinterpret_cast<HWND>(w->winId()), SW_SHOWNOACTIVATE);
+		}
+	}
+	emit this->activeChanged();
+}
+
 } // namespace qs::windows
+

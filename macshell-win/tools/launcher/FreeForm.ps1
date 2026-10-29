@@ -5,6 +5,8 @@
 #   FreeForm.ps1 -Stop           stop FreeForm and bring the taskbar and desktop icons back
 #   FreeForm.ps1 -Restore        just bring the taskbar and desktop icons back (if anything went wrong)
 #   FreeForm.ps1 -Force          start even after repeated crashes (the launcher's Launch button)
+# "Switch to Windows" in FreeForm only hides it (standby file = 1; the taskbar comes back) and keeps it
+# loaded: starting FreeForm again then just wakes the running copy, which is instant.
 #
 # Crash safety net: if FreeForm crashes it restarts by itself; after 3 crashes within 10 minutes
 # it gives up, brings Windows back and says so (state in %APPDATA%\FreeForm\crashes.json).
@@ -65,8 +67,17 @@ $crashPath = Join-Path $stateDir 'crashes.json'
 if ($Stop) {
     New-Item -ItemType Directory -Force -Path $stateDir | Out-Null
     Set-Content $stopFlag 'stop'                                 # tells the running launcher this was on purpose
+    Remove-Item (Join-Path $stateDir 'standby') -ErrorAction SilentlyContinue
     Get-Process -Name qs -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$root*" } | Stop-Process -Force
     Restore-Windows
+    exit 0
+}
+
+# Already running (in standby after "Switch to Windows"): wake it instead of starting a second copy
+$standbyPath = Join-Path $stateDir 'standby'
+if (Get-Process -Name qs -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$root*" }) {
+    New-Item -ItemType Directory -Force -Path $stateDir | Out-Null
+    Set-Content $standbyPath '0' -NoNewline
     exit 0
 }
 
@@ -117,9 +128,13 @@ try {
         while (-not $p.HasExited) {
             # Win+Alt+T in FreeForm writes "peek-taskbar": the real taskbar (tray icons) shows for 15 s
             $peek = Get-Item (Join-Path $stateDir 'peek-taskbar') -ErrorAction SilentlyContinue
-            if ($peek -and ((Get-Date) - $peek.LastWriteTime).TotalSeconds -lt 15) { Set-Taskbar $true }
-            elseif ($hideTaskbar) { Set-Taskbar $false }
-            if ($hideIcons) { Set-DesktopIcons $false }
+            $asleep = (Get-Content $standbyPath -Raw -ErrorAction SilentlyContinue) -match '1'
+            if ($asleep) { Restore-Windows }                       # switched to Windows: FreeForm hidden, Windows as normal
+            else {
+                if ($peek -and ((Get-Date) - $peek.LastWriteTime).TotalSeconds -lt 15) { Set-Taskbar $true }
+                elseif ($hideTaskbar) { Set-Taskbar $false }
+                if ($hideIcons) { Set-DesktopIcons $false }
+            }
             [void]$p.WaitForExit(2000)
         }
         $p.WaitForExit()
