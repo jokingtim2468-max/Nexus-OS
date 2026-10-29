@@ -188,6 +188,7 @@ Scope {
     // and come back when this is off). Background = the theme's card colour, text = its text colour,
     // progress bars / today on the calendar = its accent. Saved with the widgets.
     property bool matchTheme: false
+    property string canvasBg: "wallpaper"   // the editor's background: wallpaper | dark | light | grid
     readonly property var theme: {
         var d = root.dock;
         if (!d) return { card: "#2A2A2C", fg: "#F5F5F7", accent: "#0A84FF" };
@@ -417,11 +418,12 @@ Scope {
         id: store
         path: root.home + "/.config/macshell/custom-widgets.json"
         printErrors: false
-        onLoaded: { try { var o = JSON.parse(text()); root.widgets = o.widgets || []; root.matchTheme = !!o.matchTheme; } catch (e) {} root.loaded = true; root.migrateGrid(); }
+        onLoaded: { try { var o = JSON.parse(text()); root.widgets = o.widgets || []; root.matchTheme = !!o.matchTheme; if (o.canvasBg) root.canvasBg = o.canvasBg; } catch (e) {} root.loaded = true; root.migrateGrid(); }
         onLoadFailed: { root.addDefaults(); root.undoStack = []; root.loaded = true; }
     }
-    Timer { id: saveTimer; interval: 400; onTriggered: store.setText(JSON.stringify({ widgets: root.widgets, matchTheme: root.matchTheme }, null, 1)) }
+    Timer { id: saveTimer; interval: 400; onTriggered: store.setText(JSON.stringify({ widgets: root.widgets, matchTheme: root.matchTheme, canvasBg: root.canvasBg }, null, 1)) }
     onMatchThemeChanged: if (loaded) saveTimer.restart()
+    onCanvasBgChanged: if (loaded) saveTimer.restart()
 
     // ═════════════ ON THE DESKTOP ═════════════
     // the grid, shown on the desktop while a widget is being moved
@@ -470,7 +472,9 @@ Scope {
             implicitWidth: Math.max(dw.w.w, menuOpen ? 210 : 0); implicitHeight: dw.w.h + (menuOpen ? menuBox.height + 8 : 0) + (moving ? 44 : 0)
             exclusionMode: ExclusionMode.Ignore
             color: "transparent"
-            WlrLayershell.layer: WlrLayer.Bottom
+            // above the other widgets while its right-click menu is open or it's being moved (each widget is its own
+            // window, so a neighbour drew over the menu)
+            WlrLayershell.layer: dw.menuOpen || dw.moving ? WlrLayer.Top : WlrLayer.Bottom
             WlrLayershell.namespace: "freeform-widget"
             // a widget with a sticky note takes the keyboard when clicked
             WlrLayershell.keyboardFocus: (dw.w.items || []).some(function (x) { return x.type === "note"; }) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
@@ -792,6 +796,11 @@ Scope {
                             onClicked: root.updateWidget({ onDesktop: !root.cw.onDesktop })
                         }
                         Chip { visible: !!root.cw; label: I18n.tr("Duplicate"); onClicked: root.duplicateWidget() }
+                        // what the widget is shown on while you edit it
+                        Chip {
+                            label: I18n.tr("Background: ") + I18n.tr({ wallpaper: "Wallpaper", dark: "Dark", light: "Light", grid: "Grid" }[root.canvasBg])
+                            onClicked: { var o = ["wallpaper", "dark", "light", "grid"]; root.canvasBg = o[(o.indexOf(root.canvasBg) + 1) % o.length]; }
+                        }
                         // all widgets in the desktop theme's colours
                         Chip { label: I18n.tr("Match Theme"); on: root.matchTheme; onClicked: root.matchTheme = !root.matchTheme }
                     }
@@ -799,7 +808,19 @@ Scope {
                 Rectangle {
                     id: canvas
                     y: toolbar.height; width: parent.width; height: parent.height - toolbar.height
-                    color: Qt.rgba(Qt.color(pal.canvas).r, Qt.color(pal.canvas).g, Qt.color(pal.canvas).b, 0.35)
+                    // behind the widget being edited: your desktop wallpaper (so you see it as it will look), or a plain
+                    // dark / light / grid background (the toolbar's Background button)
+                    color: root.canvasBg === "light" ? "#E5E5EA" : root.canvasBg === "dark" ? "#141416"
+                         : Qt.rgba(Qt.color(pal.canvas).r, Qt.color(pal.canvas).g, Qt.color(pal.canvas).b, root.canvasBg === "grid" ? 0.35 : 1)
+                    clip: true
+                    Image {
+                        anchors.fill: parent
+                        visible: root.canvasBg === "wallpaper"
+                        readonly property string wp: root.hub && root.hub.bar ? String(root.hub.bar.wallpaperPath || "") : ""
+                        source: wp !== "" ? "file:///" + wp.split(String.fromCharCode(92)).join("/").replace(/^\/+/, "")
+                                          : Qt.resolvedUrl("assets/wallpapers/FreeForm Yosemite.jpg")
+                        fillMode: Image.PreserveAspectCrop; asynchronous: true; smooth: true
+                    }
                     // Delete / Backspace removes the selected block (click a block, then press it)
                     focus: true
                     Keys.onDeletePressed: root.deleteItem()
@@ -818,6 +839,7 @@ Scope {
                     }
                     // dotted grid
                     Canvas {
+                        visible: root.canvasBg === "grid"
                         anchors.fill: parent
                         onPaint: { var c = getContext("2d"); c.fillStyle = pal.dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.08)"; for (var x = 10; x < width; x += 20) for (var y = 10; y < height; y += 20) c.fillRect(x, y, 2, 2); }
                     }
