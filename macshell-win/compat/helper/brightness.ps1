@@ -26,6 +26,13 @@ public static class FFDdc {
     foreach (var a in All()) { foreach (var pm in a) { uint mn, c, mx; if (r < 0 && GetMonitorBrightness(pm.h, out mn, out c, out mx) && mx > mn) r = (int)Math.Round(100.0 * (c - mn) / (mx - mn)); } DestroyPhysicalMonitors((uint)a.Length, a); }
     return r;
   }
+  // stdin on a background thread (Console.In.ReadLineAsync blocks in Windows PowerShell 5.1)
+  public static System.Collections.Concurrent.ConcurrentQueue<string> Lines = new System.Collections.Concurrent.ConcurrentQueue<string>();
+  public static volatile bool Eof = false;
+  public static void StartReader() {
+    var t = new System.Threading.Thread(() => { string l; while ((l = Console.In.ReadLine()) != null) Lines.Enqueue(l); Eof = true; });
+    t.IsBackground = true; t.Start();
+  }
   public static void Set(int pct) {
     foreach (var a in All()) { foreach (var pm in a) { uint mn, c, mx; if (GetMonitorBrightness(pm.h, out mn, out c, out mx) && mx > mn) SetMonitorBrightness(pm.h, (uint)(mn + (mx - mn) * pct / 100)); } DestroyPhysicalMonitors((uint)a.Length, a); }
   }
@@ -44,13 +51,11 @@ function Get-Level {
 }
 if ($Cmd -eq 'set') { Set-Level $Value }
 elseif ($Cmd -eq 'serve') {
-    $in = [Console]::In; $pending = $in.ReadLineAsync(); $next = [DateTime]::MinValue
+    [FFDdc]::StartReader(); $next = [DateTime]::MinValue
     while ($true) {
-        $want = $null
-        while ($pending.IsCompleted) {            # take every queued value, keep only the newest
-            if ($null -eq $pending.Result) { exit 0 }
-            $want = $pending.Result; $pending = $in.ReadLineAsync()
-        }
+        $want = $null; $line = $null
+        while ([FFDdc]::Lines.TryDequeue([ref]$line)) { $want = $line.Trim() }      # keep only the newest value
+        if ($null -eq $want -and [FFDdc]::Eof) { exit 0 }
         if ($want -match '^\d+$') { Set-Level ([int]$want); $next = (Get-Date).AddSeconds(2) }
         elseif ((Get-Date) -ge $next) { $l = Get-Level; if ($null -ne $l) { [Console]::Out.WriteLine($l); [Console]::Out.Flush() }; $next = (Get-Date).AddSeconds(5) }
         Start-Sleep -Milliseconds 15

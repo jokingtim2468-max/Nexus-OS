@@ -55,24 +55,30 @@ public static class FFAudio {
     } catch {}
     return r.ToArray();
   }
+  // stdin on a background thread: in Windows PowerShell 5.1, Console.In.ReadLineAsync() blocks, which froze the loop
+  public static System.Collections.Concurrent.ConcurrentQueue<string> Lines = new System.Collections.Concurrent.ConcurrentQueue<string>();
+  public static volatile bool Eof = false;
+  public static void StartReader() {
+    var t = new System.Threading.Thread(() => { string l; while ((l = Console.In.ReadLine()) != null) Lines.Enqueue(l); Eof = true; });
+    t.IsBackground = true; t.Start();
+  }
   public static void SetDefault(string id) { var p = (IPolicyConfig)new PolicyConfigClient(); for (int role = 0; role < 3; role++) p.SetDefaultEndpoint(id, role); }
 }
 '@
-$stdin = [Console]::In
-$pending = $stdin.ReadLineAsync()
+[FFAudio]::StartReader()
 $last = ''
 $devAt = [DateTime]::MinValue; $devs = @{}; $quiet = 99; $quit = $false
 while ($true) {
     $busy = $false
     $want = @{}
-    while ($pending.IsCompleted) {                 # every queued command; a slider drag keeps only the newest value
-        $line = $pending.Result
-        if ($null -eq $line) { $quit = $true; break }   # stdin closed: report once more, then stop
-        $pending = $stdin.ReadLineAsync(); $busy = $true
+    $line = $null
+    while ([FFAudio]::Lines.TryDequeue([ref]$line)) {        # every queued command; a slider drag keeps only the newest value
+        $busy = $true
         $f = $line.Trim() -split '\s+'
         if ($f[0] -eq 'default') { try { [FFAudio]::SetDefault($line.Trim().Substring(8)) } catch {}; $devAt = [DateTime]::MinValue }
         else { $want["$($f[0]) $($f[1])"] = $f }
     }
+    if ([FFAudio]::Eof -and [FFAudio]::Lines.IsEmpty) { $quit = $true }   # stdin closed: report once more, then stop
     foreach ($f in $want.Values) {
         $flow = if ($f[0] -eq 'source') { 1 } else { 0 }
         try {
