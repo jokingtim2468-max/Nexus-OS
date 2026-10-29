@@ -180,7 +180,7 @@ jobs:
           Get-Content smoke\qs-list.txt
           Ipc tour stop; Start-Sleep -Seconds 3; Shot desktop
           Ipc widgetstudio open; Start-Sleep -Seconds 6; Shot widgetstudio; Ipc widgetstudio close
-          Ipc finder show "$env:USERPROFILE"; Start-Sleep -Seconds 6; Shot files; Ipc finder close
+          Ipc finder open; Start-Sleep -Seconds 6; Shot files; Ipc finder close
           Ipc settings open; Start-Sleep -Seconds 6; Shot settings; Ipc settings toggle
           Ipc themestudio open; Start-Sleep -Seconds 5; Shot themestudio; Ipc themestudio close
           Ipc about open; Start-Sleep -Seconds 5; Shot about
@@ -238,7 +238,11 @@ jobs:
           "samples: " + ((0.1, 0.3, 0.5, 0.7, 0.9) | ForEach-Object { $bmp.GetPixel([int]($b.Width * $_), [int]($b.Height * 0.6)) } | ForEach-Object { "($($_.R),$($_.G),$($_.B))" }) -join ' '
           "── qs warnings"; Get-ChildItem (Join-Path $env:LOCALAPPDATA 'FreeForm\logs') -Filter 'run-*.err.log' | Select-Object -Last 1 | ForEach-Object { Select-String -Path $_.FullName -Pattern 'WARN|ERROR' | Where-Object { $_.Line -notmatch 'Binding loop' } | Select-Object -First 25 | ForEach-Object { $_.Line } }
           "widget pixel: $w   wallpaper pixel: $wp"
-          $widgetOk = $w.R -gt 200 -and $w.G -gt 170 -and $w.B -lt 90
+          # any yellow inside the widget's area counts (a Windows popup can cover part of it)
+          $widgetOk = $false
+          foreach ($pt in @(@(306, 306), @(410, 400), @(306, 490), @(514, 306), @(514, 490), @(410, 310))) {
+            $c = $bmp.GetPixel($pt[0], $pt[1]); if ($c.R -gt 200 -and $c.G -gt 170 -and $c.B -lt 90) { $widgetOk = $true }
+          }
           $wallOk = ($wp.R + $wp.G + $wp.B) -gt 40
           "widget on desktop: $widgetOk   wallpaper shown: $wallOk"
           $logs = Join-Path $env:LOCALAPPDATA 'FreeForm\logs'

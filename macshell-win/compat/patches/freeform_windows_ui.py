@@ -126,6 +126,7 @@ EDITS = {
                     id: lights
                     x: 17; y: 16""",
          """                WinCaption {
+                    parent: prefsWindow.contentItem          // the window's own top-right corner
                     visible: Qt.platform.os === "windows"; z: 50
                     window: prefsWindow; dark: root.dockDark
                     anchors.top: parent.top; anchors.right: parent.right; anchors.rightMargin: 1
