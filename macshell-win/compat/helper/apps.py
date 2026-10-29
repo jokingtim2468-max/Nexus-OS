@@ -29,7 +29,7 @@ RENAME = {"Settings": "Windows Settings"}
 ALIASES = {"chrome": "google-chrome", "msedge": "microsoft-edge", "explorer": "system-file-manager",
            "file_explorer": "system-file-manager", "windowsterminal": "utilities-terminal", "terminal": "utilities-terminal",
            "wt": "utilities-terminal", "cmd": "utilities-terminal", "powershell": "utilities-terminal",
-           "spotify": "spotify", "discord": "discord", "steam": "steam", "code": "visual-studio-code",
+           "spotify": "spotify", "discord": "discord", "code": "visual-studio-code",
            "notepad": "notepad", "obs64": "obs", "telegram": "telegram"}
 
 
@@ -41,8 +41,16 @@ def themed_icons(root):
         return set()
 
 
+# apps that keep their own icon (the theme's version looks wrong next to the running app)
+OWN_ICON = {"steam"}
+# apps whose windows belong to a different .exe than the shortcut's (so the Dock's dot lands on the pinned icon)
+WINDOW_EXE = {"steam": "steamwebhelper"}
+
+
 def theme_icon(name, wm, themed):
     """The theme's icon name for this app, or "" when the theme has none."""
+    if wm in OWN_ICON or name.lower() in OWN_ICON:
+        return ""
     slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
     for c in (ALIASES.get(wm), ALIASES.get(slug.replace("-", "_")), slug, wm):
         if c and c in themed:
@@ -63,7 +71,7 @@ def entry(app, themed=frozenset()):
     elif app.get("icon"):
         lines.append("Icon=%s" % app["icon"].replace("\\", "/"))     # Qt reads C:/... fine; backslashes get mangled
     if wm:
-        lines.append("StartupWMClass=%s" % wm)
+        lines.append("StartupWMClass=%s" % WINDOW_EXE.get(wm, wm))
     lines.append("X-FreeForm=1")
     return "\n".join(lines) + "\n"
 

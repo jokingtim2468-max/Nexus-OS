@@ -102,7 +102,7 @@ EDITS = {
                     Rectangle { id: ffBlurMask; anchors.fill: parent; radius: root.cornerRadius; visible: false; layer.enabled: true }
                     MultiEffect {
                         anchors.fill: parent
-                        visible: Qt.platform.os === "windows" && !root.liquidActive && root.wallpaperPath !== ""
+                        visible: false          // off: the wallpaper copy went stale and showed over apps; plain glass instead
                         source: ffBlurSrc
                         blurEnabled: true; blurMax: 48; blur: 1.0
                         saturation: 0.25
@@ -210,6 +210,10 @@ EDITS = {
                 Row {
                     spacing: 8
                     SButton { t: pal; text: I18n.tr("Send Test Notification");"""),
+        # pin / unpin from outside the Dock (Launchpad's right-click menu): saved and shown at once
+        ("""    function togglePin(item) {""",
+         """    function setPinnedIds(l) { pinned = l; store.setText(JSON.stringify(l, null, 2)); rebuild(); }
+    function togglePin(item) {"""),
         # ── Trash = the Windows Recycle Bin ──
         ('''        if (item.special === "trash") {
             // the file manager first''',
@@ -274,9 +278,9 @@ EDITS = {
                 SCard {
                     t: pal
                     SRow { t: pal; title: I18n.tr("Spotify (installs Spicetify)"); subtitle: I18n.tr("Kept working after Spotify updates, each time FreeForm starts. Needs Spotify from spotify.com, not the Microsoft Store.")
-                           SSwitch { t: pal; checked: ffPane.cfg.modSpotify !== false; onToggled: v => ffPane.set("modSpotify", v) } }
+                           SSwitch { t: pal; checked: ffPane.cfg.modSpotify === true; onToggled: v => ffPane.set("modSpotify", v) } }
                     SRow { t: pal; title: I18n.tr("Discord (installs Vencord)"); subtitle: I18n.tr("Re-installed after Discord updates. Client mods are against Discord's Terms of Service; turn this off if that worries you.")
-                           SSwitch { t: pal; checked: ffPane.cfg.modDiscord !== false; onToggled: v => ffPane.set("modDiscord", v) } }
+                           SSwitch { t: pal; checked: ffPane.cfg.modDiscord === true; onToggled: v => ffPane.set("modDiscord", v) } }
                 }
                 SLabel { t: pal; header: true; text: I18n.tr("Updates") }
                 SCard {
@@ -473,6 +477,60 @@ EDITS = {
             if (root.hub.island.soundFor(rec.app) === "" && root.isSystemNotif(n)) root.playSound("glass", 0.7);
             root.hub.island.notify(rec);
         } else if ((!root.notifDnd || urg === 2) && !root.notifOpen) {"""),
+        # the clock keeps its widest width, so it doesn't grow and shrink with each digit (the font has no
+        # fixed-width digits on Windows, so "tnum" alone doesn't hold it still)
+        ("""                            width: root.barWidgetEnabled("clock") ? clockText.implicitWidth + 16 : 0""",
+         """                            property real widest: 0
+                            width: root.barWidgetEnabled("clock") ? Math.max(widest, clockText.implicitWidth) + 16 : 0
+                            Connections { target: root; function onClockTextChanged() { if (clockText.implicitWidth > clockBtn.widest) clockBtn.widest = clockText.implicitWidth; } }
+                            Connections { target: root; function onShowSecondsChanged() { clockBtn.widest = 0; } }"""),
+        # Launchpad: right-click an app for Open / Keep in Dock (it used to close Launchpad)
+        ("""                                                    MouseArea {
+                                                        id: cma
+                                                        anchors.fill: parent
+                                                        hoverEnabled: true
+                                                        onClicked: { ui.pop = ""; root.launchApp(cell.e); }
+                                                    }""",
+         """                                                    property bool menu: false
+                                                    readonly property var dk: root.hub ? root.hub.dock : null
+                                                    readonly property string pid: String(cell.e.id || "").replace(/\\.desktop$/, "")
+                                                    readonly property bool pinned: !!(dk && dk.pinned && dk.pinned.indexOf(pid) >= 0)
+                                                    MouseArea {
+                                                        id: cma
+                                                        anchors.fill: parent
+                                                        hoverEnabled: true
+                                                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                                        onClicked: mouse => {
+                                                            if (mouse.button === Qt.RightButton) { cell.menu = !cell.menu; return; }
+                                                            if (cell.menu) { cell.menu = false; return; }
+                                                            ui.pop = ""; root.launchApp(cell.e);
+                                                        }
+                                                    }
+                                                    Rectangle {
+                                                        visible: cell.menu; z: 20
+                                                        anchors.horizontalCenter: parent.horizontalCenter; y: parent.height - 14
+                                                        width: 170; height: lpMenu.height + 10; radius: 9
+                                                        color: panelPal.dark ? "#2C2C2E" : "#FFFFFF"; border.width: 1; border.color: panelPal.sep
+                                                        Column {
+                                                            id: lpMenu
+                                                            x: 5; y: 5; width: parent.width - 10
+                                                            Repeater {
+                                                                model: [{ t: "Open", f: function () { ui.pop = ""; root.launchApp(cell.e); } },
+                                                                        { t: cell.pinned ? "Remove from Dock" : "Keep in Dock", f: function () {
+                                                                            if (!cell.dk) return;
+                                                                            var l = cell.dk.pinned.slice(), i = l.indexOf(cell.pid);
+                                                                            if (i >= 0) l.splice(i, 1); else l.push(cell.pid);
+                                                                            cell.dk.setPinnedIds(l); } }]
+                                                                delegate: Rectangle {
+                                                                    required property var modelData
+                                                                    width: lpMenu.width; height: 28; radius: 5
+                                                                    color: lpm.containsMouse ? root.accent : "transparent"
+                                                                    Text { x: 10; anchors.verticalCenter: parent.verticalCenter; text: I18n.tr(parent.modelData.t); color: lpm.containsMouse ? "white" : panelPal.fg; font.family: panelPal.fam; font.pixelSize: 13 }
+                                                                    MouseArea { id: lpm; anchors.fill: parent; hoverEnabled: true; onClicked: { cell.menu = false; parent.modelData.f(); } }
+                                                                }
+                                                            }
+                                                        }
+                                                    }"""),
         # ── 2. no workspace numbers on Windows ──
         ('''    readonly property var wsIds: {
         var ids = [], vals = Hyprland.workspaces.values;''',

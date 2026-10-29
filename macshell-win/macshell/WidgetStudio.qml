@@ -120,9 +120,9 @@ Scope {
         sel = -1; current = Math.min(current, widgets.length - 1); saveTimer.restart();
     }
 
-    // ── the desktop grid: 1 square = 164 px, 16 px apart; a widget is 1x1, 2x1, 2x2 or 4x2 squares ──
-    readonly property int gridUnit: 164
-    readonly property int gridGap: 16
+    // ── the desktop grid: 1 square = 112 px, 12 px apart; a widget is 1x1, 2x1, 2x2 or 4x2 squares ──
+    readonly property int gridUnit: 112
+    readonly property int gridGap: 12
     readonly property int gridLeft: 40
     readonly property int gridTop: 60
     function gridX(col) { return gridLeft + col * (gridUnit + gridGap); }
@@ -130,6 +130,21 @@ Scope {
     function gridSpan(n) { return n * gridUnit + (n - 1) * gridGap; }
     function snapX(x) { return gridX(Math.max(0, Math.round((x - gridLeft) / (gridUnit + gridGap)))); }
     function snapY(y) { return gridY(Math.max(0, Math.round((y - gridTop) / (gridUnit + gridGap)))); }
+    // a widget object resized to cols x rows squares, what's inside scaled with it (templates are drawn at 164 px squares)
+    function scaledTo(w0, cols, rows) {
+        var w = clone(w0), nw = gridSpan(cols), nh = gridSpan(rows), fx = nw / (w.w || nw), fy = nh / (w.h || nh), f = Math.min(fx, fy);
+        for (var i = 0; i < (w.items || []).length; i++) {
+            var it = w.items[i];
+            it.x = Math.round((it.x || 0) * fx); it.y = Math.round((it.y || 0) * fy);
+            it.w = Math.round((it.w || 40) * fx); it.h = Math.round((it.h || 20) * fy);
+            if (it.size) it.size = Math.max(6, Math.round(it.size * f));
+        }
+        if (w.bg && w.bg.radius) w.bg.radius = Math.max(8, Math.round(w.bg.radius * f));
+        w.w = nw; w.h = nh;
+        return w;
+    }
+    // how many squares a widget drawn for the old 164 px grid covers
+    function oldCells(px) { return Math.max(1, Math.round((px + 16) / 180)); }
     // resize the current widget to cols x rows squares, scaling what's inside with it
     function setGridSize(cols, rows) {
         if (!cw) return;
@@ -164,6 +179,7 @@ Scope {
         for (var k = 0; k < spots.length; k++) {
             var w = pick(spots[k][0]);
             if (!w) continue;
+            w = scaledTo(w, oldCells(w.w), oldCells(w.h));
             w.id = "default-" + k; w.onDesktop = true; w.x = spots[k][1]; w.y = spots[k][2];
             l.push(w);
         }
@@ -173,8 +189,29 @@ Scope {
     function removeFromDesktop(index) { var l = widgets.slice(), w = clone(l[index]); w.onDesktop = false; l[index] = w; commit(l); }
     function deleteAt(index) { var l = widgets.slice(); l.splice(index, 1); commit(l); current = Math.min(current, l.length - 1); sel = -1; }
 
+    // once: widgets made for the old, bigger grid shrink to the new one; an empty desktop gets the clock,
+    // calendar and music player
+    FileView { id: gridV2; path: root.home + "/.config/macshell/ff-widgets-grid-v2"; printErrors: false; blockLoading: true }
+    function migrateGrid() {
+        if (gridV2.text() !== "") return;
+        var l = [];
+        for (var i = 0; i < widgets.length; i++) {
+            var w = widgets[i];
+            if (w.w >= 160) { w = scaledTo(w, oldCells(w.w), oldCells(w.h)); w.x = snapX(w.x || 0); w.y = snapY(w.y || 0); }
+            l.push(w);
+        }
+        gridV2.setText("1");
+        if (!l.some(function (w) { return w.onDesktop; })) { widgets = l; addDefaultsKeeping(l); }
+        else commit(l);
+    }
+    function addDefaultsKeeping(existing) {
+        var keep = existing.slice();
+        addDefaults();
+        var l = widgets.concat(keep.filter(function (w) { return String(w.id).indexOf("default-") !== 0; }));
+        commit(l);
+    }
     function addFromTemplate(i) {
-        var w = clone(templates[i]);
+        var w = scaledTo(templates[i], oldCells(templates[i].w), oldCells(templates[i].h));
         w.id = Date.now().toString(36); w.onDesktop = false; w.x = 80 + widgets.length * 30; w.y = 120 + widgets.length * 30;
         var l = widgets.slice(); l.push(w); commit(l); current = l.length - 1; sel = -1;
     }
@@ -298,7 +335,7 @@ Scope {
         id: store
         path: root.home + "/.config/macshell/custom-widgets.json"
         printErrors: false
-        onLoaded: { try { root.widgets = JSON.parse(text()).widgets || []; } catch (e) {} root.loaded = true; }
+        onLoaded: { try { root.widgets = JSON.parse(text()).widgets || []; } catch (e) {} root.loaded = true; root.migrateGrid(); }
         onLoadFailed: { root.addDefaults(); root.undoStack = []; root.loaded = true; }
     }
     Timer { id: saveTimer; interval: 400; onTriggered: store.setText(JSON.stringify({ widgets: root.widgets }, null, 1)) }
@@ -347,7 +384,7 @@ Scope {
             margins { left: Math.max(0, (dw.w.x || 0) + dragX); top: Math.max(0, (dw.w.y || 0) + dragY) }
             property bool menuOpen: false
             // room for the right-click menu under the widget while it's open
-            implicitWidth: Math.max(dw.w.w, menuOpen ? 210 : 0); implicitHeight: dw.w.h + (menuOpen ? menuBox.height + 8 : 0)
+            implicitWidth: Math.max(dw.w.w, menuOpen ? 210 : 0); implicitHeight: dw.w.h + (menuOpen ? menuBox.height + 8 : 0) + (moving ? 44 : 0)
             exclusionMode: ExclusionMode.Ignore
             color: "transparent"
             WlrLayershell.layer: WlrLayer.Bottom
@@ -363,7 +400,8 @@ Scope {
                 width: dw.w.w; height: dw.w.h; radius: dw.w.bg && dw.w.bg.radius !== undefined ? dw.w.bg.radius : 22
                 color: "transparent"; border.width: 3; border.color: root.accent
                 Rectangle {
-                    anchors.centerIn: parent; width: doneT.implicitWidth + 28; height: 30; radius: 15; color: root.accent
+                    anchors.right: parent.right; anchors.top: parent.bottom; anchors.topMargin: 8
+                    width: doneT.implicitWidth + 28; height: 30; radius: 15; color: root.accent
                     Text { id: doneT; anchors.centerIn: parent; text: I18n.tr("Done"); color: "white"; font.family: root.fam; font.pixelSize: 13; font.weight: Font.DemiBold }
                     MouseArea { anchors.fill: parent; onClicked: root.movingIndex = -1 }
                 }

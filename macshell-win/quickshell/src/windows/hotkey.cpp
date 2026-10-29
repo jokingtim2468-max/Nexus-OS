@@ -5,6 +5,8 @@
 #include <qguiapplication.h>
 #include <qwindow.h>
 #include <qhash.h>
+#include <atomic>
+#include <thread>
 #include <qlist.h>
 #include <qmetaobject.h>
 #include <qlogging.h>
@@ -127,21 +129,45 @@ namespace qs::windows {
 namespace {
 
 // State of the hook: is Win down, and was anything else pressed while it was?
+// The hook runs on its own thread with its own message loop: Windows silently drops a low-level hook
+// whose thread doesn't answer within ~1 s, and FreeForm's UI thread can be busy that long (then the
+// Start menu came back). Triggers are handed to the UI thread through `bridge`.
 struct StartKeyHook {
-	HHOOK hook = nullptr;
 	bool winDown = false;
 	bool combo = false;
 	bool swallowed = false; // we ate a key of this Win combo (Win+Tab): Windows must not see a lone Win
-	QList<WinStartKey*> listeners;
+	std::atomic<bool> active {false};
+	QList<WinStartKey*> listeners; // UI thread only
+	QObject* bridge = nullptr;     // lives on the UI thread
+	std::thread thread;
 
 	static StartKeyHook& get() {
 		static StartKeyHook h;
 		return h;
 	}
 
+	// a key nobody uses (the "mask key" AutoHotkey and PowerToys use): pressed between Win down and up,
+	// Windows treats the Win press as a shortcut instead of opening Start
+	static void mask(INPUT* seq) {
+		seq[0].type = INPUT_KEYBOARD;
+		seq[0].ki.wVk = 0xE8;
+		seq[1] = seq[0];
+		seq[1].ki.dwFlags = KEYEVENTF_KEYUP;
+	}
+
+	void post(bool overview) {
+		auto* b = this->bridge;
+		if (!b) return;
+		QMetaObject::invokeMethod(b, [overview]() {
+			for (auto* l: StartKeyHook::get().listeners) {
+				if (overview) l->triggerOverview(); else l->trigger();
+			}
+		}, Qt::QueuedConnection);
+	}
+
 	static LRESULT CALLBACK proc(int code, WPARAM wParam, LPARAM lParam) {
 		auto& h = get();
-		if (code != HC_ACTION) return CallNextHookEx(nullptr, code, wParam, lParam);
+		if (code != HC_ACTION || !h.active.load()) return CallNextHookEx(nullptr, code, wParam, lParam);
 
 		auto* kb = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam); // NOLINT
 		if (kb->flags & LLKHF_INJECTED) return CallNextHookEx(nullptr, code, wParam, lParam);
@@ -156,37 +182,27 @@ struct StartKeyHook {
 			h.winDown = false;
 			if (h.swallowed) {
 				h.swallowed = false;
-				// Windows saw Win down + Win up only: an unused key in between keeps the Start menu shut
 				INPUT seq[2] = {}; // NOLINT
-				seq[0].type = INPUT_KEYBOARD;
-				seq[0].ki.wVk = 0xFF;
-				seq[1] = seq[0];
-				seq[1].ki.dwFlags = KEYEVENTF_KEYUP;
+				mask(seq);
 				SendInput(2, seq, sizeof(INPUT));
 				return CallNextHookEx(nullptr, code, wParam, lParam);
 			}
-			if (!h.combo && !h.listeners.isEmpty()) {
-				// A key nobody uses between Win down and up: Windows then treats it as a shortcut,
-				// not a Start-menu tap (the same trick PowerToys uses).
-				// So: swallow this Win-up, then inject dummy-down, dummy-up, Win-up (injected events
-				// skip this hook).
+			if (!h.combo) {
+				// swallow this Win-up, then inject mask-down, mask-up, Win-up (injected events skip this hook)
 				INPUT seq[3] = {}; // NOLINT
-				seq[0].type = INPUT_KEYBOARD;
-				seq[0].ki.wVk = 0xFF;
-				seq[1] = seq[0];
-				seq[1].ki.dwFlags = KEYEVENTF_KEYUP;
+				mask(seq);
 				seq[2].type = INPUT_KEYBOARD;
 				seq[2].ki.wVk = static_cast<WORD>(kb->vkCode);
 				seq[2].ki.dwFlags = KEYEVENTF_KEYUP;
 				SendInput(3, seq, sizeof(INPUT));
-				for (auto* l: h.listeners) QMetaObject::invokeMethod(l, &WinStartKey::trigger, Qt::QueuedConnection);
+				h.post(false);
 				return 1;
 			}
-		} else if (h.winDown && kb->vkCode == VK_TAB && !h.listeners.isEmpty()) {
+		} else if (h.winDown && kb->vkCode == VK_TAB) {
 			// Win+Tab: Mission Control instead of Task View
 			h.combo = true;
 			h.swallowed = true;
-			if (down) for (auto* l: h.listeners) QMetaObject::invokeMethod(l, &WinStartKey::triggerOverview, Qt::QueuedConnection);
+			if (down) h.post(true);
 			return 1;
 		} else if (h.winDown && down) {
 			h.combo = true; // Win+E, Win+L, Win+Shift+S ... stay Windows'
@@ -196,13 +212,17 @@ struct StartKeyHook {
 	}
 
 	void update() {
-		auto want = !this->listeners.isEmpty();
-		if (want && !this->hook) {
-			this->hook = SetWindowsHookExW(WH_KEYBOARD_LL, &StartKeyHook::proc, GetModuleHandleW(nullptr), 0);
-			if (!this->hook) qWarning() << "WinStartKey: could not install the keyboard hook";
-		} else if (!want && this->hook) {
-			UnhookWindowsHookEx(this->hook);
-			this->hook = nullptr;
+		if (!this->bridge) this->bridge = new QObject(QCoreApplication::instance());
+		this->active = !this->listeners.isEmpty();
+		if (this->active && !this->thread.joinable()) {
+			this->thread = std::thread([]() {
+				auto hook = SetWindowsHookExW(WH_KEYBOARD_LL, &StartKeyHook::proc, GetModuleHandleW(nullptr), 0);
+				if (!hook) return;
+				MSG msg;
+				while (GetMessageW(&msg, nullptr, 0, 0) > 0) { TranslateMessage(&msg); DispatchMessageW(&msg); }
+				UnhookWindowsHookEx(hook);
+			});
+			this->thread.detach();
 		}
 	}
 };

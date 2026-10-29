@@ -13,7 +13,7 @@ $logDir = Join-Path $env:LOCALAPPDATA 'FreeForm\logs'
 New-Item -ItemType Directory -Force -Path $state, $logDir | Out-Null
 Start-Transcript -Path (Join-Path $logDir 'mods.log') -Force | Out-Null
 
-$cfg = @{ modSpotify = $true; modDiscord = $true }
+$cfg = @{ modSpotify = $false; modDiscord = $false }      # off unless switched on in Settings > FreeForm
 $cfgPath = Join-Path $env:APPDATA 'FreeForm\launcher.json'
 if (Test-Path $cfgPath) { try { (Get-Content $cfgPath -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $cfg[$_.Name] = $_.Value } } catch {} }
 

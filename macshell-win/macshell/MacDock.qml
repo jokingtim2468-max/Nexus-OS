@@ -3997,9 +3997,9 @@ Scope {
                 SCard {
                     t: pal
                     SRow { t: pal; title: I18n.tr("Spotify (installs Spicetify)"); subtitle: I18n.tr("Kept working after Spotify updates, each time FreeForm starts. Needs Spotify from spotify.com, not the Microsoft Store.")
-                           SSwitch { t: pal; checked: ffPane.cfg.modSpotify !== false; onToggled: v => ffPane.set("modSpotify", v) } }
+                           SSwitch { t: pal; checked: ffPane.cfg.modSpotify === true; onToggled: v => ffPane.set("modSpotify", v) } }
                     SRow { t: pal; title: I18n.tr("Discord (installs Vencord)"); subtitle: I18n.tr("Re-installed after Discord updates. Client mods are against Discord's Terms of Service; turn this off if that worries you.")
-                           SSwitch { t: pal; checked: ffPane.cfg.modDiscord !== false; onToggled: v => ffPane.set("modDiscord", v) } }
+                           SSwitch { t: pal; checked: ffPane.cfg.modDiscord === true; onToggled: v => ffPane.set("modDiscord", v) } }
                 }
                 SLabel { t: pal; header: true; text: I18n.tr("Updates") }
                 SCard {
@@ -4583,6 +4583,7 @@ Scope {
         }
     }
 
+    function setPinnedIds(l) { pinned = l; store.setText(JSON.stringify(l, null, 2)); rebuild(); }
     function togglePin(item) {
         var out = [], found = false;
         for (var i = 0; i < pinned.length; i++) {
@@ -5545,7 +5546,7 @@ Scope {
                     Rectangle { id: ffBlurMask; anchors.fill: parent; radius: root.cornerRadius; visible: false; layer.enabled: true }
                     MultiEffect {
                         anchors.fill: parent
-                        visible: Qt.platform.os === "windows" && !root.liquidActive && root.wallpaperPath !== ""
+                        visible: false          // off: the wallpaper copy went stale and showed over apps; plain glass instead
                         source: ffBlurSrc
                         blurEnabled: true; blurMax: 48; blur: 1.0
                         saturation: 0.25

@@ -60,7 +60,7 @@ def package_root():
 
 
 def ffconfig(a):
-    cfg = {"hideTaskbar": True, "hideIcons": True, "skipLauncher": False, "autoUpdate": True, "modSpotify": True, "modDiscord": True}
+    cfg = {"hideTaskbar": True, "hideIcons": True, "skipLauncher": False, "autoUpdate": True, "modSpotify": False, "modDiscord": False}
     try:
         with open(config_path(), encoding="utf-8-sig") as f:
             cfg.update(json.load(f))

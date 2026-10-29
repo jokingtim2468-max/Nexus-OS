@@ -5373,7 +5373,10 @@ Scope {
                         Item {
                             id: clockBtn
                             visible: root.barWidgetEnabled("clock")
-                            width: root.barWidgetEnabled("clock") ? clockText.implicitWidth + 16 : 0
+                            property real widest: 0
+                            width: root.barWidgetEnabled("clock") ? Math.max(widest, clockText.implicitWidth) + 16 : 0
+                            Connections { target: root; function onClockTextChanged() { if (clockText.implicitWidth > clockBtn.widest) clockBtn.widest = clockText.implicitWidth; } }
+                            Connections { target: root; function onShowSecondsChanged() { clockBtn.widest = 0; } }
                             height: 28
                             Rectangle {
                                 anchors.centerIn: parent
@@ -9571,11 +9574,45 @@ Scope {
                                                         color: panelPal.fg
                                                         font.family: root.fontForWeight(font.weight, panelPal.fam); font.pixelSize: 12
                                                     }
+                                                    property bool menu: false
+                                                    readonly property var dk: root.hub ? root.hub.dock : null
+                                                    readonly property string pid: String(cell.e.id || "").replace(/\.desktop$/, "")
+                                                    readonly property bool pinned: !!(dk && dk.pinned && dk.pinned.indexOf(pid) >= 0)
                                                     MouseArea {
                                                         id: cma
                                                         anchors.fill: parent
                                                         hoverEnabled: true
-                                                        onClicked: { ui.pop = ""; root.launchApp(cell.e); }
+                                                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                                        onClicked: mouse => {
+                                                            if (mouse.button === Qt.RightButton) { cell.menu = !cell.menu; return; }
+                                                            if (cell.menu) { cell.menu = false; return; }
+                                                            ui.pop = ""; root.launchApp(cell.e);
+                                                        }
+                                                    }
+                                                    Rectangle {
+                                                        visible: cell.menu; z: 20
+                                                        anchors.horizontalCenter: parent.horizontalCenter; y: parent.height - 14
+                                                        width: 170; height: lpMenu.height + 10; radius: 9
+                                                        color: panelPal.dark ? "#2C2C2E" : "#FFFFFF"; border.width: 1; border.color: panelPal.sep
+                                                        Column {
+                                                            id: lpMenu
+                                                            x: 5; y: 5; width: parent.width - 10
+                                                            Repeater {
+                                                                model: [{ t: "Open", f: function () { ui.pop = ""; root.launchApp(cell.e); } },
+                                                                        { t: cell.pinned ? "Remove from Dock" : "Keep in Dock", f: function () {
+                                                                            if (!cell.dk) return;
+                                                                            var l = cell.dk.pinned.slice(), i = l.indexOf(cell.pid);
+                                                                            if (i >= 0) l.splice(i, 1); else l.push(cell.pid);
+                                                                            cell.dk.setPinnedIds(l); } }]
+                                                                delegate: Rectangle {
+                                                                    required property var modelData
+                                                                    width: lpMenu.width; height: 28; radius: 5
+                                                                    color: lpm.containsMouse ? root.accent : "transparent"
+                                                                    Text { x: 10; anchors.verticalCenter: parent.verticalCenter; text: I18n.tr(parent.modelData.t); color: lpm.containsMouse ? "white" : panelPal.fg; font.family: panelPal.fam; font.pixelSize: 13 }
+                                                                    MouseArea { id: lpm; anchors.fill: parent; hoverEnabled: true; onClicked: { cell.menu = false; parent.modelData.f(); } }
+                                                                }
+                                                            }
+                                                        }
                                                     }
                                                 }
                                             }
