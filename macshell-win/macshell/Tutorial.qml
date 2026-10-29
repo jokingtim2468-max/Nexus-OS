@@ -72,7 +72,7 @@ Scope {
         if (!hub) return;
         paused = true;
         if (a === "spotlight" && bar) bar.search();
-        else if (a === "appstore" && hub.appStore) hub.appStore.open("discover");
+        else if (a === "appstore" && hub.store) hub.store().open("discover");
         else if (a === "network" && bar) bar.netRequest(1);
         else if (a === "appearance") hub.openSettings("appearance");
         else if (a === "wallpaper") hub.openSettings("wallpaper");

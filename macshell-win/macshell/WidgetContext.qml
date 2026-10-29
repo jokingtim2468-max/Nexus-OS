@@ -198,7 +198,7 @@ QtObject {
         case "volume.mute": if (a) a.muted = !a.muted; break;
         case "open.app": if (param) Quickshell.execDetached(param.match(/(?:[^\s"]+|"[^"]*")+/g).map(function (x) { return x.replace(/^"|"$/g, ""); })); break;
         case "open.url": if (param) Qt.openUrlExternally(/^[a-z]+:/i.test(param) ? param : "https://" + param); break;
-        case "open.appstore": if (hub && hub.appStore) hub.appStore.open(""); break;
+        case "open.appstore": if (hub && hub.store) hub.store().open(""); break;
         case "open.settings": if (hub) hub.openSettings("general"); break;
         case "open.spotlight": if (hub && hub.bar) hub.bar.search(); break;
         case "open.controlcenter": if (hub && hub.bar) hub.bar.ccRequest(true); break;

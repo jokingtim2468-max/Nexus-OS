@@ -41,12 +41,15 @@ ShellRoot {
         property var widgets: macWidgets
         property var clock: clockApp
         property var about: aboutApp
-        property var appStore: appStore
+        // Files and the App Store are built the first time they open (less memory until then)
+        readonly property var appStore: appStoreLoader.item
+        function store() { appStoreLoader.active = true; return appStoreLoader.item; }
         property var tour: tour
         property var widgetStudio: widgetStudio
         property var themeStudio: themeStudio
         property var missionControl: missionControl
-        property var finder: finder
+        readonly property var finder: finderLoader.item
+        function files() { finderLoader.active = true; return finderLoader.item; }
         readonly property var island: islandLoader.item       // Windows: the Dynamic Island (Caps Lock, notifications)
         function openMusic() { if (musicLoader.item) musicLoader.item.open(); else musicLoader.active = true; }
         // Windows: hide FreeForm but keep it loaded (WindowsHotkeys.qml); false if not on Windows
@@ -57,7 +60,7 @@ ShellRoot {
             case "ff-freeform_widget_studio": widgetStudio.open(); return true;
             case "ff-freeform_settings": macDock.openPrefs("general"); return true;
             case "ff-freeform_theme_studio": themeStudio.open(); return true;
-            case "ff-freeform_files": finder.open(""); return true;
+            case "ff-freeform_files": sharedHub.files().open(""); return true;
             }
             return false;
         }
@@ -297,12 +300,12 @@ ShellRoot {
     MacWidgets { id: macWidgets; hub: sharedHub }
     ClockApp { id: clockApp; hub: sharedHub }
     AboutApp { id: aboutApp; hub: sharedHub }
-    AppStore { id: appStore; hub: sharedHub }
+    Loader { id: appStoreLoader; active: false; sourceComponent: Component { AppStore { hub: sharedHub } } }
     Tutorial { id: tour; hub: sharedHub }
     WidgetStudio { id: widgetStudio; hub: sharedHub }
     ThemeStudio { id: themeStudio; hub: sharedHub }
     MissionControl { id: missionControl; hub: sharedHub }
-    FinderApp { id: finder; hub: sharedHub }
+    Loader { id: finderLoader; active: false; sourceComponent: Component { FinderApp { hub: sharedHub } } }
     // Music (MusicApp.qml) is created the first time it's opened: it needs Qt Multimedia
     Loader {
         id: musicLoader
@@ -364,12 +367,12 @@ ShellRoot {
     // qs -c MacShell ipc call appstore open | close | toggle | page updates | search firefox
     IpcHandler {
         target: "appstore"
-        function open(): void { appStore.open(""); }
-        function close(): void { appStore.close(); }
-        function toggle(): void { appStore.toggle(); }
-        function page(id: string): void { appStore.open(id); }
-        function app(id: string): void { appStore.open(""); appStore.showApp({ id: id, name: id }); }
-        function search(q: string): void { appStore.open("search"); appStore.search(q); }
+        function open(): void { sharedHub.store().open(""); }
+        function close(): void { if (appStoreLoader.item) appStoreLoader.item.close(); }
+        function toggle(): void { sharedHub.store().toggle(); }
+        function page(id: string): void { sharedHub.store().open(id); }
+        function app(id: string): void { var a = sharedHub.store(); a.open(""); a.showApp({ id: id, name: id }); }
+        function search(q: string): void { var a = sharedHub.store(); a.open("search"); a.search(q); }
     }
     // qs -c MacShell ipc call tour start | stop      (FreeForm's welcome tour)
     IpcHandler {
@@ -389,9 +392,9 @@ ShellRoot {
     }
     IpcHandler {
         target: "finder"
-        function open(): void { finder.open(""); }
-        function show(path: string): void { finder.open(path); }
-        function close(): void { finder.close(); }
+        function open(): void { sharedHub.files().open(""); }
+        function show(path: string): void { sharedHub.files().open(path); }
+        function close(): void { if (finderLoader.item) finderLoader.item.close(); }
     }
     IpcHandler {
         target: "missioncontrol"

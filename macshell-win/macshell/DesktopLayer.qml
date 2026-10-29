@@ -126,7 +126,7 @@ Variants {
                                     var h = dl.hub, a = mi.modelData.a;
                                     if (!h) return;
                                     if (a === "widgets" && h.widgetStudio) h.widgetStudio.open();
-                                    else if (a === "appstore" && h.appStore) h.appStore.open("");
+                                    else if (a === "appstore" && h.store) h.store().open("");
                                     else if (a === "settings") h.openSettings("general");
                                     else h.openSettings(a);
                                 }
