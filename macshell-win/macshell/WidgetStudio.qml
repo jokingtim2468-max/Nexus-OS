@@ -382,6 +382,35 @@ Scope {
     function moveDesktop(index, x, y) {
         var l = widgets.slice(), w = clone(l[index]); w.x = snapX(x); w.y = snapY(y); l[index] = w; commit(l);
     }
+    // ── editing a widget right on the desktop (Move mode's handles and the Dynamic Island's buttons) ──
+    // resize to cols x rows squares; dCol / dRow move its top-left corner (dragging the left or top handle)
+    function resizeDesktop(index, cols, rows, dCol, dRow) {
+        var l = widgets.slice(), w = l[index]; if (!w) return;
+        cols = Math.max(1, Math.min(gridCols, cols)); rows = Math.max(1, Math.min(gridRows, rows));
+        var n = scaledTo(w, cols, rows);
+        n.x = snapX((w.x || 0) + (dCol || 0) * (gridUnit + gridGap)); n.y = snapY((w.y || 0) + (dRow || 0) * (gridUnit + gridGap));
+        l[index] = n; commit(l);
+    }
+    function sizeDesktop(index, cols, rows) { resizeDesktop(index, cols, rows, 0, 0); }
+    // turn a widget a quarter turn: a 2x1 becomes 1x2 and its blocks are laid out again for the new shape
+    // (text stays upright: the layout turns, not the letters)
+    function rotateDesktop(index) {
+        var l = widgets.slice(), w = clone(l[index]); if (!w) return;
+        var W = w.w, H = w.h;
+        for (var i = 0; i < (w.items || []).length; i++) {
+            var it = w.items[i], x = it.x || 0, y = it.y || 0, iw = it.w || 40, ih = it.h || 20;
+            it.x = Math.round(H - (y + ih)); it.y = Math.round(x); it.w = ih; it.h = iw;
+        }
+        w.w = H; w.h = W;
+        l[index] = scaledTo(w, cellsOf(w.w), cellsOf(w.h));
+        l[index].x = snapX(w.x || 0); l[index].y = snapY(w.y || 0);
+        commit(l);
+    }
+    function nudgeDesktop(index, dCol, dRow) {
+        var l = widgets.slice(), w = clone(l[index]); if (!w) return;
+        w.x = snapX((w.x || 0) + dCol * (gridUnit + gridGap)); w.y = snapY((w.y || 0) + dRow * (gridUnit + gridGap));
+        l[index] = w; commit(l);
+    }
 
     // ── saving ──
     FileView {
@@ -453,6 +482,36 @@ Scope {
                 visible: dw.moving
                 width: dw.w.w; height: dw.w.h; radius: dw.w.bg && dw.w.bg.radius !== undefined ? dw.w.bg.radius : 22
                 color: "transparent"; border.width: 3; border.color: root.accent
+                // resize handles: top, bottom, left, right and the two corners; dragging snaps to whole squares
+                Repeater {
+                    model: [{ k: "t", fx: 0.5, fy: 0 }, { k: "b", fx: 0.5, fy: 1 }, { k: "l", fx: 0, fy: 0.5 }, { k: "r", fx: 1, fy: 0.5 },
+                            { k: "tl", fx: 0, fy: 0 }, { k: "br", fx: 1, fy: 1 }]
+                    delegate: Rectangle {
+                        id: hd
+                        required property var modelData
+                        width: 18; height: 18; radius: 9; color: "white"; border.width: 3; border.color: root.accent; z: 5
+                        x: Math.max(0, Math.min(parent.width - width, parent.width * modelData.fx - width / 2))
+                        y: Math.max(0, Math.min(parent.height - height, parent.height * modelData.fy - height / 2))
+                        scale: hdDrag.active ? 1.3 : 1
+                        DragHandler {
+                            id: hdDrag
+                            target: null
+                            onActiveChanged: {
+                                if (active) return;
+                                var st = root.gridUnit + root.gridGap, k = hd.modelData.k;
+                                var dc = Math.round(translation.x / st), dr = Math.round(translation.y / st);
+                                var cols = root.cellsOf(dw.w.w), rows = root.cellsOf(dw.w.h), mc = 0, mr = 0;
+                                if (k.indexOf("r") >= 0) cols += dc;
+                                if (k.indexOf("l") >= 0) { cols -= dc; mc = dc; }
+                                if (k.indexOf("b") >= 0) rows += dr;
+                                if (k.indexOf("t") >= 0) { rows -= dr; mr = dr; }
+                                if (cols < 1) { mc -= 1 - cols; cols = 1; }
+                                if (rows < 1) { mr -= 1 - rows; rows = 1; }
+                                root.resizeDesktop(dw.modelData.i, cols, rows, mc, mr);
+                            }
+                        }
+                    }
+                }
                 Rectangle {
                     anchors.right: parent.right; anchors.top: parent.bottom; anchors.topMargin: 8
                     width: doneT.implicitWidth + 28; height: 30; radius: 15; color: root.accent

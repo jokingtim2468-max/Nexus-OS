@@ -18,7 +18,10 @@ PanelWindow {
 
     // what it shows: "" (nothing), "caps" or "notif"
     property var note: null                         // { app, summary, body, icon }
-    readonly property string mode: note ? "notif" : (caps.on ? "caps" : "")
+    // a desktop widget in Move mode (right-click > Move): the island becomes its toolbar
+    readonly property var studio: hub ? hub.widgetStudio : null
+    readonly property int editing: studio ? studio.movingIndex : -1
+    readonly property string mode: editing >= 0 ? "edit" : (note ? "notif" : (caps.on ? "caps" : ""))
     function notify(rec) {
         note = rec; noteTimer.restart();
         var snd = soundFor(rec.app);
@@ -55,8 +58,8 @@ PanelWindow {
     visible: pill.y > -pill.height + 1 || island.mode !== ""
     mask: Region { item: pill }
 
-    readonly property real targetW: mode === "notif" ? 380 : mode === "caps" ? 168 : 30
-    readonly property real targetH: mode === "notif" ? 70 : 30
+    readonly property real targetW: mode === "edit" ? editRow.implicitWidth + 24 : mode === "notif" ? 380 : mode === "caps" ? 168 : 30
+    readonly property real targetH: mode === "edit" ? 40 : mode === "notif" ? 70 : 30
 
     Rectangle {
         id: pill
@@ -100,6 +103,46 @@ PanelWindow {
             CapsGlyph { anchors.verticalCenter: parent.verticalCenter }
             Text { text: "Caps Lock"; color: "white"; font.family: island.fam; font.pixelSize: 13; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
             CapsGlyph { anchors.verticalCenter: parent.verticalCenter }
+        }
+
+        // widget toolbar: size, turn, move by one square, Done
+        Row {
+            id: editRow
+            anchors.centerIn: parent; spacing: 4
+            opacity: island.mode === "edit" && pill.landed ? 1 : 0
+            visible: opacity > 0
+            Behavior on opacity { NumberAnimation { duration: 180 } }
+            component IBtn: Rectangle {
+                id: ib
+                property string label: ""
+                property bool on: false
+                signal clicked()
+                width: Math.max(28, ibT.implicitWidth + 16); height: 28; radius: 14
+                color: on ? "#0A84FF" : (ibM.containsMouse ? Qt.rgba(1, 1, 1, 0.16) : Qt.rgba(1, 1, 1, 0.08))
+                Text { id: ibT; anchors.centerIn: parent; text: ib.label; color: "white"; font.family: island.fam; font.pixelSize: 12; font.weight: Font.DemiBold }
+                MouseArea { id: ibM; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: ib.clicked() }
+            }
+            readonly property var w: island.studio && island.editing >= 0 ? island.studio.widgets[island.editing] : null
+            readonly property int cols: w ? island.studio.cellsOf(w.w) : 0
+            readonly property int rows: w ? island.studio.cellsOf(w.h) : 0
+            Repeater {
+                model: [[1, 1], [2, 1], [1, 2], [2, 2], [4, 2]]
+                delegate: IBtn {
+                    required property var modelData
+                    label: modelData[0] + "\u00D7" + modelData[1]
+                    on: editRow.cols === modelData[0] && editRow.rows === modelData[1]
+                    onClicked: island.studio.sizeDesktop(island.editing, modelData[0], modelData[1])
+                }
+            }
+            Item { width: 6; height: 1 }
+            IBtn { label: "\u21BB"; onClicked: island.studio.rotateDesktop(island.editing) }      // turn a quarter
+            Item { width: 6; height: 1 }
+            IBtn { label: "\u2190"; onClicked: island.studio.nudgeDesktop(island.editing, -1, 0) }
+            IBtn { label: "\u2191"; onClicked: island.studio.nudgeDesktop(island.editing, 0, -1) }
+            IBtn { label: "\u2193"; onClicked: island.studio.nudgeDesktop(island.editing, 0, 1) }
+            IBtn { label: "\u2192"; onClicked: island.studio.nudgeDesktop(island.editing, 1, 0) }
+            Item { width: 6; height: 1 }
+            IBtn { label: "Done"; on: true; onClicked: island.studio.movingIndex = -1 }
         }
 
         // a notification: who it's from and which app
