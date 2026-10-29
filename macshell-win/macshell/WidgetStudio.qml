@@ -120,7 +120,7 @@ Scope {
         sel = -1; current = Math.min(current, widgets.length - 1); saveTimer.restart();
     }
 
-    // ── the desktop grid: squares of about 112 px, 12 px apart, filling the screen edge to edge (5 px from each
+    // ── the desktop grid: squares of about 100 px, 12 px apart, filling the screen edge to edge (5 px from each
     // side), between the menu bar and the Dock; the square size is stretched a little so the columns fit exactly.
     // A widget is 1x1, 2x1, 2x2 or 4x2 squares.
     readonly property int gridGap: 12
@@ -129,7 +129,7 @@ Scope {
     readonly property real scrH: Quickshell.screens.length ? Quickshell.screens[0].height : 1080
     readonly property int barH: root.hub && root.hub.bar ? root.hub.bar.barHeight : 28
     readonly property int dockRoom: 78                                   // the Dock's height plus its margin
-    readonly property int gridCols: Math.max(4, Math.round((scrW - 2 * gridEdge + gridGap) / (112 + gridGap)))
+    readonly property int gridCols: Math.max(4, Math.round((scrW - 2 * gridEdge + gridGap) / (100 + gridGap)))
     readonly property int gridUnit: Math.floor((scrW - 2 * gridEdge - (gridCols - 1) * gridGap) / gridCols)
     readonly property int gridLeft: gridEdge + Math.floor((scrW - 2 * gridEdge - (gridCols * gridUnit + (gridCols - 1) * gridGap)) / 2)
     readonly property int gridTop: barH + gridEdge
@@ -240,7 +240,7 @@ Scope {
     // once: widgets made for the old, bigger grid shrink to the new one; an empty desktop gets the clock,
     // calendar and music player
     FileView { id: gridV2; path: root.home + "/.config/macshell/ff-widgets-grid-v2"; printErrors: false; blockLoading: true }
-    FileView { id: gridV3; path: root.home + "/.config/macshell/ff-widgets-grid-v3"; printErrors: false; blockLoading: true }
+    FileView { id: gridV3; path: root.home + "/.config/macshell/ff-widgets-grid-v4"; printErrors: false; blockLoading: true }
     function migrateGrid() {
         if (gridV2.text() !== "") { snapAllToGrid(); return; }
         var l = [];
@@ -473,7 +473,13 @@ Scope {
                 return ss.length > 0 ? ss[0] : null;
             }
             anchors { top: true; left: true }
-            margins { left: Math.max(0, (dw.w.x || 0) + dragX); top: Math.max(0, (dw.w.y || 0) + dragY) }
+            // follows the pointer while dragging; on release (and for island / handle moves) glides to its square
+            property bool dragging: false
+            property real px: (dw.w.x || 0) + dragX
+            property real py: (dw.w.y || 0) + dragY
+            Behavior on px { enabled: !dw.dragging; NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+            Behavior on py { enabled: !dw.dragging; NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+            margins { left: Math.max(0, px); top: Math.max(0, py) }
             property bool menuOpen: false
             // room for the right-click menu under the widget while it's open
             implicitWidth: Math.max(dw.w.w, menuOpen ? 210 : 0); implicitHeight: dw.w.h + (menuOpen ? menuBox.height + 8 : 0) + (moving ? 44 : 0)
@@ -579,6 +585,7 @@ Scope {
                 function screenPos() { return parent.mapToGlobal(centroid.position.x, centroid.position.y); }
                 onCentroidChanged: if (active) { var g = screenPos(); dw.dragX = g.x - g0.x; dw.dragY = g.y - g0.y; }
                 onActiveChanged: {
+                    dw.dragging = active;
                     if (active) { g0 = screenPos(); return; }
                     root.moveDesktop(dw.modelData.i, (dw.w.x || 0) + dw.dragX, (dw.w.y || 0) + dw.dragY); dw.dragX = 0; dw.dragY = 0;
                 }

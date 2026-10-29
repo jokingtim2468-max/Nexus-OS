@@ -437,12 +437,18 @@ void placeAbove(HWND hwnd, HWND anchor) {
 // Desktop panels (below the app windows): the desktop layer right above Explorer's desktop
 // window, widgets right above the desktop layer. Re-checked twice a second, since clicking
 // one or Explorer redrawing its desktop can reorder them.
-// is hwnd stacked above anchor? (walk down the z-order from hwnd looking for anchor)
+// is hwnd stacked above anchor, with only FreeForm's own windows in between? (walk down the z-order from
+// hwnd looking for anchor; meeting another program's visible window first means hwnd sits above that app,
+// e.g. a freshly opened panel starts on top of everything, so it must be put back down)
 bool isAbove(HWND hwnd, HWND anchor) {
 	if (anchor == nullptr) return true;
+	auto self = GetCurrentProcessId();
 	auto* w = GetWindow(hwnd, GW_HWNDNEXT);
 	for (int i = 0; w != nullptr && i < 4096; i++, w = GetWindow(w, GW_HWNDNEXT)) {
 		if (w == anchor) return true;
+		DWORD pid = 0;
+		GetWindowThreadProcessId(w, &pid);
+		if (pid != self && IsWindowVisible(w) && !(GetWindowLongW(w, GWL_EXSTYLE) & WS_EX_TOOLWINDOW)) return false;
 	}
 	return false;
 }
