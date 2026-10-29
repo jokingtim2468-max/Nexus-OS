@@ -124,7 +124,8 @@ Scope {
     }
     Process {
         running: true
-        command: ["sh", "-c", "n=$(getent passwd \"$USER\" | cut -d: -f5 | cut -d, -f1); printf '%s' \"${n:-$USER}\""]
+        command: Qt.platform.os === "windows" ? ["cmd.exe", "/c", "echo %USERNAME%"]
+                 : ["sh", "-c", "n=$(getent passwd \"$USER\" | cut -d: -f5 | cut -d, -f1); printf '%s' \"${n:-$USER}\""]
         stdout: StdioCollector { onStreamFinished: if (text.trim() !== "") root.userName = text.trim() }
     }
     readonly property bool captureCut: hub ? hub.captureCut : false
@@ -3393,7 +3394,7 @@ Scope {
                 }
                 Process {
                     id: picProc
-                    command: ["sh", "-c", "f=$(zenity --file-selection --title='Choose a picture' --file-filter='Images | *.png *.jpg *.jpeg *.webp' 2>/dev/null || kdialog --getopenfilename \"$HOME/Pictures\" 'image/png image/jpeg image/webp' 2>/dev/null); [ -n \"$f\" ] && magick \"$f\" -resize 512x512^ -gravity center -extent 512x512 \"$HOME/.face\" && echo ok"]
+                    command: Qt.platform.os === "windows" ? ["macshell-helper", "pickface"] : ["sh", "-c", "f=$(zenity --file-selection --title='Choose a picture' --file-filter='Images | *.png *.jpg *.jpeg *.webp' 2>/dev/null || kdialog --getopenfilename \"$HOME/Pictures\" 'image/png image/jpeg image/webp' 2>/dev/null); [ -n \"$f\" ] && magick \"$f\" -resize 512x512^ -gravity center -extent 512x512 \"$HOME/.face\" && echo ok"]
                     stdout: StdioCollector { onStreamFinished: if (text.indexOf("ok") >= 0) upic.ver++ }
                 }
             }

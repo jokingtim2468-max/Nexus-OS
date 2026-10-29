@@ -66,8 +66,29 @@ EDITS = {
         "ff-freeform_widget_studio", "ff-freeform_settings"
     ] : [
         "org.gnome.Nautilus",'''),
+        # ── Settings on Windows: account name, profile picture ──
+        ('''        command: ["sh", "-c", "n=$(getent passwd \\"$USER\\" | cut -d: -f5 | cut -d, -f1); printf '%s' \\"${n:-$USER}\\""]''',
+         '''        command: Qt.platform.os === "windows" ? ["cmd.exe", "/c", "echo %USERNAME%"]
+                 : ["sh", "-c", "n=$(getent passwd \\"$USER\\" | cut -d: -f5 | cut -d, -f1); printf '%s' \\"${n:-$USER}\\""]'''),
+        ('''                    command: ["sh", "-c", "f=$(zenity''',
+         '''                    command: Qt.platform.os === "windows" ? ["macshell-helper", "pickface"] : ["sh", "-c", "f=$(zenity'''),
     ],
     "MacBar.qml": [
+        # ── Control Center on Windows: brightness (laptop panel or DDC/CI monitor), output/input device ──
+        ('''        command: ["sh", "-c", "brightnessctl -m 2>/dev/null | head -n1"]''',
+         '''        command: Qt.platform.os === "windows" ? ["brightnessctl", "-m"] : ["sh", "-c", "brightnessctl -m 2>/dev/null | head -n1"]'''),
+        # PowerShell per reading is costly on Windows: poll every 5 s, apply a slider drag at most 4x a second
+        ('''    Timer { interval: 850; repeat: true; running: true; onTriggered: root.refreshBrightness() }''',
+         '''    Timer { interval: Qt.platform.os === "windows" ? 5000 : 850; repeat: true; running: true; onTriggered: root.refreshBrightness() }'''),
+        ('''        id: brightApply
+        interval: 40''',
+         '''        id: brightApply
+        interval: Qt.platform.os === "windows" ? 250 : 40'''),
+        ('''        osdQuiet("volume", 1500);
+        Quickshell.execDetached(["sh", "-c", "wpctl set-default''',
+         '''        osdQuiet("volume", 1500);
+        if (Qt.platform.os === "windows") { Pipewire.setDefault(n); return; }
+        Quickshell.execDetached(["sh", "-c", "wpctl set-default'''),
         # ── FreeForm's own apps open in-process (hub.launchOwn), not through a second qs.exe ──
         ('''        saveTimer.restart();
         e.execute();

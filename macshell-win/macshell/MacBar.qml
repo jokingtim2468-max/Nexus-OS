@@ -1845,6 +1845,7 @@ Scope {
     function chooseAudio(n) {      // make this device the default; wpctl ships with WirePlumber, pactl is the fallback
         if (!n) return;
         osdQuiet("volume", 1500);
+        if (Qt.platform.os === "windows") { Pipewire.setDefault(n); return; }
         Quickshell.execDetached(["sh", "-c", "wpctl set-default \"$1\" 2>/dev/null || pactl \"$3\" \"$2\"", "sh", String(n.id), String(n.name),
                                  (n.type !== undefined ? ((n.type & PwNodeType.Sink) !== 0) : n.isSink) ? "set-default-sink" : "set-default-source"]);
     }
@@ -2139,7 +2140,7 @@ Scope {
     function refreshBrightness() { if (!brightProc.running) brightProc.running = true; }
     Process {
         id: brightProc
-        command: ["sh", "-c", "brightnessctl -m 2>/dev/null | head -n1"]
+        command: Qt.platform.os === "windows" ? ["brightnessctl", "-m"] : ["sh", "-c", "brightnessctl -m 2>/dev/null | head -n1"]
         stdout: StdioCollector {
             onStreamFinished: {
                 var f = text.trim().split(",");
@@ -2149,7 +2150,7 @@ Scope {
     }
     Timer {
         id: brightApply
-        interval: 40
+        interval: Qt.platform.os === "windows" ? 250 : 40
         onTriggered: Quickshell.execDetached(["brightnessctl", "-q", "set", Math.max(1, Math.round(root.brightness * 100)) + "%"])
     }
     function setBrightness(v) { osdQuiet("brightness", 1800); brightness = Math.max(0.01, Math.min(1, v)); brightApply.restart(); }
@@ -2173,7 +2174,7 @@ Scope {
         brightApply.restart();
         showOsd("brightness", brightness);
     }
-    Timer { interval: 850; repeat: true; running: true; onTriggered: root.refreshBrightness() }
+    Timer { interval: Qt.platform.os === "windows" ? 5000 : 850; repeat: true; running: true; onTriggered: root.refreshBrightness() }
     // ═════════════ KEYBOARD LAYOUT ═════════════
     // Hyprland's event gives an immediate update; a small reconciliation poll handles dropped events and
     // keyboards whose active keymap changes without a usable activelayout payload.
