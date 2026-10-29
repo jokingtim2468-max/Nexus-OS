@@ -4260,6 +4260,13 @@ Scope {
             for (var i = 0; i < prefsWindow.panes.length; i++)
                 if (prefsWindow.panes[i].id === pane) { prefsWindow.go(i); break; }
         }
+        if (Qt.platform.os === "windows" && !prefsWindow.visible && Quickshell.screens.length) {
+            var sc = Quickshell.screens[0];
+            prefsWindow.height = Math.min(prefsWindow.height, sc.height - 124);
+            prefsWindow.width = Math.min(prefsWindow.width, sc.width - 40);
+            prefsWindow.x = Math.round((sc.width - prefsWindow.width) / 2);
+            prefsWindow.y = Math.round(34 + (sc.height - 124 - prefsWindow.height) / 2);
+        }
         prefsWindow.visible = true;
         prefsWindow.requestActivate();
     }

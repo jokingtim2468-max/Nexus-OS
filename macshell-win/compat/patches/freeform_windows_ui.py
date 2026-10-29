@@ -136,6 +136,20 @@ EDITS = {
                     id: lights
                     visible: Qt.platform.os !== "windows"
                     x: 17; y: 16"""),
+        # Settings opens fully on screen, below the menu bar and above the Dock (Windows)
+        ("""        prefsWindow.visible = true;
+        prefsWindow.requestActivate();
+    }""",
+         """        if (Qt.platform.os === "windows" && !prefsWindow.visible && Quickshell.screens.length) {
+            var sc = Quickshell.screens[0];
+            prefsWindow.height = Math.min(prefsWindow.height, sc.height - 124);
+            prefsWindow.width = Math.min(prefsWindow.width, sc.width - 40);
+            prefsWindow.x = Math.round((sc.width - prefsWindow.width) / 2);
+            prefsWindow.y = Math.round(34 + (sc.height - 124 - prefsWindow.height) / 2);
+        }
+        prefsWindow.visible = true;
+        prefsWindow.requestActivate();
+    }"""),
         # ── Trash = the Windows Recycle Bin ──
         ('''        if (item.special === "trash") {
             // the file manager first''',
