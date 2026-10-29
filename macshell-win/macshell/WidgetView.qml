@@ -14,7 +14,11 @@
 //   weather  city, color, unit ("C"|"F")      — current weather, today's high/low (MET Norway)
 //   calendar color, accent                     — this month, today marked
 //   note     text, size, color                 — a sticky note you type into on the desktop
-//   (progress also takes source "cpu" | "ram" | "gpu")
+//   (progress also takes source "cpu" | "ram" | "gpu", track colour, thick)
+// every item: rotation (degrees), opacity (0..1), anim ("none" | "pulse" | "float" | "spin" | "glow")
+// text extras: italic, underline, outline (colour), outlineWidth, spacing (letter spacing), font,
+//   spans: { "w3": { color, bold }, "c0": {...} } — colour single words (w<i>) or letters (c<i>)
+// widget: dynamic (colours from the playing album cover), dynamicTheme (also tints FreeForm's accent)
 import QtQuick
 import QtQuick.Effects
 import Quickshell
@@ -31,6 +35,55 @@ Item {
 
     width: widget.w || 320; height: widget.h || 120
 
+    // Dynamic mode: the average colour of the playing album cover (read from a 1x1 drawing of it)
+    property color artColor: "transparent"
+    readonly property string artSrc: widget.dynamic && ctx && ctx.player ? ctx.player.trackArtUrl || "" : ""
+    onArtSrcChanged: if (artSrc !== "") artProbe.loadImage(artSrc)
+    Canvas {
+        id: artProbe
+        width: 1; height: 1; visible: false
+        onImageLoaded: requestPaint()
+        onPaint: {
+            if (wv.artSrc === "" || !isImageLoaded(wv.artSrc)) return;
+            var c = getContext("2d");
+            c.drawImage(wv.artSrc, 0, 0, 1, 1);
+            var px = c.getImageData(0, 0, 1, 1).data;
+            wv.artColor = Qt.rgba(px[0] / 255, px[1] / 255, px[2] / 255, 1);
+            // "Album colours for the whole theme": FreeForm's accent follows the cover too
+            if (wv.widget.dynamicTheme && !wv.editing && wv.ctx && wv.ctx.hub && wv.ctx.hub.dock)
+                wv.ctx.hub.dock.accent = Qt.lighter(wv.artColor, 1.3);
+        }
+    }
+    // a widget fades and settles in when it appears on the desktop
+    opacity: 0; scale: 0.96
+    Component.onCompleted: { opacity = 1; scale = 1; }
+    Behavior on opacity { NumberAnimation { duration: 260 } }
+    Behavior on scale { NumberAnimation { duration: 320; easing.type: Easing.OutBack } }
+
+    // a text with some words / letters coloured (spans), as Qt's StyledText
+    function styled(text, d) {
+        var sp = d.spans || {}, keys = Object.keys(sp);
+        if (keys.length === 0) return null;
+        var esc = function (t) { return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); };
+        var wrap = function (t, st) {
+            if (!st) return esc(t);
+            var o = esc(t);
+            if (st.bold) o = "<b>" + o + "</b>";
+            if (st.italic) o = "<i>" + o + "</i>";
+            if (st.underline) o = "<u>" + o + "</u>";
+            if (st.color) o = "<font color=\"" + st.color + "\">" + o + "</font>";
+            return o;
+        };
+        if (keys[0].charAt(0) === "c") {
+            var out = "";
+            for (var i = 0; i < text.length; i++) out += wrap(text.charAt(i), sp["c" + i]);
+            return out;
+        }
+        var words = String(text).split(" "), res = [];
+        for (var j = 0; j < words.length; j++) res.push(wrap(words[j], sp["w" + j]));
+        return res.join(" ");
+    }
+
     function url(p) {
         if (!p) return "";
         if (/^[a-z]+:/i.test(p) && !/^[a-z]:[\\/]/i.test(p)) return p;
@@ -42,7 +95,9 @@ Item {
         id: bgRect
         anchors.fill: parent
         radius: wv.widget.bg ? (wv.widget.bg.radius !== undefined ? wv.widget.bg.radius : 22) : 22
-        color: wv.widget.bg && wv.widget.bg.color ? wv.widget.bg.color : "#1C1C1E"
+        color: wv.widget.dynamic && wv.artColor.a > 0 ? Qt.darker(wv.artColor, 1.6)
+             : (wv.widget.bg && wv.widget.bg.color ? wv.widget.bg.color : "#1C1C1E")
+        Behavior on color { ColorAnimation { duration: 600 } }
         opacity: wv.widget.bg && wv.widget.bg.opacity !== undefined ? wv.widget.bg.opacity : 0.85
         border.width: wv.widget.bg && wv.widget.bg.border ? 1 : 0
         border.color: Qt.rgba(1, 1, 1, 0.16)
@@ -62,15 +117,58 @@ Item {
                 readonly property var d: modelData
                 x: d.x || 0; y: d.y || 0
                 width: d.w || 40; height: d.h || 20
+                rotation: (d.rotation || 0) + anim.spinAngle
+                opacity: (d.opacity !== undefined ? d.opacity : 1) * anim.glowLevel
+                transformOrigin: Item.Center
+                transform: Translate { y: anim.floatY }
+                scale: anim.pulseScale
+                // per-item animation
+                QtObject {
+                    id: anim
+                    property real pulseScale: 1
+                    property real floatY: 0
+                    property real spinAngle: 0
+                    property real glowLevel: 1
+                }
+                SequentialAnimation {
+                    running: it.d.anim === "pulse"; loops: Animation.Infinite
+                    onRunningChanged: if (!running) anim.pulseScale = 1
+                    NumberAnimation { target: anim; property: "pulseScale"; to: 1.06; duration: 700; easing.type: Easing.InOutSine }
+                    NumberAnimation { target: anim; property: "pulseScale"; to: 1; duration: 700; easing.type: Easing.InOutSine }
+                }
+                SequentialAnimation {
+                    running: it.d.anim === "float"; loops: Animation.Infinite
+                    onRunningChanged: if (!running) anim.floatY = 0
+                    NumberAnimation { target: anim; property: "floatY"; to: -4; duration: 1400; easing.type: Easing.InOutSine }
+                    NumberAnimation { target: anim; property: "floatY"; to: 0; duration: 1400; easing.type: Easing.InOutSine }
+                }
+                NumberAnimation {
+                    running: it.d.anim === "spin"; loops: Animation.Infinite
+                    target: anim; property: "spinAngle"; from: 0; to: 360; duration: 6000
+                    onRunningChanged: if (!running) anim.spinAngle = 0
+                }
+                SequentialAnimation {
+                    running: it.d.anim === "glow"; loops: Animation.Infinite
+                    onRunningChanged: if (!running) anim.glowLevel = 1
+                    NumberAnimation { target: anim; property: "glowLevel"; to: 0.55; duration: 1000; easing.type: Easing.InOutSine }
+                    NumberAnimation { target: anim; property: "glowLevel"; to: 1; duration: 1000; easing.type: Easing.InOutSine }
+                }
 
                 // ── text ──
                 Text {
                     visible: it.d.type === "text"
                     anchors.fill: parent
-                    text: wv.ctx ? wv.ctx.fill(it.d.text) : (it.d.text || "")
+                    readonly property string plain: wv.ctx ? wv.ctx.fill(it.d.text) : (it.d.text || "")
+                    readonly property var rich: it.d.type === "text" ? wv.styled(plain, it.d) : null
+                    text: rich !== null ? rich : plain
+                    textFormat: rich !== null ? Text.StyledText : Text.PlainText
                     color: it.d.color || "white"
-                    font.family: wv.fam; font.pixelSize: it.d.size || 14
+                    font.family: it.d.font || wv.fam; font.pixelSize: it.d.size || 14
                     font.weight: it.d.bold ? Font.Bold : Font.Normal
+                    font.italic: !!it.d.italic; font.underline: !!it.d.underline
+                    font.letterSpacing: it.d.spacing || 0
+                    style: it.d.outline ? Text.Outline : Text.Normal
+                    styleColor: it.d.outline || "black"
                     horizontalAlignment: it.d.align === "center" ? Text.AlignHCenter : it.d.align === "right" ? Text.AlignRight : Text.AlignLeft
                     verticalAlignment: Text.AlignVCenter
                     elide: Text.ElideRight
@@ -270,7 +368,7 @@ Item {
                     anchors.fill: parent
                     Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
-                        width: parent.width; height: Math.min(parent.height, 6); radius: height / 2
+                        width: parent.width; height: Math.min(parent.height, it.d.thick || 6); radius: height / 2
                         color: it.d.track || Qt.rgba(1, 1, 1, 0.22)
                         Rectangle {
                             width: parent.width * (wv.ctx ? wv.ctx.progressOf(it.d.source || "media") : 0.4)
