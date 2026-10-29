@@ -120,16 +120,27 @@ Scope {
         sel = -1; current = Math.min(current, widgets.length - 1); saveTimer.restart();
     }
 
-    // ── the desktop grid: 1 square = 112 px, 12 px apart; a widget is 1x1, 2x1, 2x2 or 4x2 squares ──
-    readonly property int gridUnit: 112
+    // ── the desktop grid: squares of about 112 px, 12 px apart, filling the screen edge to edge (5 px from each
+    // side), between the menu bar and the Dock; the square size is stretched a little so the columns fit exactly.
+    // A widget is 1x1, 2x1, 2x2 or 4x2 squares.
     readonly property int gridGap: 12
-    readonly property int gridLeft: 40
-    readonly property int gridTop: 60
+    readonly property int gridEdge: 5
+    readonly property real scrW: Quickshell.screens.length ? Quickshell.screens[0].width : 1920
+    readonly property real scrH: Quickshell.screens.length ? Quickshell.screens[0].height : 1080
+    readonly property int barH: root.hub && root.hub.bar ? root.hub.bar.barHeight : 28
+    readonly property int dockRoom: 78                                   // the Dock's height plus its margin
+    readonly property int gridCols: Math.max(4, Math.round((scrW - 2 * gridEdge + gridGap) / (112 + gridGap)))
+    readonly property int gridUnit: Math.floor((scrW - 2 * gridEdge - (gridCols - 1) * gridGap) / gridCols)
+    readonly property int gridLeft: gridEdge + Math.floor((scrW - 2 * gridEdge - (gridCols * gridUnit + (gridCols - 1) * gridGap)) / 2)
+    readonly property int gridTop: barH + gridEdge
+    readonly property int gridRows: Math.max(2, Math.floor((scrH - gridTop - dockRoom - gridEdge + gridGap) / (gridUnit + gridGap)))
     function gridX(col) { return gridLeft + col * (gridUnit + gridGap); }
     function gridY(row) { return gridTop + row * (gridUnit + gridGap); }
     function gridSpan(n) { return n * gridUnit + (n - 1) * gridGap; }
-    function snapX(x) { return gridX(Math.max(0, Math.round((x - gridLeft) / (gridUnit + gridGap)))); }
-    function snapY(y) { return gridY(Math.max(0, Math.round((y - gridTop) / (gridUnit + gridGap)))); }
+    function snapX(x) { return gridX(Math.max(0, Math.min(gridCols - 1, Math.round((x - gridLeft) / (gridUnit + gridGap))))); }
+    function snapY(y) { return gridY(Math.max(0, Math.min(gridRows - 1, Math.round((y - gridTop) / (gridUnit + gridGap))))); }
+    // how many squares a widget of this many pixels covers on the current grid
+    function cellsOf(px) { return Math.max(1, Math.round((px + gridGap) / (gridUnit + gridGap))); }
     // a widget object resized to cols x rows squares, what's inside scaled with it (templates are drawn at 164 px squares)
     function scaledTo(w0, cols, rows) {
         var w = clone(w0), nw = gridSpan(cols), nh = gridSpan(rows), fx = nw / (w.w || nw), fy = nh / (w.h || nh), f = Math.min(fx, fy);
@@ -221,17 +232,30 @@ Scope {
     // once: widgets made for the old, bigger grid shrink to the new one; an empty desktop gets the clock,
     // calendar and music player
     FileView { id: gridV2; path: root.home + "/.config/macshell/ff-widgets-grid-v2"; printErrors: false; blockLoading: true }
+    FileView { id: gridV3; path: root.home + "/.config/macshell/ff-widgets-grid-v3"; printErrors: false; blockLoading: true }
     function migrateGrid() {
-        if (gridV2.text() !== "") return;
+        if (gridV2.text() !== "") { snapAllToGrid(); return; }
         var l = [];
         for (var i = 0; i < widgets.length; i++) {
             var w = widgets[i];
             if (w.w >= 160) { w = scaledTo(w, oldCells(w.w), oldCells(w.h)); w.x = snapX(w.x || 0); w.y = snapY(w.y || 0); }
             l.push(w);
         }
-        gridV2.setText("1");
+        gridV2.setText("1"); gridV3.setText("1");
         if (!l.some(function (w) { return w.onDesktop; })) { widgets = l; addDefaultsKeeping(l); }
         else commit(l);
+    }
+    function snapAllToGrid() {
+        if (gridV3.text() !== "") return;
+        var l = [];
+        for (var i = 0; i < widgets.length; i++) {
+            var w = widgets[i];
+            w = scaledTo(w, cellsOf(w.w), cellsOf(w.h));
+            w.x = snapX(w.x || 0); w.y = snapY(w.y || 0);
+            l.push(w);
+        }
+        gridV3.setText("1");
+        commit(l);
     }
     function addDefaultsKeeping(existing) {
         var keep = existing.slice();
@@ -384,10 +408,10 @@ Scope {
             WlrLayershell.layer: WlrLayer.Bottom
             WlrLayershell.namespace: "freeform-widget-grid"
             Repeater {
-                model: Math.floor((parent.width - root.gridLeft) / (root.gridUnit + root.gridGap)) * Math.floor((parent.height - root.gridTop) / (root.gridUnit + root.gridGap))
+                model: root.gridCols * root.gridRows
                 delegate: Rectangle {
                     required property int index
-                    readonly property int cols: Math.max(1, Math.floor((parent.width - root.gridLeft) / (root.gridUnit + root.gridGap)))
+                    readonly property int cols: root.gridCols
                     x: root.gridX(index % cols); y: root.gridY(Math.floor(index / cols))
                     width: root.gridUnit; height: root.gridUnit; radius: 22
                     color: Qt.rgba(1, 1, 1, 0.06); border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.28)
