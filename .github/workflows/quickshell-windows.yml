@@ -225,6 +225,7 @@ jobs:
           $cfg = Join-Path $env:USERPROFILE '.config\macshell'
           New-Item -ItemType Directory -Force -Path $cfg | Out-Null
           '{"widgets":[{"id":"t1","name":"Note","onDesktop":true,"x":300,"y":300,"w":220,"h":200,"bg":{"color":"#FFD60A","opacity":1,"radius":18,"border":false},"items":[]}]}' | Set-Content (Join-Path $cfg 'custom-widgets.json')
+          '1' | Set-Content (Join-Path $cfg 'ff-widgets-grid-v2')     # the test widget stays where it is put
           $launcher = Start-Process powershell.exe -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$pkg\FreeForm.ps1`"", '-Force') -PassThru -WindowStyle Hidden
           Start-Sleep -Seconds 40
           # CI's own (maximised) terminal would cover the desktop: minimise everything but FreeForm's panels
