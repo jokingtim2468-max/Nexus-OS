@@ -154,7 +154,7 @@ jobs:
             $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
             $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
             $g = [System.Drawing.Graphics]::FromImage($bmp)
-            $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+            $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size, [System.Drawing.CopyPixelOperation]::SourceCopy -bor [System.Drawing.CopyPixelOperation]::CaptureBlt)
             $bmp.Save("smoke\$name.png", [System.Drawing.Imaging.ImageFormat]::Png)
           }
           function Ipc { Run-Limited "$pkg\bin\qs.exe" (@('ipc', '-vv', '-p', "`"$shell`"", 'call') + $args) smoke\ipc.txt 30 }
@@ -211,8 +211,12 @@ jobs:
           Add-Type -AssemblyName System.Windows.Forms, System.Drawing
           $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
           $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
-          [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+          [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size, [System.Drawing.CopyPixelOperation]::SourceCopy -bor [System.Drawing.CopyPixelOperation]::CaptureBlt)
+          New-Item -ItemType Directory -Force -Path smoke | Out-Null
+          $bmp.Save("smoke\customer-desktop.png", [System.Drawing.Imaging.ImageFormat]::Png)
           $w = $bmp.GetPixel(410, 400); $wp = $bmp.GetPixel([int]($b.Width * 0.8), [int]($b.Height * 0.5))
+          "samples: " + ((0.1, 0.3, 0.5, 0.7, 0.9) | ForEach-Object { $bmp.GetPixel([int]($b.Width * $_), [int]($b.Height * 0.6)) } | ForEach-Object { "($($_.R),$($_.G),$($_.B))" }) -join ' '
+          "── qs warnings"; Get-ChildItem (Join-Path $env:LOCALAPPDATA 'FreeForm\logs') -Filter 'run-*.err.log' | Select-Object -Last 1 | ForEach-Object { Select-String -Path $_.FullName -Pattern 'WARN|ERROR' | Where-Object { $_.Line -notmatch 'Binding loop' } | Select-Object -First 25 | ForEach-Object { $_.Line } }
           "widget pixel: $w   wallpaper pixel: $wp"
           $widgetOk = $w.R -gt 200 -and $w.G -gt 170 -and $w.B -lt 90
           $wallOk = ($wp.R + $wp.G + $wp.B) -gt 40
