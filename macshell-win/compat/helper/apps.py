@@ -82,7 +82,7 @@ def exec_arg(s):
 
 
 # FreeForm's own apps, so Spotlight and Launchpad find them: (name, IPC target, icon: theme name or file in shell/assets)
-OWN = [("Widget Studio", "widgetstudio", "preferences-desktop-theme"), ("Theme Studio", "themestudio", "preferences-desktop-color"),
+OWN = [("Widget Studio", "widgetstudio", "widget-studio.png"), ("Theme Studio", "themestudio", "preferences-desktop-color"),
        ("Files", "finder", "system-file-manager"), ("Settings", "settings", "preferences-system")]
 
 

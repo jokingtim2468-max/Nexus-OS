@@ -982,6 +982,17 @@ Scope {
                             Stepper { visible: root.ci && root.ci.type === "note"; label: I18n.tr("Size"); value: root.ci ? root.ci.size || 15 : 15; onChanged: v => root.updateItem({ size: Math.max(8, v) }) }
                             Text { visible: root.ci && root.ci.type === "note"; width: parent.width; wrapMode: Text.WordWrap; text: I18n.tr("Type into the note on the desktop; it's saved by itself."); color: pal.text2; font.family: root.fam; font.pixelSize: 11 }
                             // clock
+                            Label { visible: root.ci && root.ci.type === "clock"; text: I18n.tr("CLOCK") }
+                            Flow {
+                                visible: root.ci && root.ci.type === "clock"; width: parent.width; spacing: 6
+                                Chip { label: I18n.tr("Analog"); on: !!root.ci && !root.ci.digital; onClicked: root.updateItem({ digital: false }) }
+                                Chip { label: I18n.tr("Digital"); on: !!root.ci && !!root.ci.digital; onClicked: root.updateItem({ digital: true }) }
+                                Chip { label: I18n.tr("Seconds"); on: !!root.ci && root.ci.seconds !== false && (!root.ci.digital || !!root.ci.seconds)
+                                       onClicked: root.updateItem({ seconds: !(root.ci.seconds !== false && (!root.ci.digital || !!root.ci.seconds)) }) }
+                                Chip { visible: !!root.ci && !!root.ci.digital; label: I18n.tr("24-hour"); on: !!root.ci && !!root.ci.h24; onClicked: root.updateItem({ h24: !root.ci.h24 }) }
+                                Chip { visible: !!root.ci && !!root.ci.digital; label: I18n.tr("Date"); on: !!root.ci && !!root.ci.showDate; onClicked: root.updateItem({ showDate: !root.ci.showDate }) }
+                                Chip { visible: !!root.ci && !root.ci.digital; label: I18n.tr("Numbers"); on: !!root.ci && !!root.ci.numbers; onClicked: root.updateItem({ numbers: !root.ci.numbers }) }
+                            }
                             Label { visible: root.ci && root.ci.type === "clock"; text: I18n.tr("DIAL") }
                             Swatches { visible: root.ci && root.ci.type === "clock"; value: root.ci ? root.ci.face || "" : ""; onChanged: c => root.updateItem({ face: c }) }
                             Label { visible: root.ci && root.ci.type === "clock"; text: I18n.tr("SECOND HAND") }

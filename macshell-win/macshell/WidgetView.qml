@@ -220,10 +220,30 @@ Item {
                         width: Math.min(parent.width, parent.height); height: width; radius: width / 2
                         color: it.d.face !== undefined ? (it.d.face || "transparent") : "#FFFFFF"
                     }
+                    // digital clock: big time (12 or 24-hour, seconds optional) and the date if wanted
+                    Column {
+                        visible: it.d.type === "clock" && !!it.d.digital
+                        anchors.centerIn: parent
+                        spacing: 2
+                        readonly property var t: wv.ctx ? wv.ctx.now : new Date()
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: Qt.formatTime(parent.t, (it.d.h24 ? "HH:mm" : "h:mm") + (it.d.seconds ? ":ss" : "") + (it.d.h24 ? "" : " AP"))
+                            color: it.d.face || "white"; font.family: wv.fam; font.weight: Font.DemiBold
+                            font.pixelSize: Math.max(10, Math.min(it.d.h * (it.d.showDate ? 0.42 : 0.6), it.d.w / (it.d.seconds ? 5.2 : 3.8)))
+                        }
+                        Text {
+                            visible: !!it.d.showDate
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: Qt.formatDate(parent.t, "dddd, d MMMM")
+                            color: it.d.face || "white"; opacity: 0.7; font.family: wv.fam
+                            font.pixelSize: Math.max(8, it.d.h * 0.13)
+                        }
+                    }
                     Canvas {
                         id: clk
                         anchors.fill: parent
-                        visible: it.d.type === "clock"
+                        visible: it.d.type === "clock" && !it.d.digital
                         property var t: wv.ctx ? wv.ctx.now : new Date()
                         onTChanged: requestPaint()
                         onPaint: {
@@ -240,7 +260,11 @@ Item {
                             var h = t.getHours() % 12, m = t.getMinutes(), s = t.getSeconds();
                             hand((h + m / 60) * Math.PI / 6, r * 0.5, r * 0.08, col);
                             hand((m + s / 60) * Math.PI / 30, r * 0.72, r * 0.055, col);
-                            hand(s * Math.PI / 30, r * 0.8, r * 0.02, it.d.hand || "#FF9F0A");
+                            if (it.d.seconds !== false) hand(s * Math.PI / 30, r * 0.8, r * 0.02, it.d.hand || "#FF9F0A");
+                            if (it.d.numbers) {
+                                c.fillStyle = col; c.textAlign = "center"; c.textBaseline = "middle"; c.font = "600 " + Math.round(r * 0.18) + "px sans-serif";
+                                for (var n = 1; n <= 12; n++) { var na = n * Math.PI / 6; c.fillText(String(n), cx + Math.sin(na) * r * 0.62, cy - Math.cos(na) * r * 0.62); }
+                            }
                             c.fillStyle = it.d.hand || "#FF9F0A"; c.beginPath(); c.arc(cx, cy, r * 0.05, 0, Math.PI * 2); c.fill();
                         }
                     }

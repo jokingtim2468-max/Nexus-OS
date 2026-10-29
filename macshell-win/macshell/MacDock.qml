@@ -4581,7 +4581,12 @@ Scope {
     }
 
     // MacShell's own windows all have the app id "org.quickshell": the Clock window counts as the Clock app
-    function appOf(tl) { return (tl.appId === "org.quickshell" && tl.title === "Clock") ? "macshell-clock" : tl.appId; }
+    readonly property var ffOwnWindows: ({ "Widget Studio": "ff-freeform_widget_studio", "Theme Studio": "ff-freeform_theme_studio",
+                                           "File Explorer": "ff-freeform_files", "macshell Settings": "ff-freeform_settings" })
+    function appOf(tl) {
+        if (Qt.platform.os === "windows" && String(tl.appId).toLowerCase() === "qs") return ffOwnWindows[tl.title] || "";
+        return (tl.appId === "org.quickshell" && tl.title === "Clock") ? "macshell-clock" : tl.appId;
+    }
     function windowsFor(key) {
         var out = [];
         var tls = ToplevelManager.toplevels.values;

@@ -308,6 +308,15 @@ EDITS = {
                             }
                         }
                     }"""),
+        # Windows: FreeForm's own windows all come from qs.exe; match each to its app by title, so Widget Studio,
+        # Theme Studio, Files and Settings show a running dot on their Dock icon (and a click brings them back)
+        ("""    function appOf(tl) { return (tl.appId === "org.quickshell" && tl.title === "Clock") ? "macshell-clock" : tl.appId; }""",
+         """    readonly property var ffOwnWindows: ({ "Widget Studio": "ff-freeform_widget_studio", "Theme Studio": "ff-freeform_theme_studio",
+                                           "File Explorer": "ff-freeform_files", "macshell Settings": "ff-freeform_settings" })
+    function appOf(tl) {
+        if (Qt.platform.os === "windows" && String(tl.appId).toLowerCase() === "qs") return ffOwnWindows[tl.title] || "";
+        return (tl.appId === "org.quickshell" && tl.title === "Clock") ? "macshell-clock" : tl.appId;
+    }"""),
         # ── Trash = the Windows Recycle Bin ──
         ('''        if (item.special === "trash") {
             // the file manager first''',
