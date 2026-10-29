@@ -393,16 +393,12 @@ void WinPanelWindow::updateAboveWindows() {
 	if (this->window == nullptr) return;
 
 	auto above = this->bAboveWindows.value();
-	this->window->setFlag(Qt::WindowStaysOnBottomHint, !above);
+	// No Qt::WindowStaysOnBottomHint: Qt implements it with HWND_BOTTOM, which is *under* Explorer's
+	// desktop window, so desktop panels were hidden behind it. keepOnDesktop() places them instead.
+	this->window->setFlag(Qt::WindowStaysOnBottomHint, false);
 	this->window->setFlag(Qt::WindowStaysOnTopHint, above);
-}
 
-void WinPanelWindow::setLowest(bool lowest) {
-	if (lowest == this->mLowest) return;
-	this->mLowest = lowest;
-	if (lowest) {
-		// Windows reorders "stay on bottom" windows among themselves when one is clicked;
-		// pushing the background back down keeps desktop widgets visible above it.
+	if (!above) {
 		this->lowestTimer.setInterval(500);
 		QObject::connect(&this->lowestTimer, &QTimer::timeout, this, &WinPanelWindow::pushToBottom, Qt::UniqueConnection);
 		this->lowestTimer.start();
@@ -412,10 +408,45 @@ void WinPanelWindow::setLowest(bool lowest) {
 	}
 }
 
+void WinPanelWindow::setLowest(bool lowest) {
+	if (lowest == this->mLowest) return;
+	this->mLowest = lowest;
+	this->pushToBottom();
+}
+
+namespace {
+HWND gBackgroundPanel = nullptr; // FreeForm's desktop layer (the "lowest" panel)
+
+// Place hwnd directly above anchor in the z-order (below every app window that is above anchor).
+void placeAbove(HWND hwnd, HWND anchor) {
+	if (anchor == nullptr || hwnd == anchor) return;
+	auto* prev = GetWindow(anchor, GW_HWNDPREV); // the window right above the anchor
+	if (prev == hwnd) return;                    // already there
+	SetWindowPos(
+	    hwnd,
+	    prev != nullptr ? prev : HWND_TOP,
+	    0,
+	    0,
+	    0,
+	    0,
+	    SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER
+	);
+}
+} // namespace
+
+// Desktop panels (below the app windows): the desktop layer right above Explorer's desktop
+// window, widgets right above the desktop layer. Re-checked twice a second, since clicking
+// one or Explorer redrawing its desktop can reorder them.
 void WinPanelWindow::pushToBottom() {
 	if (this->window == nullptr || this->window->handle() == nullptr || !this->window->isVisible()) return;
 	auto* hwnd = reinterpret_cast<HWND>(this->window->winId()); // NOLINT
-	SetWindowPos(hwnd, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+	auto* desktop = FindWindowW(L"Progman", nullptr);
+	if (this->mLowest) {
+		gBackgroundPanel = hwnd;
+		placeAbove(hwnd, desktop);
+	} else {
+		placeAbove(hwnd, gBackgroundPanel != nullptr && IsWindow(gBackgroundPanel) ? gBackgroundPanel : desktop);
+	}
 }
 
 void WinPanelWindow::updateFocusable() {
