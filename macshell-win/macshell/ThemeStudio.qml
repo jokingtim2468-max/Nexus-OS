@@ -34,8 +34,18 @@ Scope {
     function open(index) {
         editing = index === undefined ? -1 : index;
         draft = editing >= 0 ? JSON.parse(JSON.stringify(themes[editing])) : newDraft();
+        if (!win.visible) placeWindow();
         win.visible = true; win.raise(); win.requestActivate();
         listShared();
+    }
+    // open fully on screen, below the menu bar and above the Dock (smaller screens get a smaller window)
+    function placeWindow() {
+        var s = Quickshell.screens.length ? Quickshell.screens[0] : null; if (!s) return;
+        var top = 34, bottom = 90;
+        win.width = Math.min(win.width, s.width - 40);
+        win.height = Math.min(win.height, s.height - top - bottom);
+        win.x = Math.round((s.width - win.width) / 2);
+        win.y = Math.round(top + (s.height - top - bottom - win.height) / 2);
     }
     function close() { win.visible = false; }
     property string previewTab: "desktop"         // desktop | spotify
@@ -154,7 +164,7 @@ Scope {
         id: win
         title: "Theme Studio"
         width: 1120; height: 720
-        minimumWidth: 940; minimumHeight: 600
+        minimumWidth: 900; minimumHeight: 560
         visible: false
         color: "transparent"
         flags: Qt.Window | Qt.FramelessWindowHint
@@ -236,7 +246,7 @@ Scope {
                 }
                 MouseArea { x: 16; y: 16; width: 20; height: 18; onClicked: win.visible = false }
                 Flickable {
-                    x: 20; y: 50; width: parent.width - 40; height: parent.height - 50 - 64
+                    x: 20; y: 50; width: parent.width - 40; height: parent.height - 50 - 64 - exportFlow.height - 12
                     contentHeight: ctl.height; clip: true
                     Column {
                         id: ctl
@@ -362,6 +372,7 @@ Scope {
                 }
                 // share: export this theme, import ones from Documents/FreeForm Themes
                 Flow {
+                    id: exportFlow
                     anchors.bottom: parent.bottom; anchors.bottomMargin: 62; x: 20; width: parent.width - 40
                     spacing: 6
                     Btn { label: I18n.tr("Export\u2026"); onClicked: root.exportTheme() }
